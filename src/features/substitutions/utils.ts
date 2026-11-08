@@ -1,17 +1,10 @@
 import { ApiError } from '@/lib/api-client'
-import type { EnumMeta } from '@/lib/enums'
-import type { SubstitutionConflict, SubstitutionRecord } from '@/types/entities'
+import { SUBSTITUTION_CONFLICT_META, SUBSTITUTION_RECORD_META } from '@/lib/enums'
+import type { SubstitutionConflict } from '@/types/entities'
 
-export const RECORD_META: Record<SubstitutionRecord['status'], EnumMeta> = {
-  ACTIVE: { label: 'Aktif', tone: 'success' },
-  CANCELLED: { label: 'Dibatalkan', tone: 'neutral' },
-}
-
-export const CONFLICT_META: Record<SubstitutionConflict['type'], EnumMeta> = {
-  TEACHER_BUSY: { label: 'Bentrok jadwal', tone: 'warning' },
-  TEACHER_ABSENT: { label: 'Berhalangan', tone: 'danger' },
-  SLOT_ALREADY_HANDLED: { label: 'Sudah ditangani', tone: 'neutral' },
-}
+/** Alias lokal untuk meta bersama di lib/enums. */
+export const RECORD_META = SUBSTITUTION_RECORD_META
+export const CONFLICT_META = SUBSTITUTION_CONFLICT_META
 
 /** 'jam ke-1–2' / 'jam ke-3' */
 export function periodLabel(start: number, end: number) {

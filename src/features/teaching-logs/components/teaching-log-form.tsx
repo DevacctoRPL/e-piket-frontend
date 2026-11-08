@@ -145,7 +145,7 @@ export function TeachingLogForm({
       )
       reset(getValues())
       if (submit || correctionReason) {
-        const back = saved.date === todayISO() ? '/jurnal-mengajar' : `/jurnal-mengajar?tanggal=${saved.date}`
+        const back = saved.date === todayISO() ? '/jurnal-mengajar' : `/jurnal-mengajar?date=${saved.date}`
         setPendingNav(isOwner ? back : `/jurnal-mengajar/${encodeURIComponent(saved.id)}`)
       } else if (!log) {
         setPendingNav(`/jurnal-mengajar/${encodeURIComponent(saved.id)}`)

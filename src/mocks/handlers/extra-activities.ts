@@ -386,6 +386,12 @@ export const extraActivitiesHandlers: HttpHandler[] = [
 
       const allowed = new Set(a.classIds)
       const roster = new Map(rosterFor(a.classIds, a.date).map((s) => [s.id, s]))
+      // Status nonaktif di Pengaturan ditolak, kecuali status tersimpan peserta itu sendiri.
+      const statusCfg = db().settings.attendanceStatuses
+      const activeStatuses = new Set<AttendanceStatus>(
+        statusCfg?.length ? statusCfg.filter((s) => s.active).map((s) => s.code) : ATTENDANCE_STATUSES,
+      )
+      const storedStatus = new Map(a.participants.map((p) => [p.studentId, p.status]))
       const details: Record<string, string> = {}
       const seen = new Set<ID>()
       const next: ExtraActivity['participants'] = []
@@ -413,6 +419,10 @@ export const extraActivitiesHandlers: HttpHandler[] = [
         seen.add(studentId)
         if (!ATTENDANCE_STATUSES.includes(status)) {
           details[`participants.${i}.status`] = 'required'
+          return
+        }
+        if (!activeStatuses.has(status) && storedStatus.get(studentId) !== status) {
+          details[`participants.${i}.status`] = 'Status ini dinonaktifkan di pengaturan sekolah.'
           return
         }
         next.push({ studentId, studentName: student.name, classId: student.classId, status })

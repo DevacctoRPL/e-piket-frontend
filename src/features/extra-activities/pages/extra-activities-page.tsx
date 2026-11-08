@@ -141,9 +141,12 @@ export function ExtraActivitiesPage() {
     [shiftName],
   )
 
+  // /reports/export mewajibkan rentang tanggal: pakai rentang default bila filter tanggal dikosongkan.
+  const exportFrom = params.dateFrom ?? defaults.dateFrom
+  const exportTo = params.dateTo ?? defaults.dateTo
   const exportFilters = {
-    dateFrom: params.dateFrom,
-    dateTo: params.dateTo,
+    dateFrom: exportFrom,
+    dateTo: exportTo,
     classId: params.classId,
     type: params.type,
     instructorTeacherId: params.instructorTeacherId,
@@ -161,7 +164,7 @@ export function ExtraActivitiesPage() {
             <ExportMenu
               report="extra-activities"
               filters={exportFilters}
-              period={`${f.dateFrom}_${f.dateTo}`}
+              period={exportFrom === exportTo ? exportFrom : `${exportFrom}_${exportTo}`}
             />
             {canWrite && (
               <Button onClick={() => setCreateOpen(true)} className="hidden sm:inline-flex">

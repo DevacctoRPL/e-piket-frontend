@@ -22,5 +22,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
+    // Test halaman merender UI lengkap; saat suite berjalan paralel, render pertama per file bisa > 5 dtk.
+    testTimeout: 20_000,
   },
 })

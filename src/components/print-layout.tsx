@@ -16,6 +16,7 @@ export function PrintDocument({
   meta,
   children,
   signatures,
+  documentDate,
   className,
 }: {
   title: string
@@ -25,6 +26,8 @@ export function PrintDocument({
   children: ReactNode
   /** Kolom pengesahan, mis. [{ role: 'Guru Piket', name: 'Agus' }] */
   signatures?: { role: string; name?: string | null; nip?: string | null; place?: string }[]
+  /** Tanggal dokumen untuk baris tempat/tanggal pengesahan (default: hari ini). */
+  documentDate?: string
   className?: string
 }) {
   const settings = useSettings()
@@ -65,7 +68,7 @@ export function PrintDocument({
         <footer className="mt-10 grid gap-8 break-inside-avoid" style={{ gridTemplateColumns: `repeat(${signatures.length}, minmax(0, 1fr))` }}>
           {signatures.map((sig, i) => (
             <div key={i} className="text-center text-sm">
-              <p>{i === signatures.length - 1 ? `${sig.place ?? s?.city ?? ''}, ${formatDateLong(todayISO())}` : ' '}</p>
+              <p>{i === signatures.length - 1 ? `${sig.place ?? s?.city ?? ''}, ${formatDateLong(documentDate ?? todayISO())}` : ' '}</p>
               <p>{sig.role}</p>
               <div className="h-16" />
               <p className="font-semibold underline">{sig.name ?? '(..............................)'}</p>

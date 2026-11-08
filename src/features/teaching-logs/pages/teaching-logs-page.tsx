@@ -17,12 +17,14 @@ export function TeachingLogsPage() {
   const [sp, setSp] = useSearchParams()
   const tab: Tab = canWrite && sp.get('tab') !== 'riwayat' ? 'hari-ini' : 'riwayat'
   const today = todayISO()
-  const date = sp.get('tanggal') ?? today
+  // ?date= (dipakai tautan dashboard/tugas); ?tanggal= dipertahankan untuk tautan lama.
+  const date = sp.get('date') ?? sp.get('tanggal') ?? today
 
   const setParam = (key: string, value: string | null) =>
     setSp(
       (prev) => {
         const next = new URLSearchParams(prev)
+        if (key === 'date') next.delete('tanggal')
         if (value === null) next.delete(key)
         else next.set(key, value)
         return next
@@ -54,7 +56,7 @@ export function TeachingLogsPage() {
           <TabsContent value="hari-ini" className="grid gap-4">
             <ContextHeader
               date={date}
-              onDateChange={(d) => setParam('tanggal', d === today ? null : d)}
+              onDateChange={(d) => setParam('date', d === today ? null : d)}
             />
             <TodaySchedule date={date} />
           </TabsContent>

@@ -32,7 +32,11 @@ export function DutyAgendaStatus({
             {agendas.map((a) => (
               <li key={a.shiftCode}>
                 <Link
-                  to={withQuery('/agenda-piket', { date, shift: a.shiftCode })}
+                  to={
+                    a.id
+                      ? `/agenda-piket/${encodeURIComponent(a.id)}`
+                      : withQuery('/agenda-piket', { dateFrom: date, dateTo: date, shiftCode: a.shiftCode })
+                  }
                   className="group flex items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                 >
                   <span className="min-w-0 flex-1 text-sm font-medium">Shift {shiftName(a.shiftCode)}</span>

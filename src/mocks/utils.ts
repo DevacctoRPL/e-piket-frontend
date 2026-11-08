@@ -187,6 +187,13 @@ export function sortBy<T>(items: T[], sort: string | null, fallback?: keyof T): 
   })
 }
 
+function idempotencyScope(request: Request, key: string) {
+  const header = request.headers.get('Authorization') ?? ''
+  const token = header.startsWith('Bearer ') ? header.slice(7) : ''
+  const userId = (token && db().tokens[token]?.userId) || 'anon'
+  return `${request.method} ${new URL(request.url).pathname} ${userId} ${key}`
+}
+
 /**
  * Bungkus handler mutasi dengan Idempotency-Key (PRD §10.8, AC-03):
  * request ulang dengan kunci yang sama mengembalikan response pertama tanpa efek samping baru.
@@ -195,7 +202,9 @@ export async function withIdempotency(
   request: Request,
   fn: () => Promise<Response> | Response,
 ): Promise<Response> {
-  const key = request.headers.get('Idempotency-Key')
+  const rawKey = request.headers.get('Idempotency-Key')
+  // Kunci dibatasi per method + path + user: kunci yang sama di endpoint/user lain tidak memutar ulang response.
+  const key = rawKey ? idempotencyScope(request, rawKey) : null
   if (key) {
     const cached = db().idempotency[key]
     if (cached) {
@@ -256,7 +265,11 @@ export function pick<T extends object, K extends keyof T>(obj: T, keys: K[]): Re
   return out
 }
 
-/** Latensi realistis untuk mock. */
+/**
+ * Latensi realistis untuk mock. Di Vitest (MODE=test) langsung kembali agar test komponen cepat;
+ * timeout eksplisit di test tetap aman (hanya batas atas).
+ */
 export async function latency(ms?: number) {
+  if (import.meta.env.MODE === 'test') return
   await mswDelay(ms ?? 150 + Math.floor(Math.random() * 250))
 }

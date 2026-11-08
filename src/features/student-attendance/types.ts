@@ -2,31 +2,27 @@ import type {
   AttendanceStatus,
   AttendanceSummaryCounts,
   BulkAttendanceRequest,
+  CreateAttendanceSessionRequest,
   ID,
   ISODate,
-  RecordStatus,
+  PatchAttendanceRecordRequest,
   RosterRow,
-  ShiftCode,
   StudentAttendanceRecord,
   StudentAttendanceSession,
-  WallTime,
+} from '@/types/entities'
+
+// Kontrak request/response ada di src/types/entities.ts (dipakai bersama mock handler / backend Go).
+export type {
+  StudentHistoryRecord,
+  StudentHistoryResponse,
+  StudentHistorySummary,
 } from '@/types/entities'
 
 /** POST /student-attendance/sessions */
-export interface CreateSessionRequest {
-  date: ISODate
-  shiftCode: ShiftCode
-  classId: ID
-  sessionNumber?: number
-}
+export type CreateSessionRequest = CreateAttendanceSessionRequest
 
 /** PUT /student-attendance/sessions/:id/records:bulk (PRD §10.7). */
-export interface BulkSaveRequest extends BulkAttendanceRequest {
-  /** true = simpan lalu finalisasi sesi (status FINAL). */
-  submit?: boolean
-  /** Wajib bila sesi sudah FINAL dan pengguna memiliki hak koreksi. */
-  correctionReason?: string | null
-}
+export type BulkSaveRequest = BulkAttendanceRequest
 
 export interface BulkSaveResponse {
   session: StudentAttendanceSession
@@ -34,16 +30,7 @@ export interface BulkSaveResponse {
 }
 
 /** PATCH /student-attendance/records/:id — koreksi satu record. */
-export interface PatchRecordRequest {
-  status?: AttendanceStatus
-  reason?: string | null
-  note?: string | null
-  arrivalTime?: WallTime | null
-  /** Wajib bila sesi FINAL (PRD §9.2). */
-  correctionReason?: string | null
-  /** Versi record yang dilihat klien. */
-  version: number
-}
+export type PatchRecordRequest = PatchAttendanceRecordRequest
 
 export interface PatchRecordResponse {
   record: StudentAttendanceRecord
@@ -55,33 +42,6 @@ export interface StudentHistoryParams {
   studentId: ID
   dateFrom?: ISODate
   dateTo?: ISODate
-}
-
-export interface StudentHistoryRecord {
-  recordId: ID
-  sessionId: ID
-  date: ISODate
-  shiftCode: ShiftCode
-  sessionLabel: string
-  sessionStatus: RecordStatus
-  status: AttendanceStatus
-  arrivalTime: WallTime | null
-  reason: string | null
-  note: string | null
-}
-
-export interface StudentHistorySummary extends Record<AttendanceStatus, number> {
-  total: number
-  /** Persentase kehadiran (Hadir + Terlambat) terhadap total record, 0–100, 1 desimal. */
-  presentRate: number
-}
-
-export interface StudentHistoryResponse {
-  student: { id: ID; nis: string; name: string; classId: ID; className: string }
-  dateFrom: ISODate
-  dateTo: ISODate
-  records: StudentHistoryRecord[]
-  summary: StudentHistorySummary
 }
 
 /** Draft per baris di editor (state lokal). */

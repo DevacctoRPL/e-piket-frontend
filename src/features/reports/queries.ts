@@ -1,6 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { masterKeys } from '@/features/master-data/lookups'
-import { MASTER_STALE_TIME } from '@/lib/query-client'
+import { useStudents } from '@/features/master-data/lookups'
 import { reportsApi, type ReportEndpoint } from './api'
 import type { ReportQuery } from './types'
 
@@ -27,10 +26,5 @@ export function useReport<E extends ReportEndpoint>(endpoint: E, query: ReportQu
 
 /** Siswa satu kelas (data master) untuk pilihan filter. */
 export function useClassStudents(classId: string) {
-  return useQuery({
-    queryKey: masterKeys.students({ classId, pageSize: 200, scope: 'report-filter' }),
-    queryFn: ({ signal }) => reportsApi.studentsOfClass(classId, signal),
-    enabled: !!classId,
-    staleTime: MASTER_STALE_TIME,
-  })
+  return useStudents({ classId })
 }

@@ -17,7 +17,7 @@ import {
   TEACHING_EXECUTION_META,
   TEACHING_PRESENCE_META,
 } from '@/lib/enums'
-import { toCSV } from '@/lib/export'
+import { REPORT_FILE_SLUGS, toCSV } from '@/lib/export'
 import type { ReportSlug } from '@/features/reports/types'
 import { ATTENDANCE_STATUSES, TEACHER_ATTENDANCE_STATUSES } from '@/types/entities'
 import { db } from '../db'
@@ -45,16 +45,8 @@ export interface ExportTable {
   footer: Cell[][]
 }
 
-export const REPORT_FILE_SLUG: Record<ReportSlug, string> = {
-  'student-attendance': 'rekap-absensi-siswa',
-  absentees: 'daftar-siswa-tidak-hadir',
-  dismissals: 'rekap-kepulangan-siswa',
-  'teacher-attendance': 'rekap-absensi-guru',
-  'duty-agendas': 'rekap-agenda-piket',
-  'teaching-logs': 'rekap-jurnal-mengajar',
-  substitutions: 'rekap-jam-kosong',
-  'extra-activities': 'rekap-kegiatan-tambahan',
-}
+/** Nama jenis laporan untuk nama file (sumber tunggal: lib/export). */
+export const REPORT_FILE_SLUG = REPORT_FILE_SLUGS as Readonly<Record<ReportSlug, string>>
 
 const shiftName = (code: string) => db().shifts.find((s) => s.code === code)?.name ?? code
 const time = (ts: string | null | undefined) => (ts ? wallTimeOf(ts) : '')
@@ -78,8 +70,11 @@ function filterSummary(p: ReportParams): string {
   if (p.teacherId) parts.push(`Guru: ${teacherName(p.teacherId)}`)
   if (p.subjectId) parts.push(`Mapel: ${subjectName(p.subjectId)}`)
   if (p.studentId) parts.push('Siswa: (dipilih)')
-  if (p.status) parts.push(`Status: ${p.status}`)
+  if (p.statuses.length > 0) parts.push(`Status: ${p.statuses.join(', ')}`)
   if (p.type) parts.push(`Jenis: ${p.type}`)
+  if (p.instructorTeacherId) parts.push(`Pengampu: ${teacherName(p.instructorTeacherId)}`)
+  if (p.contacted) parts.push(p.contacted === 'true' ? 'Sudah dihubungi' : 'Belum dihubungi')
+  if (p.includeDraft) parts.push('Termasuk sesi Draft')
   return parts.join('; ') || 'Semua'
 }
 

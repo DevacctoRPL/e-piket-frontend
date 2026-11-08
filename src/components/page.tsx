@@ -1,5 +1,6 @@
 import { AlertTriangle, Inbox, RefreshCw, WifiOff } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/misc'
 import { ApiError } from '@/lib/api-client'
@@ -174,7 +175,7 @@ export function QueryBoundary<T>({
   return <>{children(query.data)}</>
 }
 
-/** Kartu statistik ringkas yang dapat ditelusuri (FR-RPT-01). */
+/** Kartu statistik ringkas yang dapat ditelusuri (FR-RPT-01). `href` dinavigasi via router (SPA, tanpa reload). */
 export function StatCard({
   label,
   value,
@@ -217,9 +218,9 @@ export function StatCard({
     'flex flex-col gap-1.5 rounded-xl border bg-card p-4 text-left shadow-xs transition-[box-shadow,border-color] duration-150'
   if (href) {
     return (
-      <a href={href} className={cn(cls, 'hover:border-primary/40 hover:shadow-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none')}>
+      <Link to={href} className={cn(cls, 'hover:border-primary/40 hover:shadow-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none')}>
         {content}
-      </a>
+      </Link>
     )
   }
   if (onClick) {

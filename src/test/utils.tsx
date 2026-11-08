@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
-import { AuthProvider } from '@/features/auth/auth-context'
+import { AuthProvider, useAuth } from '@/features/auth/auth-context'
 import { api } from '@/lib/api-client'
 import { authToken } from '@/lib/auth-token'
 import type { DataResponse } from '@/types/api'
@@ -32,6 +32,15 @@ export function createTestQueryClient() {
   })
 }
 
+/**
+ * Meniru RequireAuth di aplikasi: halaman baru dirender setelah sesi selesai dipulihkan
+ * (status bukan lagi 'booting'), sehingga useCurrentUser() aman dipanggil setelah loginAs().
+ */
+function SessionReady({ children }: { children: ReactNode }) {
+  const { status } = useAuth()
+  return status === 'booting' ? <p>memuat sesi</p> : <>{children}</>
+}
+
 export function renderWithProviders(
   ui: ReactElement,
   {
@@ -43,7 +52,9 @@ export function renderWithProviders(
   const router = createMemoryRouter([{ path, element: ui }], { initialEntries: [route] })
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <SessionReady>{children}</SessionReady>
+      </AuthProvider>
     </QueryClientProvider>
   )
   return { router, queryClient, ...render(<RouterProvider router={router} />, { wrapper: Wrapper }) }

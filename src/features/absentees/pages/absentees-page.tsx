@@ -54,12 +54,15 @@ export function AbsenteesPage() {
     [page],
   )
 
+  // Sama dengan filter layar (kecuali kata kunci nama — tidak dikirim demi privasi, PRD §12.2).
   const exportFilters = {
     dateFrom: baseQuery.dateFrom,
     dateTo: baseQuery.dateTo,
     classId: baseQuery.classId,
     shiftCode: baseQuery.shiftCode,
     status: baseQuery.status,
+    contacted: baseQuery.contacted,
+    includeDraft: baseQuery.includeDraft,
   }
   const printHref = `/siswa-tidak-hadir/cetak${printSearch(sp)}`
   const summary = summaryQuery.data

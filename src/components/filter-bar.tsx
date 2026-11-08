@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils'
 /**
  * Filter disimpan di URL search params agar bertahan saat berpindah tab/halaman dan dapat dibagikan
  * (PRD §8.1). JANGAN menaruh data pribadi siswa (nama, telepon) di URL (PRD §12.2) —
- * gunakan ID atau kata kunci pencarian yang tidak disimpan (lihat `persist: false` di SearchInput).
+ * gunakan ID, dan simpan kata kunci pencarian nama di state lokal (useState) lalu oper ke <SearchInput>
+ * — SearchInput sendiri tidak pernah menulis ke URL.
  */
 export function useFilters<T extends Record<string, string>>(defaults: T) {
   const [sp, setSp] = useSearchParams()
@@ -124,7 +125,10 @@ export function FilterDate({
   )
 }
 
-/** Input pencarian dengan debounce. */
+/**
+ * Input pencarian dengan debounce. Komponen terkontrol yang TIDAK menyentuh URL: nilai dari useFilters
+ * akan masuk URL, sedangkan nilai dari useState tetap di memori (wajib untuk nama siswa, PRD §12.2).
+ */
 export function SearchInput({
   value,
   onChange,

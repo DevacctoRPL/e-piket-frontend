@@ -10,11 +10,31 @@ import { ProfilePage } from './profile-page'
 
 /** Di aplikasi, RequireAuth menunggu sesi; di test kita tiru dengan gerbang sederhana. */
 function Gate() {
-  const { status } = useAuth()
-  return status === 'authenticated' ? <ProfilePage /> : <p>memuat sesi</p>
+  const { status, logout } = useAuth()
+  return status === 'authenticated' ? (
+    <>
+      <ProfilePage />
+      <button type="button" onClick={() => void logout()}>
+        Keluar Sesi Uji
+      </button>
+    </>
+  ) : (
+    <p>memuat sesi</p>
+  )
 }
 
 describe('ProfilePage', () => {
+  it('clears sessionStorage drafts on logout (FR-AUTH-03)', async () => {
+    await loginAs('piket')
+    sessionStorage.setItem('epiket-att-draft:ses_test', '{"edits":{}}')
+    const user = userEvent.setup()
+    renderWithProviders(<Gate />, { route: '/profil', path: '/profil' })
+    expect(await screen.findByText('@piket', undefined, { timeout: 5000 })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Keluar Sesi Uji' }))
+    await waitFor(() => expect(sessionStorage.getItem('epiket-att-draft:ses_test')).toBeNull())
+  })
+
   it('shows account + teacher info and saves name/email edits', async () => {
     await loginAs('walikelas')
     const user = userEvent.setup()

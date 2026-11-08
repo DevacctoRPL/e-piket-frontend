@@ -25,7 +25,6 @@ import { DutyAgendaStatus } from '../components/duty-agenda-status'
 import { PendingTasks } from '../components/pending-tasks'
 import { TodayCard } from '../components/today-card'
 import { useDashboardSummary } from '../queries'
-import { useSpaLinks } from '../use-spa-links'
 import { formatPercent, greeting, markedCount, percent, presentCount, withQuery } from '../utils'
 
 /** Dashboard berbasis peran (PRD §8 Dashboard, FR-RPT-01). */
@@ -138,7 +137,6 @@ function DashboardContent({
   stale: boolean
 }) {
   const { can } = useAuth()
-  const onLinkClick = useSpaLinks()
   const me = summary.me
   const sa = summary.studentAttendance
   const ta = summary.teacherAttendance
@@ -190,7 +188,7 @@ function DashboardContent({
         hint={`S ${sa.counts.SICK} · I ${sa.counts.PERMISSION} · A ${sa.counts.ABSENT}`}
         href={
           can('absentees:read')
-            ? withQuery('/siswa-tidak-hadir', { dateFrom: date, dateTo: date, shift })
+            ? withQuery('/siswa-tidak-hadir', { dateFrom: date, dateTo: date, shiftCode: shift })
             : undefined
         }
       />
@@ -265,7 +263,6 @@ function DashboardContent({
   return (
     <div
       className={cn('grid gap-5 transition-opacity lg:grid-cols-3', stale && 'opacity-60')}
-      onClick={onLinkClick}
     >
       {me && (
         <div className="lg:col-span-1">

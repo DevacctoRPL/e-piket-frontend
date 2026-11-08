@@ -29,6 +29,20 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('Idempotency-Key dibatasi per method + path + user', () => {
+  it('kunci yang sama di endpoint lain tidak memutar ulang response sebelumnya', async () => {
+    const today = todayISO()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(combineDateTime(today, '07:05')))
+    await loginAs('guru')
+    const inRes = await api.post<DataResponse<TeacherAttendance>>('/teacher-attendance/check-in', {}, { idempotencyKey: 'shared-key' })
+    vi.setSystemTime(new Date(combineDateTime(today, '12:30')))
+    const outRes = await api.post<DataResponse<TeacherAttendance>>('/teacher-attendance/check-out', {}, { idempotencyKey: 'shared-key' })
+    expect(outRes.data.checkOutAt).toBe(combineDateTime(today, '12:30'))
+    expect(inRes.data.checkOutAt).toBeNull()
+  })
+})
+
 describe('aturan keterlambatan (FR-TCH-01)', () => {
   it('menghitung menit terlambat dari batas toleransi', () => {
     const d = '2026-11-09'

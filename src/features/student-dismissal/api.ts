@@ -1,6 +1,6 @@
 import { api } from '@/lib/api-client'
 import type { DataResponse, ListResponse } from '@/types/api'
-import type { ID, ISODate, ISODateTime, Student, StudentDismissal } from '@/types/entities'
+import type { ID, ISODate, ISODateTime, StudentDismissal } from '@/types/entities'
 import type {
   CorrectDismissalInput,
   CreateDismissalInput,
@@ -40,10 +40,4 @@ export const dismissalApi = {
 
   remove: (id: ID, reason: string) =>
     api.delete<null>(`/student-dismissals/${encodeURIComponent(id)}`, { body: { reason } }),
-
-  /** Daftar siswa aktif satu kelas untuk pemilihan di formulir. */
-  studentsOfClass: (classId: ID, { signal }: Opts = {}) =>
-    api
-      .get<ListResponse<Student>>('/students', { classId, active: 'true', pageSize: 200, sort: 'name' }, { signal })
-      .then((r) => r.data),
 }

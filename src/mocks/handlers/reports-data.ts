@@ -31,6 +31,7 @@ import type {
 import {
   ATTENDANCE_STATUSES,
   DISMISSAL_TYPES,
+  RECORD_STATUSES,
   type AbsenteeRow,
   TEACHER_ATTENDANCE_STATUSES,
   type AttendanceStatus,
@@ -70,6 +71,8 @@ import {
 
 /* ------------------------------------------------------------------ query parsing */
 
+const EXTRA_ACTIVITY_TYPES = ['COURSE', 'EXTRA_HOURS', 'OTHER'] as const
+
 export interface ReportParams {
   dateFrom: ISODate
   dateTo: ISODate
@@ -79,7 +82,15 @@ export interface ReportParams {
   teacherId: ID | null
   subjectId: ID | null
   status: string | null
+  /** Semua nilai status (?status=A&status=B atau ?status=A,B) — laporan siswa tidak hadir mendukung multi-status. */
+  statuses: string[]
   type: string | null
+  /** Ekspor kegiatan tambahan: filter pengampu. */
+  instructorTeacherId: ID | null
+  /** Ekspor siswa tidak hadir: 'true' = sudah dihubungi, 'false' = belum. */
+  contacted: 'true' | 'false' | null
+  /** Ekspor siswa tidak hadir: sertakan sesi Draft. */
+  includeDraft: boolean
   groupBy: AttendanceGroupBy
 }
 
@@ -114,7 +125,12 @@ export function parseReportParams(sp: URLSearchParams): ReportParams {
   if (Object.keys(details).length > 0) {
     throw errors.validation(details, 'Filter laporan tidak valid.')
   }
+  const contactedRaw = sp.get('contacted')
+  if (contactedRaw && contactedRaw !== 'true' && contactedRaw !== 'false') {
+    throw errors.validation({ contacted: 'invalid' }, 'Filter laporan tidak valid.')
+  }
   const opt = (k: string) => sp.get(k) || null
+  const statuses = [...new Set(sp.getAll('status').flatMap((v) => v.split(',')).map((v) => v.trim()).filter(Boolean))]
   return {
     dateFrom,
     dateTo,
@@ -123,14 +139,19 @@ export function parseReportParams(sp: URLSearchParams): ReportParams {
     studentId: opt('studentId'),
     teacherId: opt('teacherId'),
     subjectId: opt('subjectId'),
-    status: opt('status'),
+    status: statuses[0] ?? null,
+    statuses,
     type: opt('type'),
+    instructorTeacherId: opt('instructorTeacherId'),
+    contacted: contactedRaw === 'true' || contactedRaw === 'false' ? contactedRaw : null,
+    includeDraft: sp.get('includeDraft') === 'true',
     groupBy: groupByRaw as AttendanceGroupBy,
   }
 }
 
-function assertEnum(field: string, value: string | null, allowed: readonly string[]) {
-  if (value && !allowed.includes(value)) throw errors.validation({ [field]: 'invalid' }, 'Filter laporan tidak valid.')
+function assertEnum(field: string, value: string | null | readonly string[], allowed: readonly string[]) {
+  const values = value === null ? [] : typeof value === 'string' ? [value] : value
+  if (values.some((v) => !allowed.includes(v))) throw errors.validation({ [field]: 'invalid' }, 'Filter laporan tidak valid.')
 }
 
 const inRange = (date: ISODate, p: ReportParams) => date >= p.dateFrom && date <= p.dateTo
@@ -264,10 +285,11 @@ export function buildAttendanceReport(user: AuthedUser, p: ReportParams): Attend
 
 export function buildAbsenteesReport(user: AuthedUser, p: ReportParams): AbsenteesReport {
   requirePermission(user, 'absentees:read')
-  assertEnum('status', p.status, NON_PRESENT_STATUSES)
-  const valid = sessionsInScope(user, p).filter((s) => VALID_SESSION_STATUSES.includes(s.status))
+  assertEnum('status', p.statuses, NON_PRESENT_STATUSES)
+  const sessionStatuses: RecordStatus[] = p.includeDraft ? [...VALID_SESSION_STATUSES, 'DRAFT'] : VALID_SESSION_STATUSES
+  const valid = sessionsInScope(user, p).filter((s) => sessionStatuses.includes(s.status))
   const sessionById = new Map(valid.map((s) => [s.id, s]))
-  const statuses = p.status ? [p.status as AttendanceStatus] : NON_PRESENT_STATUSES
+  const statuses = p.statuses.length > 0 ? (p.statuses as AttendanceStatus[]) : NON_PRESENT_STATUSES
   const order = classOrder()
   const rows: AbsenteeRow[] = db()
     .studentRecords.filter(
@@ -275,7 +297,8 @@ export function buildAbsenteesReport(user: AuthedUser, p: ReportParams): Absente
         sessionById.has(r.sessionId) &&
         !isDeleted('studentRecords', r.id) &&
         statuses.includes(r.status) &&
-        (!p.studentId || r.studentId === p.studentId),
+        (!p.studentId || r.studentId === p.studentId) &&
+        (p.contacted === null || (r.contact !== null) === (p.contacted === 'true')),
     )
     .map((r) => {
       const s = sessionById.get(r.sessionId)!
@@ -498,6 +521,7 @@ export function buildDutyAgendaReport(user: AuthedUser, p: ReportParams): DutyAg
 
 export function buildTeachingLogReport(user: AuthedUser, p: ReportParams): TeachingLogReport {
   requirePermission(user, 'teaching_log:read')
+  assertEnum('status', p.status, RECORD_STATUSES)
   const readAll = can(user, 'teaching_log:read_all')
   const homeroom = readAll ? [] : toCurrentUser(user).homeroomClassIds
   if (!readAll && p.teacherId && p.teacherId !== user.teacherId && homeroom.length === 0) {
@@ -518,8 +542,9 @@ export function buildTeachingLogReport(user: AuthedUser, p: ReportParams): Teach
       (!p.shiftCode || l.shiftCode === p.shiftCode) &&
       allowed(l.teacherId, l.classId),
   )
+  // Tanpa filter status: jurnal Draft tidak dihitung. Dengan filter status (ekspor riwayat): ikuti filter.
   const rows = filtered
-    .filter((l) => l.status !== 'DRAFT')
+    .filter((l) => (p.status ? l.status === p.status : l.status !== 'DRAFT'))
     .sort(
       (a, b) =>
         b.date.localeCompare(a.date) ||
@@ -604,6 +629,8 @@ export function buildSubstitutionReport(user: AuthedUser, p: ReportParams): Subs
 
 export function buildExtraActivityReport(user: AuthedUser, p: ReportParams): ExtraActivityReport {
   requirePermission(user, 'extra_activity:read')
+  assertEnum('type', p.type, EXTRA_ACTIVITY_TYPES)
+  assertEnum('status', p.status, RECORD_STATUSES)
   if (p.classId) requireClassAccess(user, p.classId)
   const scope = accessibleClassIds(user)
   const rows: ExtraActivityReportRow[] = db()
@@ -611,9 +638,11 @@ export function buildExtraActivityReport(user: AuthedUser, p: ReportParams): Ext
       (a) =>
         inRange(a.date, p) &&
         !isDeleted('extraActivities', a.id) &&
-        a.status !== 'CANCELLED' &&
+        (p.status ? a.status === p.status : a.status !== 'CANCELLED') &&
         (!p.classId || a.classIds.includes(p.classId)) &&
         (!p.shiftCode || a.shiftCode === p.shiftCode) &&
+        (!p.type || a.type === p.type) &&
+        (!p.instructorTeacherId || a.instructorTeacherId === p.instructorTeacherId) &&
         (!scope ||
           a.classIds.some((c) => scope.includes(c)) ||
           a.coordinatorUserId === user.id ||

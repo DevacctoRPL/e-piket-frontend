@@ -153,6 +153,51 @@ describe('GET /reports/export', () => {
     expect(e?.status).toBe(403)
   })
 
+  it('siswa tidak hadir: multi-status (status berulang), contacted, dan nama file sesuai PRD §13.2', async () => {
+    await loginAs('admin')
+    const rows = (t: string) => t.split('\r\n').filter((l) => /^\d+,\d{4}-/.test(l))
+    const all = rows((await exportRaw({ report: 'absentees', format: 'csv', dateFrom: from, dateTo: today })).text)
+    const res = await apiFetch<Response>('/reports/export', {
+      method: 'GET',
+      query: { report: 'absentees', format: 'csv', dateFrom: from, dateTo: today, status: ['SICK', 'ABSENT'] },
+      raw: true,
+    })
+    const multi = rows(new TextDecoder().decode(await res.arrayBuffer()))
+    expect(multi.length).toBeGreaterThan(0)
+    expect(multi.length).toBeLessThanOrEqual(all.length)
+    expect(multi.every((l) => l.includes(',Sakit,') || l.includes(',Alpa,'))).toBe(true)
+    expect(res.headers.get('Content-Disposition')).toMatch(/daftar-siswa-tidak-hadir-.+_dibuat-\d{4}-\d{2}-\d{2}\.csv/)
+
+    const contacted = rows((await exportRaw({ report: 'absentees', format: 'csv', dateFrom: from, dateTo: today, contacted: 'true' })).text)
+    const notContacted = rows((await exportRaw({ report: 'absentees', format: 'csv', dateFrom: from, dateTo: today, contacted: 'false' })).text)
+    expect(contacted.length + notContacted.length).toBe(all.length)
+  })
+
+  it('kegiatan tambahan: menghormati filter jenis & pengampu dari halaman daftar', async () => {
+    await loginAs('admin')
+    const range = { dateFrom: addDays(today, -60), dateTo: addDays(today, 60) }
+    const act = db().extraActivities.find((a) => a.status !== 'CANCELLED' && a.instructorTeacherId)!
+    const { text } = await exportRaw({
+      report: 'extra-activities',
+      format: 'csv',
+      ...range,
+      type: act.type,
+      instructorTeacherId: act.instructorTeacherId!,
+    })
+    const lines = text.split('\r\n').filter((l) => /^\d+,\d{4}-/.test(l))
+    const expected = db().extraActivities.filter(
+      (a) =>
+        a.status !== 'CANCELLED' &&
+        a.date >= range.dateFrom &&
+        a.date <= range.dateTo &&
+        a.type === act.type &&
+        a.instructorTeacherId === act.instructorTeacherId,
+    )
+    expect(lines).toHaveLength(expected.length)
+    const e = await err(exportRaw({ report: 'extra-activities', format: 'csv', ...range, type: 'NOPE' }))
+    expect(e?.status).toBe(422)
+  })
+
   it('422 untuk report/format tidak dikenal', async () => {
     await loginAs('admin')
     const e = await err(exportRaw({ report: 'nope', format: 'pdf', dateFrom: from, dateTo: today }))

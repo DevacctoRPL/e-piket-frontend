@@ -1,6 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { masterKeys } from '@/features/master-data/lookups'
-import { MASTER_STALE_TIME } from '@/lib/query-client'
+import { useStudents } from '@/features/master-data/lookups'
 import type { ID } from '@/types/entities'
 import { studentAttendanceApi, type SessionListParams } from './api'
 import type {
@@ -92,12 +91,7 @@ export function usePatchRecord(sessionId: ID) {
 
 /** Siswa per kelas — memakai key master agar ikut ter-invalidate oleh penulisan master. */
 export function useClassStudents(classId: ID) {
-  return useQuery({
-    queryKey: masterKeys.students({ classId, pageSize: 500 }),
-    queryFn: ({ signal }) => studentAttendanceApi.classStudents(classId, signal),
-    enabled: !!classId,
-    staleTime: MASTER_STALE_TIME,
-  })
+  return useStudents({ classId })
 }
 
 export function useStudentHistory(params: StudentHistoryParams | null) {

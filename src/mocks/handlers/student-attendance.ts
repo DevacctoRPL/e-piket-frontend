@@ -9,19 +9,17 @@ import { addDays, todayISO } from '@/lib/date'
 import { DEFAULT_REASON_REQUIRED } from '@/lib/enums'
 import type {
   AttendanceStatus,
+  BulkAttendanceRequest as BulkSaveRequest,
+  CreateAttendanceSessionRequest as CreateSessionRequest,
   ID,
+  PatchAttendanceRecordRequest as PatchRecordRequest,
   RosterRow,
   StudentAttendanceRecord,
   StudentAttendanceSession,
-} from '@/types/entities'
-import { ATTENDANCE_STATUSES } from '@/types/entities'
-import type {
-  BulkSaveRequest,
-  CreateSessionRequest,
-  PatchRecordRequest,
   StudentHistoryRecord,
   StudentHistorySummary,
-} from '@/features/student-attendance/types'
+} from '@/types/entities'
+import { ATTENDANCE_STATUSES } from '@/types/entities'
 import { db, newId, persist, type StoredSession } from '../db'
 import { className, getClass, getStudent, phoneForUser, rosterForClass, withSummary } from '../domain'
 import {

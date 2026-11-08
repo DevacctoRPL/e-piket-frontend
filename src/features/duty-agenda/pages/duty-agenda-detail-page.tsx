@@ -330,7 +330,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
             description="Dihitung dari jadwal mengajar aktif dan absensi guru."
             actions={
               <Button asChild variant="outline" size="sm">
-                <Link to={`/absensi-guru?date=${agenda.date}&shiftCode=${agenda.shiftCode}`}>
+                <Link to={`/absensi-guru?date=${agenda.date}&shift=${encodeURIComponent(agenda.shiftCode)}`}>
                   <UserCheck /> Absensi Guru
                 </Link>
               </Button>
@@ -364,12 +364,12 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
               !isFinal && (
                 <>
                   <Button asChild variant="outline" size="sm">
-                    <Link to={`/absensi-guru?date=${agenda.date}&shiftCode=${agenda.shiftCode}`}>
+                    <Link to={`/absensi-guru?date=${agenda.date}&shift=${encodeURIComponent(agenda.shiftCode)}`}>
                       Catat status guru
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm">
-                    <Link to={`/jam-kosong?date=${agenda.date}&shiftCode=${agenda.shiftCode}`}>
+                    <Link to={`/jam-kosong?date=${agenda.date}&shift=${encodeURIComponent(agenda.shiftCode)}`}>
                       Tangani jam kosong
                     </Link>
                   </Button>
@@ -424,7 +424,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
             actions={
               !isFinal && (
                 <Button asChild variant="outline" size="sm">
-                  <Link to={`/jam-kosong?date=${agenda.date}&shiftCode=${agenda.shiftCode}`}>
+                  <Link to={`/jam-kosong?date=${agenda.date}&shift=${encodeURIComponent(agenda.shiftCode)}`}>
                     <CalendarClock /> Jam Kosong
                   </Link>
                 </Button>

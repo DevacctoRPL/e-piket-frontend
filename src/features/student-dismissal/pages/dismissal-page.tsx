@@ -342,12 +342,13 @@ function HistoryView({
           <ExportMenu
             report="dismissals"
             filters={{
-              dateFrom: from || undefined,
-              dateTo: to || undefined,
+              // /reports/export mewajibkan rentang tanggal.
+              dateFrom: from || addDays(to || today, -6),
+              dateTo: to || today,
               classId: classId || undefined,
               type: type || undefined,
             }}
-            period={`${from}_${to}`}
+            period={`${from || addDays(to || today, -6)}_${to || today}`}
           />
         </div>
       </FilterBar>

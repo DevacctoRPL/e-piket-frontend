@@ -1,6 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import { masterKeys } from '@/features/master-data/lookups'
-import { MASTER_STALE_TIME } from '@/lib/query-client'
+import { useStudents } from '@/features/master-data/lookups'
 import type { ID, ISODate, ISODateTime } from '@/types/entities'
 import { dismissalApi } from './api'
 import type { CorrectDismissalInput, CreateDismissalInput, DismissalListParams } from './types'
@@ -40,12 +39,7 @@ export function useDismissalContext(studentId: ID | null, date: ISODate) {
 
 /** Siswa aktif per kelas (dicache di bawah masterKeys agar ikut ter-invalidasi saat data master berubah). */
 export function useClassStudents(classId: ID | null) {
-  return useQuery({
-    queryKey: masterKeys.students({ classId, active: true, purpose: 'dismissal' }),
-    queryFn: ({ signal }) => dismissalApi.studentsOfClass(classId ?? '', { signal }),
-    enabled: !!classId,
-    staleTime: MASTER_STALE_TIME,
-  })
+  return useStudents({ classId, activeOnly: true })
 }
 
 export function useCreateDismissal() {

@@ -4,6 +4,8 @@ import type {
   DismissalType,
   RecordStatus,
   Role,
+  SubstitutionConflict,
+  SubstitutionRecord,
   TeacherAttendanceStatus,
   TeachingExecution,
   TeachingPresence,
@@ -109,6 +111,19 @@ export const SUBSTITUTION_SLOT_META = {
   UNHANDLED: { label: 'Belum Tertangani', tone: 'danger' },
   HANDLED: { label: 'Tertangani', tone: 'success' },
 } as const satisfies Record<string, EnumMeta>
+
+/** Status penugasan guru pengganti (SubstitutionRecord.status). */
+export const SUBSTITUTION_RECORD_META: Record<SubstitutionRecord['status'], EnumMeta> = {
+  ACTIVE: { label: 'Aktif', tone: 'success' },
+  CANCELLED: { label: 'Dibatalkan', tone: 'neutral' },
+}
+
+/** Jenis konflik calon guru pengganti. */
+export const SUBSTITUTION_CONFLICT_META: Record<SubstitutionConflict['type'], EnumMeta> = {
+  TEACHER_BUSY: { label: 'Bentrok jadwal', tone: 'warning' },
+  TEACHER_ABSENT: { label: 'Berhalangan', tone: 'danger' },
+  SLOT_ALREADY_HANDLED: { label: 'Sudah ditangani', tone: 'neutral' },
+}
 
 export const EXTRA_ACTIVITY_TYPE_META = {
   COURSE: { label: 'Kursus', tone: 'info' },

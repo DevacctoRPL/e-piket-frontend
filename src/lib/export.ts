@@ -3,12 +3,25 @@ import { todayISO } from '@/lib/date'
 
 export type ExportFormat = 'csv' | 'xlsx' | 'pdf'
 
+/** Nama jenis laporan (Bahasa Indonesia) per slug API untuk nama file ekspor (PRD §13.2). */
+export const REPORT_FILE_SLUGS: Readonly<Record<string, string>> = {
+  'student-attendance': 'rekap-absensi-siswa',
+  absentees: 'daftar-siswa-tidak-hadir',
+  dismissals: 'rekap-kepulangan-siswa',
+  'teacher-attendance': 'rekap-absensi-guru',
+  'duty-agendas': 'rekap-agenda-piket',
+  'teaching-logs': 'rekap-jurnal-mengajar',
+  substitutions: 'rekap-jam-kosong',
+  'extra-activities': 'rekap-kegiatan-tambahan',
+}
+
 /**
- * Nama file sesuai PRD §13.2: <jenis>-<periode>-<tanggal-dibuat>.<ext>
- * contoh: rekap-absensi-siswa-2026-11_dibuat-2026-11-08.csv
+ * Nama file sesuai PRD §13.2: <jenis>-<periode>_dibuat-<tanggal-dibuat>.<ext>
+ * contoh: rekap-absensi-siswa-2026-11_dibuat-2026-11-08.csv. Server biasanya mengirim nama lewat
+ * Content-Disposition; ini hanya cadangan bila header tidak ada.
  */
 export function exportFileName(reportSlug: string, period: string, format: ExportFormat): string {
-  return `${reportSlug}-${period}_dibuat-${todayISO()}.${format}`
+  return `${REPORT_FILE_SLUGS[reportSlug] ?? reportSlug}-${period}_dibuat-${todayISO()}.${format}`
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

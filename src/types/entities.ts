@@ -311,6 +311,58 @@ export interface BulkAttendanceRequest {
   }[]
   /** Versi sesi yang dilihat klien — 409 VERSION_CONFLICT bila berbeda. */
   version: number
+  /** true = simpan lalu finalisasi sesi (status FINAL) (PRD §10.7). */
+  submit?: boolean
+  /** Wajib bila sesi sudah FINAL dan pengguna memiliki hak koreksi (PRD §9.2). */
+  correctionReason?: string | null
+}
+
+/** POST /student-attendance/sessions */
+export interface CreateAttendanceSessionRequest {
+  date: ISODate
+  shiftCode: ShiftCode
+  classId: ID
+  sessionNumber?: number
+}
+
+/** PATCH /student-attendance/records/:id — koreksi satu record. */
+export interface PatchAttendanceRecordRequest {
+  status?: AttendanceStatus
+  reason?: string | null
+  note?: string | null
+  arrivalTime?: WallTime | null
+  /** Wajib bila sesi FINAL (PRD §9.2). */
+  correctionReason?: string | null
+  /** Versi record yang dilihat klien. */
+  version: number
+}
+
+/** Baris riwayat absensi per siswa (GET /student-attendance/history, FR-STU-08). */
+export interface StudentHistoryRecord {
+  recordId: ID
+  sessionId: ID
+  date: ISODate
+  shiftCode: ShiftCode
+  sessionLabel: string
+  sessionStatus: RecordStatus
+  status: AttendanceStatus
+  arrivalTime: WallTime | null
+  reason: string | null
+  note: string | null
+}
+
+export interface StudentHistorySummary extends Record<AttendanceStatus, number> {
+  total: number
+  /** Persentase kehadiran (Hadir + Terlambat) terhadap total record, 0–100, 1 desimal. */
+  presentRate: number
+}
+
+export interface StudentHistoryResponse {
+  student: { id: ID; nis: string; name: string; classId: ID; className: string }
+  dateFrom: ISODate
+  dateTo: ISODate
+  records: StudentHistoryRecord[]
+  summary: StudentHistorySummary
 }
 
 /** Baris daftar siswa tidak hadir (GET /student-attendance/absentees). */

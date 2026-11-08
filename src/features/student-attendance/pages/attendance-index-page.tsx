@@ -1,9 +1,10 @@
-import { ChevronRight, History, Loader2, School, Users } from 'lucide-react'
+import { ChevronRight, History, Loader2, School, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { ContextHeader } from '@/components/context-header'
 import { useFilters } from '@/components/filter-bar'
+import { NativeSelect } from '@/components/form-field'
 import { EmptyState, ErrorState, Page, PageHeader } from '@/components/page'
 import { StatusBadge, ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
@@ -19,13 +20,14 @@ import type { ClassRoom, ID, StudentAttendanceSession } from '@/types/entities'
 import { SummaryCounts } from '../components/summary-counts'
 import { useOpenSession, useSessions } from '../queries'
 
-/** Pemilih konteks absensi: tanggal, shift, kelas (FR-STU-01, PRD §7.1 langkah 1). */
+/** Pemilih konteks absensi: tanggal, shift, kelas, dan sesi (FR-STU-01, PRD §7.1 langkah 1). */
 export function AttendanceIndexPage() {
   const { can } = useAuth()
   const canWrite = can('student_attendance:write')
   const today = todayISO()
-  const { values, set } = useFilters({ date: today, shift: '' })
+  const { values, set } = useFilters({ date: today, shift: '', classId: '', session: '1' })
   const date = values.date > today ? today : values.date
+  const sessionNumber = values.session === '2' ? 2 : 1
 
   const classesQ = useClasses({ scope: 'mine' })
   const sessionsQ = useSessions({ date, shiftCode: values.shift || undefined })
@@ -36,17 +38,20 @@ export function AttendanceIndexPage() {
   const sessionByClass = useMemo(() => {
     const m = new Map<ID, StudentAttendanceSession>()
     for (const s of sessionsQ.data ?? []) {
-      if (s.sessionNumber === 1 || !m.has(s.classId)) m.set(s.classId, s)
+      if (s.sessionNumber === sessionNumber) m.set(s.classId, s)
     }
     return m
-  }, [sessionsQ.data])
+  }, [sessionsQ.data, sessionNumber])
 
   const classes = useMemo(
     () =>
       (classesQ.data ?? []).filter(
-        (c) => c.status === 'ACTIVE' && (!values.shift || c.shiftCode === values.shift),
+        (c) =>
+          c.status === 'ACTIVE' &&
+          (!values.shift || c.shiftCode === values.shift) &&
+          (!values.classId || c.id === values.classId),
       ),
-    [classesQ.data, values.shift],
+    [classesQ.data, values.shift, values.classId],
   )
   // Peran baca-saja hanya melihat sesi yang sudah dibuat.
   const visible = canWrite ? classes : classes.filter((c) => sessionByClass.has(c.id))
@@ -71,7 +76,7 @@ export function AttendanceIndexPage() {
     if (!canWrite || openSession.isPending) return
     setOpeningId(c.id)
     openSession.mutate(
-      { body: { date, shiftCode: c.shiftCode, classId: c.id, sessionNumber: 1 }, idempotencyKey: newIdempotencyKey() },
+      { body: { date, shiftCode: c.shiftCode, classId: c.id, sessionNumber }, idempotencyKey: newIdempotencyKey() },
       {
         onSuccess: (s) => navigate(`sesi/${s.id}`),
         onError: (err) => toast.error(getErrorMessage(err)),
@@ -87,7 +92,7 @@ export function AttendanceIndexPage() {
     <Page>
       <PageHeader
         title="Absensi Siswa"
-        description="Pilih tanggal, shift, dan kelas untuk mengisi atau melihat absensi harian."
+        description="Pilih tanggal, shift, sesi, dan kelas untuk mengisi atau melihat absensi harian."
         actions={
           <Button asChild variant="outline">
             <Link to="riwayat">
@@ -103,6 +108,24 @@ export function AttendanceIndexPage() {
         onShiftChange={(s) => set({ shift: s })}
         allowAllShifts
         maxDate={today}
+        extra={
+          <>
+            <NativeSelect
+              value={String(sessionNumber)}
+              onChange={(e) => set({ session: e.target.value })}
+              aria-label="Sesi"
+              className="w-auto min-w-28"
+            >
+              <option value="1">Sesi 1 (Awal)</option>
+              <option value="2">Sesi 2 (Akhir)</option>
+            </NativeSelect>
+            {values.classId && (
+              <Button variant="outline" size="sm" onClick={() => set({ classId: '' })}>
+                <X className="size-3.5" /> Semua kelas
+              </Button>
+            )}
+          </>
+        }
       />
 
       {!loading && !error && classes.length > 0 && (

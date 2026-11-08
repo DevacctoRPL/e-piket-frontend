@@ -22,6 +22,14 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function clearEphemeralStorage() {
+  try {
+    sessionStorage.clear()
+  } catch {
+    /* abaikan bila sessionStorage tidak tersedia */
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [token, setToken] = useState(() => authToken.get())
@@ -46,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionExpiredHandler(() => {
       setSessionExpired(true)
       queryClient.clear()
+      clearEphemeralStorage()
     })
     return () => setSessionExpiredHandler(null)
   }, [queryClient])
@@ -62,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (body: LoginRequest) => {
       const res = await authApi.login(body)
       queryClient.clear()
+      clearEphemeralStorage()
       authToken.set(res.data.accessToken)
       setSessionExpired(false)
       const me = await queryClient.fetchQuery({
@@ -81,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     authToken.clear()
     queryClient.clear()
+    clearEphemeralStorage()
   }, [queryClient])
 
   const user = token ? (meQuery.data ?? null) : null

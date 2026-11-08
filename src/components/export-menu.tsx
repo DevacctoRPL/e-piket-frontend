@@ -61,7 +61,7 @@ export function ExportMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => void run('xlsx')}>
-          <FileSpreadsheet /> Excel (.xlsx)
+          <FileSpreadsheet /> Excel
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void run('csv')}>
           <FileText /> CSV (.csv)

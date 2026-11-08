@@ -55,7 +55,7 @@ export function TeacherAttendanceReportPage({ mode = 'screen' }: { mode?: 'scree
       enableSorting: false,
       cell: ({ row: { original: r } }) =>
         canDrill ? (
-          <DrillLink to={drillHref(def.operationalPath, { teacherId: r.teacherId, dateFrom: filters.range?.dateFrom, dateTo: filters.range?.dateTo })}>
+          <DrillLink to={drillHref(def.operationalPath, { tab: 'rekap', rTeacher: r.teacherId, rFrom: filters.range?.dateFrom, rTo: filters.range?.dateTo })}>
             Riwayat
           </DrillLink>
         ) : null,

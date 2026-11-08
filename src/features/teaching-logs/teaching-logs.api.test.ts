@@ -179,6 +179,24 @@ describe('POST /teaching-logs validation (PRD §9.2, §9.3)', () => {
     expect(res.data.substitutionRecordId).toBe('subr_test_1')
     expect(db().substitutions.find((r) => r.id === 'subr_test_1')?.teachingLogId).toBe(res.data.id)
   })
+
+  it('substitute covering part of a slot sees and logs only the substituted periods (FR-SUB-03)', async () => {
+    const slot = assignGuruAsSubstitute()
+    if (slot.periodEnd === slot.periodStart) return // slot satu jam: tidak ada penggantian sebagian
+    const rec = db().substitutions.find((r) => r.id === 'subr_test_1')!
+    rec.periodEnd = rec.periodStart
+    rec.periodCount = 1
+    await loginAs('guru')
+    const todayList = await api.get<DataResponse<TodayTeachingSlot[]>>('/teaching-logs/today', { date: today() })
+    const sub = todayList.data.find((s) => s.isSubstitution)!
+    expect(sub.slot.periodEnd).toBe(rec.periodStart)
+    expect(sub.slot.periodCount).toBe(1)
+    const res = await create(payloadFor(slot, { periodCount: 1 }))
+    expect(res.data.periodStart).toBe(rec.periodStart)
+    expect(res.data.periodEnd).toBe(rec.periodStart)
+    expect(res.data.periodCount).toBe(1)
+    expect(rec.teachingLogId).toBe(res.data.id)
+  })
 })
 
 describe('access scoping & corrections', () => {

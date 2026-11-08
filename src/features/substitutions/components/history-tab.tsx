@@ -1,5 +1,6 @@
-import { History, ShieldAlert } from 'lucide-react'
+import { History, NotebookPen, ShieldAlert } from 'lucide-react'
 import { useMemo } from 'react'
+import { Link } from 'react-router'
 import { DataTable, type ColumnDef } from '@/components/data-table'
 import { ExportMenu } from '@/components/export-menu'
 import { FilterBar, FilterDate, FilterSelect, useFilters } from '@/components/filter-bar'
@@ -103,6 +104,13 @@ export function HistoryTab() {
         cell: ({ row }) => row.original.activity ?? <span className="text-muted-foreground">—</span>,
       },
       {
+        header: 'Jurnal',
+        id: 'journal',
+        enableSorting: false,
+        meta: { hideOnMobile: true },
+        cell: ({ row }) => <JournalLink record={row.original} />,
+      },
+      {
         header: 'Status',
         accessorKey: 'status',
         cell: ({ row }) => <StatusBadge meta={RECORD_META} value={row.original.status} />,
@@ -201,11 +209,29 @@ export function HistoryTab() {
                   Menggantikan {teacherById.get(r.absentTeacherId)?.name ?? '—'}
                 </p>
                 {r.activity && <p className="break-words">{r.activity}</p>}
+                <JournalLink record={r} />
               </div>
             )}
           />
         </div>
       )}
     </div>
+  )
+}
+
+/** FR-SUB-03: jurnal mengajar yang diisi guru pengganti untuk penugasan ini. */
+function JournalLink({ record }: { record: SubstitutionRecord }) {
+  if (record.status === 'CANCELLED') return null
+  if (!record.teachingLogId) {
+    return <ToneBadge tone="warning">Jurnal belum diisi</ToneBadge>
+  }
+  return (
+    <Link
+      to={`/jurnal-mengajar/${encodeURIComponent(record.teachingLogId)}`}
+      className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:underline"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <NotebookPen className="size-3.5" aria-hidden /> Lihat jurnal
+    </Link>
   )
 }

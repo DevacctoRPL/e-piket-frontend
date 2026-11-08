@@ -45,6 +45,7 @@ export function DutyAgendaPrintPage() {
               )}
               <PrintDocument
                 title="Agenda Kegiatan Sekolah / Guru Piket"
+                documentDate={a.date}
                 meta={[
                   ['Hari/Tanggal', formatDateLong(a.date)],
                   ['Shift', shiftName(a.shiftCode)],

@@ -1,11 +1,10 @@
 import { api } from '@/lib/api-client'
-import type { DataResponse, ListResponse } from '@/types/api'
+import type { DataResponse } from '@/types/api'
 import type {
   ID,
   ISODate,
   RosterRow,
   ShiftCode,
-  Student,
   StudentAttendanceSession,
 } from '@/types/entities'
 import type {
@@ -59,12 +58,6 @@ export const studentAttendanceApi = {
   patchRecord: (id: ID, body: PatchRecordRequest) =>
     api
       .patch<DataResponse<PatchRecordResponse>>(`${base}/records/${encodeURIComponent(id)}`, body)
-      .then((r) => r.data),
-
-  /** Siswa satu kelas untuk pemilih histori (endpoint master baca-saja, terscope backend). */
-  classStudents: (classId: ID, signal?: AbortSignal) =>
-    api
-      .get<ListResponse<Student>>('/students', { classId, pageSize: 500, sort: 'name' }, { signal })
       .then((r) => r.data),
 
   history: (params: StudentHistoryParams, signal?: AbortSignal) =>

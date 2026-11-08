@@ -133,7 +133,10 @@ export function HistoryPanel() {
     [readAll],
   )
 
-  const exportFilters = { ...params, page: undefined, pageSize: undefined }
+  // /reports/export mewajibkan rentang tanggal: pakai rentang default bila filter tanggal dikosongkan.
+  const exportTo = params.dateTo ?? today
+  const exportFrom = params.dateFrom ?? addDays(exportTo, -13)
+  const exportFilters = { ...params, dateFrom: exportFrom, dateTo: exportTo, page: undefined, pageSize: undefined }
 
   return (
     <div className="grid gap-4">
@@ -147,7 +150,7 @@ export function HistoryPanel() {
         <ExportMenu
           report="teaching-logs"
           filters={exportFilters}
-          period={`${v.dateFrom || 'awal'}_${v.dateTo || today}`}
+          period={exportFrom === exportTo ? exportFrom : `${exportFrom}_${exportTo}`}
           onPrint={() => window.print()}
         />
       </div>

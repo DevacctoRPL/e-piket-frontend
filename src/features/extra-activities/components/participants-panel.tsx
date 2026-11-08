@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, Switch } from '@/components/ui/misc'
 import { Label } from '@/components/ui/label'
+import { useSettings } from '@/features/master-data/lookups'
 import { useIdempotencyKey } from '@/hooks/use-idempotent-mutation'
 import { ApiError } from '@/lib/api-client'
 import { ATTENDANCE_META } from '@/lib/enums'
@@ -50,6 +51,14 @@ export function ParticipantsPanel({
 }) {
   const save = useSaveParticipants(activity.id)
   const toggle = useUpdateExtraActivity(activity.id)
+  // Status yang dinonaktifkan di Pengaturan tidak ditawarkan (status tersimpan tetap ditampilkan).
+  const settings = useSettings()
+  const quick = useMemo(() => {
+    const cfg = settings.data?.attendanceStatuses
+    if (!cfg?.length) return QUICK
+    const active = new Set(cfg.filter((s) => s.active).map((s) => s.code))
+    return QUICK.filter((s) => active.has(s))
+  }, [settings.data])
   const idem = useIdempotencyKey()
   const [draft, setDraft] = useState<Draft>(() => toDraft(activity))
   const [errorsByStudent, setErrorsByStudent] = useState<Record<ID, string>>({})
@@ -238,7 +247,7 @@ export function ParticipantsPanel({
                           <span className="min-w-0 flex-1 text-sm font-medium">{p.studentName}</span>
                           {canFill ? (
                             <div role="radiogroup" aria-label={`Status ${p.studentName}`} className="flex gap-1">
-                              {QUICK.map((s) => {
+                              {quick.map((s) => {
                                 const m = ATTENDANCE_META[s]
                                 const active = current === s
                                 return (

@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { api } from '@/lib/api-client'
 import { MASTER_STALE_TIME } from '@/lib/query-client'
-import type { DataResponse } from '@/types/api'
+import type { DataResponse, ListResponse } from '@/types/api'
 import type {
   AcademicYear,
   ClassRoom,
@@ -18,6 +18,7 @@ import type {
   SchoolSettings,
   Shift,
   ShiftCode,
+  Student,
   Subject,
   Teacher,
   TimetableSlot,
@@ -126,6 +127,31 @@ export function useDutyAssignments(
     queryFn: get<DutyAssignment[]>('/duty-assignments', params),
     staleTime: MASTER_STALE_TIME,
     enabled: options.enabled ?? true,
+  })
+}
+
+/**
+ * Siswa satu kelas (urut nama) untuk pemilih/filter di fitur lain. Backend men-scope kelas sesuai akses.
+ * Hanya ID yang boleh masuk URL — nama siswa tidak (PRD §12.2).
+ */
+export function useStudents(
+  params: { classId: ID | null | undefined; activeOnly?: boolean },
+  options: { enabled?: boolean } = {},
+) {
+  const classId = params.classId ?? ''
+  const activeOnly = params.activeOnly ?? false
+  return useQuery({
+    queryKey: masterKeys.students({ classId, activeOnly, lookup: true }),
+    queryFn: ({ signal }) =>
+      api
+        .get<ListResponse<Student>>(
+          '/students',
+          { classId, active: activeOnly ? 'true' : undefined, pageSize: 500, sort: 'name' },
+          { signal },
+        )
+        .then((r) => r.data),
+    enabled: !!classId && (options.enabled ?? true),
+    staleTime: MASTER_STALE_TIME,
   })
 }
 

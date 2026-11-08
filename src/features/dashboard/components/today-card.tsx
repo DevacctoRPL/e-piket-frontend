@@ -106,7 +106,7 @@ export function TodayCard({
         </div>
         {me.isDutyToday && can('duty_agenda:read') && (
           <Link
-            to={withQuery('/agenda-piket', { date, shift: shiftCode })}
+            to={withQuery('/agenda-piket', { dateFrom: date, dateTo: date, shiftCode })}
             className="flex items-center gap-2 rounded-lg border border-tone-success/25 bg-tone-success-bg px-3 py-2 text-sm font-medium text-tone-success hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <ShieldCheck className="size-4" aria-hidden />

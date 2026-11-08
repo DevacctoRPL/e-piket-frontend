@@ -5,6 +5,7 @@ import { todayISO } from '@/lib/date'
 import { db } from '@/mocks/db'
 import { loginAs, renderWithProviders } from '@/test/utils'
 import { studentAttendanceApi } from './api'
+import { AttendanceIndexPage } from './pages/attendance-index-page'
 import { SessionEditorPage } from './pages/session-editor-page'
 import { draftStorageKey } from './roster-model'
 
@@ -67,5 +68,28 @@ describe('SessionEditorPage', () => {
     expect(screen.queryByRole('button', { name: /tandai semua hadir/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /finalisasi/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /koreksi absensi/i })).not.toBeInTheDocument()
+  }, 20_000)
+
+  it('supports Sesi 1 / Sesi 2 selector and classId filter in AttendanceIndexPage (FR-STU-01)', async () => {
+    await loginAs('piket')
+    const user = userEvent.setup()
+    renderWithProviders(<AttendanceIndexPage />, {
+      route: '/absensi-siswa?classId=cls_2',
+      path: '/absensi-siswa',
+    })
+
+    // Filtered to cls_2 (X AKL 1) which is FINAL in Sesi 1 today
+    expect(await screen.findByText('X AKL 1', {}, { timeout: 8000 })).toBeInTheDocument()
+    expect(screen.queryByText('X TKJ 1')).not.toBeInTheDocument()
+    expect(screen.getByText('Final 1')).toBeInTheDocument()
+
+    // Switch to Sesi 2 (Akhir): cls_2 has no Sesi 2 session yet
+    const sessionSelect = screen.getByLabelText('Sesi')
+    await user.selectOptions(sessionSelect, '2')
+    await waitFor(() => expect(screen.getByText('Belum dibuat 1')).toBeInTheDocument())
+
+    // Clear classId filter via "Semua kelas"
+    await user.click(screen.getByRole('button', { name: /semua kelas/i }))
+    await waitFor(() => expect(screen.getByText('X TKJ 1')).toBeInTheDocument())
   }, 20_000)
 })

@@ -12,6 +12,7 @@ export function ActivityPrint({ activity: a, shiftName }: { activity: ExtraActiv
   return (
     <PrintDocument
       title="Agenda Kursus / Jam Tambahan"
+      documentDate={a.date}
       meta={[
         ['Hari/Tanggal', formatDateLong(a.date)],
         ['Shift', shiftName],

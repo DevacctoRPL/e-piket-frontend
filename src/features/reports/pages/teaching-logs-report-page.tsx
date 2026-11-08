@@ -76,6 +76,7 @@ export function TeachingLogsReportPage({ mode = 'screen' }: { mode?: 'screen' | 
       operationalLink={{
         label: 'Buka jurnal',
         href: drillHref(def.operationalPath, {
+          tab: 'riwayat',
           classId: filters.values.classId,
           teacherId: filters.values.teacherId,
           dateFrom: filters.range?.dateFrom,

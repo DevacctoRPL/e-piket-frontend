@@ -57,7 +57,7 @@ export function DismissalsReportPage({ mode = 'screen' }: { mode?: 'screen' | 'p
       mode={mode}
       operationalLink={{
         label: 'Buka kepulangan',
-        href: drillHref(def.operationalPath, { classId: filters.values.classId, dateFrom: range?.dateFrom, dateTo: range?.dateTo }),
+        href: drillHref(def.operationalPath, { tab: 'riwayat', classId: filters.values.classId, from: range?.dateFrom, to: range?.dateTo }),
       }}
       note="Kepulangan dicatat terpisah dari absensi kedatangan (PRD §9.2) — tidak mengubah status hadir siswa."
       summary={(d) => (

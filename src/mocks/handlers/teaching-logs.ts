@@ -160,6 +160,7 @@ function validate(input: RawBody, user: AuthedUser, teacherId: ID): NormalizedLo
   const timetableSlotId = str(input.timetableSlotId)
   let slot: TimetableSlot | undefined
   let substitutionRecordId: ID | null = null
+  let substitutedCount: number | null = null
   if (timetableSlotId) {
     slot = d.timetable.find((s) => s.id === timetableSlotId && !isDeleted('timetable', s.id))
     if (!slot) details.timetableSlotId = 'Slot jadwal tidak ditemukan.'
@@ -190,10 +191,19 @@ function validate(input: RawBody, user: AuthedUser, teacherId: ID): NormalizedLo
         ? d.substitutions.find((r) => r.id === input.substitutionRecordId && r.timetableSlotId === slot.id)
         : undefined
     if (slot.teacherId !== teacherId) {
-      if (sub && sub.substituteTeacherId === teacherId) substitutionRecordId = sub.id
-      else if (linked && linked.substituteTeacherId === teacherId) substitutionRecordId = linked.id
-      else if (!canCorrect)
-        throw errors.forbidden('Slot jadwal ini bukan tugas mengajar Anda.')
+      const record =
+        sub && sub.substituteTeacherId === teacherId
+          ? sub
+          : linked && linked.substituteTeacherId === teacherId
+            ? linked
+            : undefined
+      if (record) {
+        substitutionRecordId = record.id
+        // Guru pengganti hanya mengisi jam yang ia gantikan (bisa sebagian slot).
+        periodStart = record.periodStart
+        periodEnd = record.periodEnd
+        substitutedCount = record.periodEnd - record.periodStart + 1
+      } else if (!canCorrect) throw errors.forbidden('Slot jadwal ini bukan tugas mengajar Anda.')
     }
   } else {
     if (!classId) details.classId = 'required'
@@ -209,6 +219,7 @@ function validate(input: RawBody, user: AuthedUser, teacherId: ID): NormalizedLo
 
   // JML: harus konsisten dengan jadwal kecuali ada alasan koreksi (FR-TEACH-04)
   const scheduled =
+    substitutedCount ??
     slot?.periodCount ??
     (periodStart !== null && periodEnd !== null ? Math.max(0, periodEnd - periodStart + 1) : 0)
   const rawCount = intField('periodCount')
@@ -344,7 +355,8 @@ export const teachingLogsHandlers: HttpHandler[] = [
         if (!slot) return []
         return [
           {
-            slot,
+            // Rentang jam yang digantikan (bisa sebagian dari slot asli).
+            slot: { ...slot, periodStart: r.periodStart, periodEnd: r.periodEnd, periodCount: r.periodCount },
             className: className(slot.classId),
             subjectName: subjectName(slot.subjectId),
             ...periodTimes(slot.shiftCode, r.periodStart, r.periodEnd),

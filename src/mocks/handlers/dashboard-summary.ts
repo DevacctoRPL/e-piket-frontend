@@ -227,7 +227,9 @@ export function computeDashboardSummary(user: AuthedUser, { date, shiftCode }: S
         kind: 'DUTY_AGENDA_DRAFT',
         title: `Agenda piket shift ${sh.name} ${state.title}`,
         description: mine ? `${state.desc} Anda bertugas piket pada shift ini.` : state.desc,
-        href: `/agenda-piket${qs({ date, shift: sh.code })}`,
+        href: entry?.id
+          ? `/agenda-piket/${encodeURIComponent(entry.id)}`
+          : `/agenda-piket${qs({ dateFrom: date, dateTo: date, shiftCode: sh.code })}`,
       })
     }
   }

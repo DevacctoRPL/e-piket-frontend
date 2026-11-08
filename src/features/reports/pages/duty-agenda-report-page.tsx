@@ -20,7 +20,10 @@ function AgendaStatus({ r }: { r: DutyAgendaReportRow }) {
   return r.status ? <StatusBadge meta={RECORD_STATUS_META} value={r.status} /> : <ToneBadge tone="danger">Belum dibuat</ToneBadge>
 }
 
-const agendaHref = (r: DutyAgendaReportRow) => drillHref(def.operationalPath, { date: r.date, shiftCode: r.shiftCode })
+const agendaHref = (r: DutyAgendaReportRow) =>
+  r.agendaId
+    ? `${def.operationalPath}/${encodeURIComponent(r.agendaId)}`
+    : drillHref(def.operationalPath, { dateFrom: r.date, dateTo: r.date, shiftCode: r.shiftCode })
 
 export function DutyAgendaReportPage({ mode = 'screen' }: { mode?: 'screen' | 'print' }) {
   const filters = useReportFilters(def)
