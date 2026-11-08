@@ -11,6 +11,7 @@ import type { DataResponse } from '@/types/api'
 import type {
   AcademicYear,
   ClassRoom,
+  DutyAssignment,
   ID,
   ISODate,
   Period,
@@ -33,6 +34,8 @@ export const masterKeys = {
   teachers: () => [...masterKeys.all, 'teachers'] as const,
   students: (params: Record<string, unknown>) => [...masterKeys.all, 'students', params] as const,
   timetable: (params: Record<string, unknown>) => [...masterKeys.all, 'timetable', params] as const,
+  dutyAssignments: (params: Record<string, unknown> = {}) =>
+    [...masterKeys.all, 'duty-assignments', params] as const,
   settings: () => ['settings'] as const,
 }
 
@@ -107,6 +110,22 @@ export function useTimetable(params: {
     queryKey: masterKeys.timetable(params),
     queryFn: get<TimetableSlot[]>('/timetables', params),
     staleTime: MASTER_STALE_TIME,
+  })
+}
+
+/**
+ * Penugasan petugas piket (rutin per hari & tanggal khusus). Butuh master:read / duty_agenda:read.
+ * type 'routine' = hanya rutin, 'override' = hanya tanggal khusus.
+ */
+export function useDutyAssignments(
+  params: { type?: 'routine' | 'override'; shiftCode?: ShiftCode; dateFrom?: ISODate; dateTo?: ISODate } = {},
+  options: { enabled?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: masterKeys.dutyAssignments(params),
+    queryFn: get<DutyAssignment[]>('/duty-assignments', params),
+    staleTime: MASTER_STALE_TIME,
+    enabled: options.enabled ?? true,
   })
 }
 
