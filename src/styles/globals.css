@@ -1,0 +1,139 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/plus-jakarta-sans';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.002 247);
+  --foreground: oklch(0.21 0.03 264);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.03 264);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.03 264);
+  /* Teal sebagai warna utama sekolah */
+  --primary: oklch(0.51 0.09 186);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.96 0.01 247);
+  --secondary-foreground: oklch(0.25 0.03 264);
+  --muted: oklch(0.96 0.008 247);
+  --muted-foreground: oklch(0.5 0.025 257);
+  --accent: oklch(0.95 0.02 186);
+  --accent-foreground: oklch(0.3 0.06 186);
+  --destructive: oklch(0.577 0.215 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.91 0.01 256);
+  --input: oklch(0.88 0.012 256);
+  --ring: oklch(0.51 0.09 186);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.3 0.03 264);
+  --sidebar-accent: oklch(0.95 0.02 186);
+  --sidebar-accent-foreground: oklch(0.35 0.08 186);
+  --sidebar-border: oklch(0.92 0.01 256);
+
+  /* Tone status (dipakai StatusBadge; selalu disertai teks) */
+  --tone-success: oklch(0.52 0.13 155);
+  --tone-success-bg: oklch(0.95 0.05 155);
+  --tone-warning: oklch(0.55 0.13 70);
+  --tone-warning-bg: oklch(0.96 0.06 85);
+  --tone-danger: oklch(0.55 0.2 27);
+  --tone-danger-bg: oklch(0.95 0.04 27);
+  --tone-info: oklch(0.52 0.14 250);
+  --tone-info-bg: oklch(0.95 0.03 250);
+  --tone-neutral: oklch(0.45 0.02 257);
+  --tone-neutral-bg: oklch(0.95 0.006 257);
+  --tone-purple: oklch(0.5 0.17 300);
+  --tone-purple-bg: oklch(0.95 0.04 300);
+}
+
+@theme inline {
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-tone-success: var(--tone-success);
+  --color-tone-success-bg: var(--tone-success-bg);
+  --color-tone-warning: var(--tone-warning);
+  --color-tone-warning-bg: var(--tone-warning-bg);
+  --color-tone-danger: var(--tone-danger);
+  --color-tone-danger-bg: var(--tone-danger-bg);
+  --color-tone-info: var(--tone-info);
+  --color-tone-info-bg: var(--tone-info-bg);
+  --color-tone-neutral: var(--tone-neutral);
+  --color-tone-neutral-bg: var(--tone-neutral-bg);
+  --color-tone-purple: var(--tone-purple);
+  --color-tone-purple-bg: var(--tone-purple-bg);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+  /* Cegah zoom iOS pada input */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+}
+
+/* Tampilan cetak (PRD §13.1) */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+  body {
+    background: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
+.print-only {
+  display: none;
+}
