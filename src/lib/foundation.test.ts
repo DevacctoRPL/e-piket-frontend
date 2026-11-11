@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { toast } from 'sonner'
 import { loginAs } from '@/test/utils'
 import { api, ApiError } from '@/lib/api-client'
 import { addDays, combineDateTime, isoDayOfWeek, toISODateTime, todayISO } from '@/lib/date'
-import { maskPhone, permissionsForRoles } from '@/lib/permissions'
+import { canGrantRole, isAdminLike, maskPhone, permissionsForRoles, ROLE_PERMISSIONS } from '@/lib/permissions'
+import { createQueryClient } from '@/lib/query-client'
 import type { DataResponse, ListResponse } from '@/types/api'
 import type { ClassRoom, CurrentUser, Student } from '@/types/entities'
 
@@ -25,6 +27,25 @@ describe('permissions', () => {
   it('teacher cannot write master data', () => {
     expect(permissionsForRoles(['TEACHER'])).not.toContain('master:write')
   })
+  it('super admin has every admin permission plus account/security permissions', () => {
+    const sa = ROLE_PERMISSIONS.SUPER_ADMIN
+    for (const p of ROLE_PERMISSIONS.ADMIN) expect(sa).toContain(p)
+    expect(sa).toEqual(expect.arrayContaining(['user:read', 'user:write', 'security:read', 'system:manage']))
+  })
+  it('admin cannot read user accounts or security data', () => {
+    for (const p of ['user:read', 'user:write', 'security:read', 'system:manage'] as const) {
+      expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p)
+    }
+  })
+  it('isAdminLike & canGrantRole', () => {
+    expect(isAdminLike({ roles: ['SUPER_ADMIN'] })).toBe(true)
+    expect(isAdminLike({ roles: ['ADMIN'] })).toBe(true)
+    expect(isAdminLike({ roles: ['PRINCIPAL', 'TEACHER'] })).toBe(false)
+    expect(isAdminLike(null)).toBe(false)
+    expect(canGrantRole(['ADMIN'], 'ADMIN')).toBe(false)
+    expect(canGrantRole(['ADMIN'], 'TEACHER')).toBe(true)
+    expect(canGrantRole(['SUPER_ADMIN'], 'SUPER_ADMIN')).toBe(true)
+  })
 })
 
 describe('mock API foundation', () => {
@@ -32,6 +53,15 @@ describe('mock API foundation', () => {
     await expect(
       api.post('/auth/login', { username: 'admin', password: 'x' }, { skipAuthRefresh: true }),
     ).rejects.toMatchObject({ status: 422, message: 'Nama pengguna atau kata sandi tidak sesuai.' })
+  })
+
+  it('super admin demo account logs in with full scope', async () => {
+    await loginAs('superadmin')
+    const me = await api.get<DataResponse<CurrentUser>>('/auth/me')
+    expect(me.data.id).toBe('usr_superadmin')
+    expect(me.data.name).toBe('Dimas Prasetyo (Super Admin)')
+    expect(me.data.permissions).toContain('system:manage')
+    expect(me.data.mustChangePassword).toBe(false)
   })
 
   it('logs in and loads /auth/me', async () => {
@@ -69,5 +99,19 @@ describe('mock API foundation', () => {
       classId: me.data.teachingClassIds[0],
     })
     expect(res.data[0]?.guardianPhone).toMatch(/\*\*\*\*/)
+  })
+
+  it('deduplicates QueryCache error toasts with a deterministic id', async () => {
+    const spy = vi.spyOn(toast, 'error').mockImplementation(() => 'id')
+    const qc = createQueryClient()
+    qc.setQueryData(['q1'], { ok: true })
+    qc.setQueryData(['q2'], { ok: true })
+    const err = new ApiError(500, null)
+    await qc.fetchQuery({ queryKey: ['q1'], queryFn: () => Promise.reject(err), retry: false, staleTime: 0 }).catch(() => null)
+    await qc.fetchQuery({ queryKey: ['q2'], queryFn: () => Promise.reject(err), retry: false, staleTime: 0 }).catch(() => null)
+    expect(spy).toHaveBeenCalledWith('Terjadi kesalahan pada server. Coba beberapa saat lagi.', {
+      id: 'query-error:Terjadi kesalahan pada server. Coba beberapa saat lagi.',
+    })
+    spy.mockRestore()
   })
 })

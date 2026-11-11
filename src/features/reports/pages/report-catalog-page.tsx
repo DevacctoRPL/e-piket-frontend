@@ -26,16 +26,16 @@ export function ReportCatalogPage() {
             <li key={r.path}>
               <Link
                 to={r.path}
-                className="group flex h-full items-start gap-3 rounded-xl border bg-card p-4 shadow-xs transition-[border-color,box-shadow] duration-150 hover:border-primary/40 hover:shadow-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                className="group flex h-full items-start gap-3 rounded-xl border border-border/85 bg-card p-4 shadow-2xs transition-colors duration-150 hover:border-border hover:bg-muted/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <r.icon className="size-5" />
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-card text-muted-foreground shadow-2xs">
+                  <r.icon className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1 space-y-1">
-                  <span className="block font-semibold">{r.title}</span>
-                  <span className="block text-sm text-pretty text-muted-foreground">{r.description}</span>
+                  <span className="block text-sm font-semibold">{r.title}</span>
+                  <span className="block text-[13px] text-pretty text-muted-foreground">{r.description}</span>
                 </span>
-                <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
               </Link>
             </li>
           ))}

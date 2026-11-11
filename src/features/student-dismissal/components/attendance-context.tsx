@@ -19,10 +19,10 @@ export function AttendanceContextPanel({ studentId, date }: { studentId: ID | nu
     <section
       aria-label="Ringkasan absensi siswa"
       aria-live="polite"
-      className="grid gap-2 rounded-xl border bg-muted/40 p-3"
+      className="grid gap-2 rounded-lg border border-border/80 bg-card p-3"
     >
-      <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        <ClipboardCheck className="size-3.5" /> Absensi kedatangan · {formatDate(date)}
+      <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <ClipboardCheck className="size-3.5" aria-hidden /> Absensi kedatangan · {formatDate(date)}
       </p>
       {ctx.isPending ? (
         <div className="grid gap-1.5">
@@ -69,7 +69,7 @@ export function AttendanceContextPanel({ studentId, date }: { studentId: ID | nu
             </p>
           )}
           {ctx.data.dismissals.length > 0 && (
-            <div className="grid gap-1 border-t pt-2">
+            <div className="grid gap-1 border-t border-border/60 pt-2">
               <p className="text-xs font-medium text-muted-foreground">Sudah tercatat hari itu:</p>
               <ul className="grid gap-1">
                 {ctx.data.dismissals.map((d) => (

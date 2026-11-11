@@ -1,16 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CalendarCheck, ShieldCheck } from 'lucide-react'
+import { CalendarCheck, CircleAlert, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { DataTable, type ColumnDef } from '@/components/data-table'
 import { FormField, NativeSelect } from '@/components/form-field'
+import { FramedCard } from '@/components/framed-card'
 import { EmptyState, ErrorState, TableSkeleton } from '@/components/page'
-import { ToneBadge } from '@/components/status-badge'
+import { MetaTag } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { dayName, formatDateLong, isoDayOfWeek, todayISO } from '@/lib/date'
+import { cn } from '@/lib/utils'
 import type { DutyAssignment } from '@/types/entities'
 import { useDutyAssignments, useLookupMaps, useShifts, useTeachers } from '../lookups'
 import { useMasterMutations } from '../queries'
@@ -62,7 +64,7 @@ export function DutyTab() {
         id: 'actions',
         header: () => <span className="sr-only">Aksi</span>,
         enableSorting: false,
-        meta: { headerClassName: 'w-24', className: 'text-right' },
+        meta: { headerClassName: 'w-12', className: 'text-right' },
         cell: ({ row }) => (
           <RowActions
             label={`piket ${row.original.date ?? ''}`}
@@ -84,10 +86,7 @@ export function DutyTab() {
         }
       />
 
-      <section className="grid gap-3" aria-labelledby="duty-routine">
-        <h3 id="duty-routine" className="text-base font-semibold">
-          Piket rutin mingguan
-        </h3>
+      <FramedCard title="Piket rutin mingguan" titleId="duty-routine" icon={<ShieldCheck />} bodyClassName="p-3">
         {routine.isPending || shifts.isPending ? (
           <TableSkeleton rows={7} cols={3} />
         ) : routine.isError ? (
@@ -95,89 +94,97 @@ export function DutyTab() {
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {DAYS.map((d) => (
-              <div key={d} className="grid gap-2 rounded-xl border bg-card p-3 shadow-xs">
+              <div
+                key={d}
+                className={cn(
+                  'grid content-start gap-1 rounded-md border border-border/75 p-3',
+                  d === todayDow && 'border-foreground/30',
+                )}
+              >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold">{dayName(d)}</span>
-                  {d === todayDow && <ToneBadge tone="info">Hari ini</ToneBadge>}
+                  <span className="text-sm font-semibold">{dayName(d)}</span>
+                  {d === todayDow && <MetaTag>Hari ini</MetaTag>}
                 </div>
-                {activeShifts.map((sh) => {
-                  const a = routine.data.find((x) => x.dayOfWeek === d && x.shiftCode === sh.code)
-                  return (
-                    <div key={sh.code} className="flex items-start gap-2 rounded-lg bg-muted/40 p-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase">{sh.name}</p>
+                <div className="divide-y divide-border/60">
+                  {activeShifts.map((sh) => {
+                    const a = routine.data.find((x) => x.dayOfWeek === d && x.shiftCode === sh.code)
+                    return (
+                      <div key={sh.code} className="flex items-start gap-2 py-2 last:pb-0">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-muted-foreground">{sh.name}</p>
+                          {a ? (
+                            <ul className="text-[13px]">
+                              {teacherNames(a.teacherIds).map((n, i) => (
+                                <li key={i} className="truncate">
+                                  {n}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                              <CircleAlert aria-hidden className="size-3.5 shrink-0 text-tone-warning" />
+                              Belum ada petugas
+                            </p>
+                          )}
+                        </div>
                         {a ? (
-                          <ul className="text-sm">
-                            {teacherNames(a.teacherIds).map((n, i) => (
-                              <li key={i} className="truncate">
-                                {n}
-                              </li>
-                            ))}
-                          </ul>
+                          <RowActions
+                            label={`piket ${dayName(d)} ${sh.name}`}
+                            onEdit={() => setTarget({ item: a })}
+                            onDelete={() => crud.askDelete(a)}
+                          />
                         ) : (
-                          <p className="text-sm text-tone-warning">Belum ada petugas</p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setTarget({ draft: { dayOfWeek: d, date: null, shiftCode: sh.code } })}
+                            aria-label={`Atur piket ${dayName(d)} ${sh.name}`}
+                          >
+                            Atur
+                          </Button>
                         )}
                       </div>
-                      {a ? (
-                        <RowActions
-                          label={`piket ${dayName(d)} ${sh.name}`}
-                          onEdit={() => setTarget({ item: a })}
-                          onDelete={() => crud.askDelete(a)}
-                        />
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setTarget({ draft: { dayOfWeek: d, date: null, shiftCode: sh.code } })}
-                          aria-label={`Atur piket ${dayName(d)} ${sh.name}`}
-                        >
-                          Atur
-                        </Button>
-                      )}
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
             ))}
           </div>
         )}
-      </section>
+      </FramedCard>
 
-      <section className="grid gap-3" aria-labelledby="duty-override">
-        <h3 id="duty-override" className="text-base font-semibold">
-          Penugasan tanggal khusus (mendatang)
-        </h3>
-        {overrides.isPending ? (
-          <TableSkeleton rows={3} cols={4} />
-        ) : overrides.isError ? (
-          <ErrorState error={overrides.error} onRetry={() => void overrides.refetch()} />
-        ) : (
-          <DataTable
-            columns={overrideColumns}
-            data={overrides.data}
-            getRowId={(r) => r.id}
-            caption="Penugasan piket tanggal khusus"
-            emptyState={
-              <EmptyState
-                icon={<CalendarCheck className="size-5" />}
-                title="Tidak ada penugasan tanggal khusus"
-                description="Gunakan penugasan tanggal khusus untuk tukar jadwal, pengganti petugas yang berhalangan, atau acara sekolah."
-                action={
-                  <AddButton onClick={() => setTarget({ draft: { date: today, dayOfWeek: null } })}>Penugasan Tanggal Khusus</AddButton>
-                }
-              />
-            }
-            renderMobileCard={(a) => (
-              <MobileCard
-                title={a.date ? formatDateLong(a.date) : '—'}
-                badge={<ToneBadge tone="purple">{lookups.shiftName(a.shiftCode)}</ToneBadge>}
-                lines={[teacherNames(a.teacherIds).join(', '), a.note]}
-                actions={<RowActions label={`piket ${a.date ?? ''}`} onEdit={() => setTarget({ item: a })} onDelete={() => crud.askDelete(a)} />}
-              />
-            )}
-          />
-        )}
-      </section>
+      {overrides.isPending ? (
+        <TableSkeleton rows={3} cols={4} />
+      ) : overrides.isError ? (
+        <ErrorState error={overrides.error} onRetry={() => void overrides.refetch()} />
+      ) : (
+        <DataTable
+          title="Penugasan tanggal khusus (mendatang)"
+          icon={<CalendarCheck />}
+          columns={overrideColumns}
+          data={overrides.data}
+          getRowId={(r) => r.id}
+          caption="Penugasan piket tanggal khusus"
+          emptyState={
+            <EmptyState
+              icon={<CalendarCheck className="size-5" />}
+              title="Tidak ada penugasan tanggal khusus"
+              description="Gunakan penugasan tanggal khusus untuk tukar jadwal, pengganti petugas yang berhalangan, atau acara sekolah."
+              action={
+                <AddButton onClick={() => setTarget({ draft: { date: today, dayOfWeek: null } })}>Penugasan Tanggal Khusus</AddButton>
+              }
+            />
+          }
+          renderMobileCard={(a) => (
+            <MobileCard
+              title={a.date ? formatDateLong(a.date) : '—'}
+              badge={<MetaTag>{lookups.shiftName(a.shiftCode)}</MetaTag>}
+              lines={[teacherNames(a.teacherIds).join(', '), a.note]}
+              actions={<RowActions label={`piket ${a.date ?? ''}`} onEdit={() => setTarget({ item: a })} onDelete={() => crud.askDelete(a)} />}
+            />
+          )}
+        />
+      )}
 
       {target && (
         <DutyDialog
@@ -291,9 +298,9 @@ function DutyDialog({
           ).map(([value, label, hint]) => (
             <label
               key={value}
-              className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+              className="flex cursor-pointer items-start gap-2 rounded-md border border-input p-3 transition-colors hover:bg-accent/50 has-[:checked]:border-foreground/40 has-[:checked]:bg-muted"
             >
-              <input type="radio" value={value} {...register('kind')} disabled={!!item} className="mt-1 accent-primary" />
+              <input type="radio" value={value} {...register('kind')} disabled={!!item} className="mt-0.5 accent-primary" />
               <span className="grid">
                 <span className="text-sm font-semibold">{label}</span>
                 <span className="text-xs text-muted-foreground">{hint}</span>

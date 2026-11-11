@@ -31,7 +31,7 @@ export function markedCount(c: AttendanceSummaryCounts) {
 }
 
 /** Urutan prioritas tugas: hal yang berdampak ke kelas berjalan ditampilkan lebih dulu. */
-const TASK_PRIORITY: Record<PendingTask['kind'], number> = {
+export const TASK_PRIORITY: Record<PendingTask['kind'], number> = {
   SUBSTITUTION_UNHANDLED: 0,
   DUTY_AGENDA_DRAFT: 1,
   ATTENDANCE_NOT_SUBMITTED: 2,

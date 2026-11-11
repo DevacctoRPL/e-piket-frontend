@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { FormField, NativeSelect } from '@/components/form-field'
+import { FramedCard } from '@/components/framed-card'
 import { StatusBadge, ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -296,11 +297,11 @@ export function TeachingLogForm({
             </FormField>
           </div>
 
-          <div className="grid gap-3 rounded-lg border bg-muted/30 p-3">
+          <div className="grid gap-3 rounded-md border border-border/80 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium">
-                  JML: <span className="text-lg font-bold tabular-nums">{effectivePeriodCount(getValuesSafe(watched, defaults))}</span> jam
+                  JML: <span className="text-base font-semibold tabular-nums">{effectivePeriodCount(getValuesSafe(watched, defaults))}</span> jam
                 </p>
                 <p className="text-xs text-muted-foreground tabular-nums">
                   Menurut jadwal: {scheduled} jam pelajaran
@@ -340,7 +341,7 @@ export function TeachingLogForm({
       </fieldset>
 
       {/* Bar aksi — menempel di bawah pada ponsel, di atas navigasi bawah */}
-      <div className="no-print sticky bottom-16 z-10 -mx-3 flex flex-wrap items-center justify-end gap-2 border-t bg-background/95 px-3 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border sm:px-4 sm:shadow-xs md:bottom-0">
+      <div className="no-print sticky bottom-16 z-10 -mx-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/80 bg-background/95 px-3 py-2.5 backdrop-blur sm:mx-0 sm:rounded-lg sm:border sm:px-3 sm:shadow-2xs md:bottom-0">
         <Button type="button" variant="ghost" asChild className="mr-auto">
           <Link to="/jurnal-mengajar">Kembali</Link>
         </Button>
@@ -408,13 +409,10 @@ function getValuesSafe(w: Partial<TeachingLogFormValues>, d: TeachingLogFormValu
 
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
-    <section className="grid gap-4 rounded-xl border bg-card p-4 shadow-xs sm:p-5">
-      <div className="space-y-0.5">
-        <h2 className="font-semibold">{title}</h2>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
-      </div>
+    <FramedCard title={title} bodyClassName="grid gap-4">
+      {description && <p className="-mt-1 text-xs text-muted-foreground">{description}</p>}
       {children}
-    </section>
+    </FramedCard>
   )
 }
 
@@ -436,9 +434,10 @@ function SlotContext({ ctx }: { ctx: TeachingLogContext }) {
   return (
     <div className="grid gap-3">
       {ctx.isSubstitution && (
-        <ToneBadge tone="info">
-          <Repeat2 className="size-3" aria-hidden /> Pengganti — Anda menggantikan guru yang berhalangan
-        </ToneBadge>
+        <p className="flex items-center gap-2 rounded-md border border-tone-info/25 bg-tone-info-bg px-3 py-2 text-xs font-medium text-tone-info">
+          <Repeat2 className="size-3.5 shrink-0" aria-hidden />
+          <span>Pengganti — Anda menggantikan guru yang berhalangan</span>
+        </p>
       )}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3 lg:grid-cols-5">
         {items.map(([k, v]) => (

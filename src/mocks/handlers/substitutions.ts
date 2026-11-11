@@ -4,6 +4,7 @@
  * konflik jadwal divalidasi sebelum simpan, override hanya untuk admin/guru piket dengan alasan.
  */
 import { http, type HttpHandler } from 'msw'
+import { ADMIN_ROLES, hasRole } from '@/lib/permissions'
 import { addDays, dateRange, todayISO } from '@/lib/date'
 import { TEACHER_ATTENDANCE_META } from '@/lib/enums'
 import type {
@@ -77,7 +78,7 @@ function periodRangeLabel(start: number, end: number) {
 function canOverride(user: AuthedUser) {
   return (
     can(user, 'substitution:write') &&
-    user.roles.some((r) => r === 'ADMIN' || r === 'DUTY_TEACHER')
+    hasRole(user, ...ADMIN_ROLES, 'DUTY_TEACHER')
   )
 }
 

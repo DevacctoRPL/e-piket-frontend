@@ -47,7 +47,7 @@ export function ClassPicker({
     return (
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-busy="true">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 rounded-lg" />
+          <Skeleton key={i} className="h-8 rounded-md" />
         ))}
       </div>
     )
@@ -61,11 +61,11 @@ export function ClassPicker({
       role="group"
       aria-invalid={invalid || undefined}
       aria-describedby={describedBy}
-      className={cn('space-y-3 rounded-lg border p-3', invalid && 'border-destructive')}
+      className={cn('space-y-3 rounded-lg border border-border/80 p-3', invalid && 'border-destructive')}
     >
       {groups.map((g) => (
         <fieldset key={g.grade} className="space-y-1.5">
-          <legend className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <legend className="text-xs text-muted-foreground">
             Kelas {romanGrade(g.grade)}
           </legend>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -77,8 +77,8 @@ export function ClassPicker({
                   key={c.id}
                   htmlFor={id}
                   className={cn(
-                    'flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-sm transition-colors',
-                    checked ? 'border-primary/50 bg-primary/5' : 'hover:bg-accent',
+                    'flex h-8 cursor-pointer items-center gap-2 rounded-md border border-border/90 px-2.5 text-[13px] transition-colors',
+                    checked ? 'border-foreground/30 bg-muted' : 'hover:bg-accent',
                     disabled && 'cursor-not-allowed opacity-60',
                   )}
                 >

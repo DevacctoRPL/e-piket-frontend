@@ -4,6 +4,7 @@ import { ErrorState } from '@/components/page'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/misc'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Sheet,
   SheetContent,
@@ -71,7 +72,7 @@ function AuditDetailBody({ log }: { log: AuditLog }) {
 
   return (
     <>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl border bg-card p-4 text-sm shadow-xs">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-lg border border-border/85 bg-card p-4 text-[13px] shadow-2xs">
         <dt className="text-muted-foreground">Aksi</dt>
         <dd>
           <StatusBadge meta={AUDIT_ACTION_META} value={log.action} />
@@ -108,46 +109,46 @@ function AuditDetailBody({ log }: { log: AuditLog }) {
           )}
         </div>
         {rows.length === 0 ? (
-          <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border p-4 text-center text-[13px] text-muted-foreground">
             Aksi ini tidak menyimpan rincian perubahan data.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border">
-            <table className="w-full text-sm">
+          <div className="overflow-hidden rounded-lg border border-border/85 bg-card shadow-2xs">
+            <Table>
               <caption className="sr-only">Perbandingan nilai sebelum dan sesudah</caption>
-              <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-semibold">Field</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Sebelum</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Sesudah</th>
-                </tr>
-              </thead>
-              <tbody>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Field</TableHead>
+                  <TableHead scope="col">Sebelum</TableHead>
+                  <TableHead scope="col">Sesudah</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rows.map((r) => (
-                  <tr
+                  <TableRow
                     key={r.field}
-                    className={cn('border-t align-top', r.changed && 'bg-tone-warning-bg/50')}
+                    className={cn('align-top hover:bg-transparent', r.changed && 'border-l-2 border-l-tone-warning')}
                     data-changed={r.changed || undefined}
                   >
-                    <th scope="row" className="px-3 py-2 text-left font-medium">
+                    <th scope="row" className="px-3 py-2.5 text-left text-[13px] font-medium">
                       {r.label}
                       {r.changed && <span className="sr-only"> (berubah)</span>}
                     </th>
-                    <td className={cn('px-3 py-2 break-words', r.changed && 'text-tone-danger')}>
+                    <TableCell className={cn('whitespace-normal break-words', r.changed && 'text-muted-foreground')}>
                       {r.before}
-                    </td>
-                    <td className={cn('px-3 py-2 break-words', r.changed && 'font-semibold text-tone-success')}>
+                    </TableCell>
+                    <TableCell className={cn('whitespace-normal break-words', r.changed && 'font-semibold')}>
                       {r.after}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
         {rows.some((r) => r.changed) && (
           <p className="text-xs text-muted-foreground">
-            Baris yang disorot menandakan nilai yang berubah.
+            Baris bergaris kiri menandakan nilai yang berubah.
           </p>
         )}
       </section>

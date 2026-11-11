@@ -16,6 +16,7 @@ export type WallTime = string // HH:mm
 /* ------------------------------------------------------------------ enums */
 
 export const ROLES = [
+  'SUPER_ADMIN',
   'ADMIN',
   'PRINCIPAL',
   'TEACHER',
@@ -71,6 +72,9 @@ export const AUDIT_ACTIONS = [
   'CORRECT',
   'CANCEL',
   'LOGIN',
+  'ROLE_CHANGE',
+  'STATUS_CHANGE',
+  'PASSWORD_RESET',
 ] as const
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
 
@@ -93,6 +97,8 @@ export interface CurrentUser {
   teachingClassIds: ID[]
   /** Kegiatan tambahan yang dikoordinasikan. */
   coordinatedActivityIds: ID[]
+  /** true bila akun memakai kata sandi sementara dan wajib menggantinya. */
+  mustChangePassword?: boolean
 }
 
 export interface LoginRequest {
@@ -137,6 +143,13 @@ export const PERMISSIONS = [
   'report:export',
   'audit:read',
   'settings:write',
+  /** Kelola akun pengguna (Super Admin). */
+  'user:read',
+  'user:write',
+  /** Pantau keamanan & kesehatan data (dashboard Super Admin). */
+  'security:read',
+  /** Aksi sistem: reset data demo, info sistem. */
+  'system:manage',
 ] as const
 export type Permission = (typeof PERMISSIONS)[number]
 
@@ -695,6 +708,37 @@ export interface SchoolSettings {
 
 /* ------------------------------------------------------------------ dashboard */
 
+export interface DashboardTrendPoint {
+  date: ISODate
+  dayShort: string
+  present: number
+  prevPresent: number
+  nonPresent: number
+  prevNonPresent: number
+  logsFilled: number
+  logsExpected: number
+  sessionsSubmitted: number
+  classesScheduled: number
+}
+
+export interface DashboardTrends {
+  days: DashboardTrendPoint[]
+  presentDeltaPct: number
+  nonPresentDeltaPct: number
+  logComplianceDeltaPct: number
+}
+
+export interface DashboardActivityItem {
+  id: string
+  bucket: 'today' | 'yesterday' | 'week'
+  kind: 'ATTENDANCE' | 'TEACHER' | 'SUBSTITUTION' | 'DISMISSAL' | 'DUTY' | 'LOG'
+  title: string
+  description: string
+  timeLabel: string
+  timestamp: ISODateTime
+  href: string
+}
+
 export interface DashboardSummary {
   date: ISODate
   shiftCode: ShiftCode | null
@@ -723,6 +767,10 @@ export interface DashboardSummary {
     isDutyToday: boolean
   } | null
   pendingTasks: PendingTask[]
+  /** Deret 7 hari & perbandingan pekan lalu untuk sparkline dan grafik tren mingguan. */
+  trends?: DashboardTrends
+  /** Aktivitas operasional terkini (Hari ini / Kemarin / Minggu ini) tanpa data kontak wali. */
+  activities?: DashboardActivityItem[]
 }
 
 export interface PendingTask {
@@ -737,4 +785,118 @@ export interface PendingTask {
   description: string
   /** Path frontend yang menelusuri ke record pembentuk angka. */
   href: string
+}
+
+/* ------------------------------------------------------------------ super admin: akun & sistem */
+
+/** Jejak percobaan masuk (sukses/gagal). Kata sandi TIDAK PERNAH dicatat. */
+export interface LoginEvent {
+  id: ID
+  timestamp: ISODateTime
+  /** null bila username tidak dikenal. */
+  userId: ID | null
+  username: string
+  success: boolean
+  reason: 'OK' | 'BAD_CREDENTIALS' | 'INACTIVE'
+}
+
+/** Akun pengguna untuk halaman Kelola Pengguna (tanpa kata sandi). */
+export interface UserAccount {
+  id: ID
+  username: string
+  name: string
+  email: string | null
+  roles: Role[]
+  status: ActiveStatus
+  teacherId: ID | null
+  teacherName: string | null
+  lastLoginAt: ISODateTime | null
+  mustChangePassword: boolean
+  failedLogins7d: number
+  createdAt: ISODateTime | null
+  version: number
+}
+
+export interface UserAccountDetail extends UserAccount {
+  /** 10 percobaan masuk terakhir. */
+  recentLogins: LoginEvent[]
+}
+
+export interface UserAccountInput {
+  username: string
+  name: string
+  email?: string | null
+  roles: Role[]
+  teacherId?: ID | null
+}
+
+/** Kata sandi sementara — hanya dikirim sekali pada respons buat akun / reset. */
+export interface TemporaryPasswordResult {
+  userId: ID
+  temporaryPassword: string
+}
+
+export type DataGapKey =
+  | 'TEACHER_NO_ACCOUNT'
+  | 'TEACHER_NO_SCHEDULE'
+  | 'TEACHER_ROLE_NO_LINK'
+  | 'CLASS_NO_HOMEROOM'
+  | 'CLASS_NO_SCHEDULE'
+  | 'CLASS_NO_STUDENTS'
+  | 'STUDENT_NO_GUARDIAN_PHONE'
+  | 'DUTY_SLOT_UNASSIGNED'
+
+export interface Completeness {
+  done: number
+  expected: number
+}
+
+/** Ringkasan sistem untuk dashboard Super Admin (GET /system/overview). */
+export interface SystemOverview {
+  generatedAt: ISODateTime
+  date: ISODate
+  accounts: {
+    total: number
+    active: number
+    inactive: number
+    mustChangePassword: number
+    neverLoggedIn: number
+    byRole: { role: Role; total: number; active: number }[]
+  }
+  security: {
+    loginsToday: number
+    failedToday: number
+    failed7d: number
+    activeUsers7d: number
+    series: { date: ISODate; dayShort: string; success: number; failed: number }[]
+    repeatedFailures: { username: string; userId: ID | null; count: number; lastAt: ISODateTime }[]
+  }
+  importantEvents: {
+    id: ID
+    timestamp: ISODateTime
+    actorName: string
+    action: AuditAction
+    entity: string
+    summary: string
+    href: string
+  }[]
+  dataHealth: {
+    days: {
+      date: ISODate
+      dayShort: string
+      attendance: Completeness
+      teachingLogs: Completeness
+      dutyAgendas: Completeness
+    }[]
+    completenessPct: number
+    classes: { classId: ID; className: string; attendanceMissingDays: number }[]
+    gaps: { key: DataGapKey; label: string; count: number; href: string }[]
+  }
+  /** Hanya untuk pemegang system:manage. */
+  system?: {
+    schemaVersion: number
+    seedDate: ISODate
+    mockApi: boolean
+    counts: Record<'users' | 'teachers' | 'students' | 'classes' | 'timetable' | 'auditLogs' | 'loginEvents', number>
+  }
 }

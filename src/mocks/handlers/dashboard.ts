@@ -2,6 +2,7 @@ import { http } from 'msw'
 import { todayISO } from '@/lib/date'
 import { db, isDeleted } from '../db'
 import {
+  apiError,
   apiPath,
   errors,
   latency,
@@ -33,6 +34,12 @@ export const dashboardHandlers = [
     }
     if (Object.keys(details).length) throw errors.validation(details, 'Parameter dashboard tidak valid.')
 
-    return ok(computeDashboardSummary(user, { date, shiftCode }))
+    try {
+      return ok(computeDashboardSummary(user, { date, shiftCode }))
+    } catch (err) {
+      // Tanpa ini MSW mengubah exception menjadi 500 polos tanpa jejak — cetak penyebab aslinya di console.
+      console.error('[mock] /dashboard/summary gagal dihitung:', err)
+      return apiError(500, 'INTERNAL_ERROR', 'Ringkasan dashboard gagal dihitung. Coba muat ulang halaman.')
+    }
   }),
 ]

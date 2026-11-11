@@ -51,12 +51,12 @@ export function RequirePermission({
 export function ForbiddenPage({ message }: { message?: string }) {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-tone-danger-bg text-tone-danger">
-        <ShieldX className="size-7" />
+      <span className="flex size-11 items-center justify-center rounded-lg border border-border/85 bg-card text-tone-danger shadow-2xs">
+        <ShieldX className="size-5" />
       </span>
       <div className="space-y-1">
-        <h1 className="text-xl font-bold">Akses ditolak</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-lg font-semibold tracking-tight">Akses ditolak</h1>
+        <p className="text-[13px] text-pretty text-muted-foreground">
           {message ?? 'Anda tidak memiliki izin untuk membuka halaman ini. Hubungi admin sekolah bila Anda merasa memerlukan akses.'}
         </p>
       </div>
@@ -70,10 +70,10 @@ export function ForbiddenPage({ message }: { message?: string }) {
 export function NotFoundPage() {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
-      <p className="text-5xl font-bold text-muted-foreground/40">404</p>
+      <p className="text-4xl font-semibold tracking-tight text-muted-foreground/40 tabular-nums">404</p>
       <div className="space-y-1">
-        <h1 className="text-xl font-bold">Halaman tidak ditemukan</h1>
-        <p className="text-sm text-muted-foreground">Alamat yang Anda buka tidak tersedia atau sudah dipindahkan.</p>
+        <h1 className="text-lg font-semibold tracking-tight">Halaman tidak ditemukan</h1>
+        <p className="text-[13px] text-pretty text-muted-foreground">Alamat yang Anda buka tidak tersedia atau sudah dipindahkan.</p>
       </div>
       <Button asChild variant="outline">
         <Link to="/">Kembali ke dashboard</Link>

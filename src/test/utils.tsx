@@ -14,7 +14,14 @@ import { authToken } from '@/lib/auth-token'
 import type { DataResponse } from '@/types/api'
 import type { LoginResponse } from '@/types/entities'
 
-export type DemoAccount = 'admin' | 'kepsek' | 'guru' | 'piket' | 'walikelas' | 'koordinator'
+export type DemoAccount =
+  | 'superadmin'
+  | 'admin'
+  | 'kepsek'
+  | 'guru'
+  | 'piket'
+  | 'walikelas'
+  | 'koordinator'
 
 export async function loginAs(username: DemoAccount) {
   const res = await api.post<DataResponse<LoginResponse>>(

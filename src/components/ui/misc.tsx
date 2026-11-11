@@ -33,14 +33,14 @@ export function Skeleton({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 const badgeVariants = cva(
-  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-md border px-2 py-0.5 text-xs font-semibold whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3',
+  'inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm border px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap tabular-nums [&>svg]:pointer-events-none [&>svg]:size-3',
   {
     variants: {
       variant: {
         default: 'border-transparent bg-primary text-primary-foreground',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground',
+        secondary: 'border-border/80 bg-muted/50 text-foreground/85',
         destructive: 'border-transparent bg-destructive text-white',
-        outline: 'text-foreground',
+        outline: 'border-border/90 text-foreground',
       },
     },
     defaultVariants: { variant: 'default' },
@@ -58,12 +58,12 @@ export function Switch({ className, ...props }: React.ComponentProps<typeof Swit
   return (
     <SwitchPrimitive.Root
       className={cn(
-        'peer inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input',
+        'peer inline-flex h-5 w-9 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-colors duration-200 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input',
         className,
       )}
       {...props}
     >
-      <SwitchPrimitive.Thumb className="pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%)] data-[state=unchecked]:translate-x-0.5" />
+      <SwitchPrimitive.Thumb className="pointer-events-none block size-4 rounded-full bg-background shadow-2xs ring-0 transition-transform duration-200 ease-[var(--ease-out)] data-[state=checked]:translate-x-[calc(100%)] data-[state=unchecked]:translate-x-0.5" />
     </SwitchPrimitive.Root>
   )
 }
@@ -81,7 +81,7 @@ export function TooltipContent({
       <TooltipPrimitive.Content
         sideOffset={sideOffset}
         className={cn(
-          'z-50 rounded-md bg-foreground px-3 py-1.5 text-xs text-background animate-in fade-in-0 zoom-in-95',
+          'z-50 rounded-md bg-foreground px-3 py-1.5 text-xs text-background ease-[var(--ease-out)] animate-in fade-in-0 zoom-in-[0.97] [--tw-duration:125ms]',
           className,
         )}
         {...props}
@@ -104,7 +104,7 @@ export function PopoverContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          'z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+          'z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-lg border border-border/90 bg-popover p-3 text-popover-foreground shadow-md shadow-black/5 outline-hidden ease-[var(--ease-out)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:[--tw-duration:120ms] data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-[0.97] data-[state=open]:zoom-in-[0.96] data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[state=open]:[--tw-duration:180ms]',
           className,
         )}
         {...props}
@@ -114,14 +114,15 @@ export function PopoverContent({
 }
 
 const alertVariants = cva(
-  'relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
+  // Callout netral: latar kartu, teks normal — warna hanya pada ikon (+ garis kiri tipis untuk tone kuat).
+  'relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border border-border/85 bg-card px-3.5 py-3 text-[13px] text-card-foreground shadow-2xs has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-2.5 [&>svg]:size-4 [&>svg]:translate-y-px',
   {
     variants: {
       variant: {
-        default: 'bg-card text-card-foreground',
-        destructive: 'border-tone-danger/30 bg-tone-danger-bg text-tone-danger',
-        warning: 'border-tone-warning/30 bg-tone-warning-bg text-tone-warning',
-        info: 'border-tone-info/30 bg-tone-info-bg text-tone-info',
+        default: '[&>svg]:text-muted-foreground',
+        destructive: 'border-l-2 border-l-tone-danger [&>svg]:text-tone-danger',
+        warning: 'border-l-2 border-l-tone-warning [&>svg]:text-tone-warning',
+        info: '[&>svg]:text-tone-info',
       },
     },
     defaultVariants: { variant: 'default' },
@@ -142,7 +143,7 @@ export function AlertTitle({ className, ...props }: React.ComponentProps<'div'>)
 export function AlertDescription({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
-      className={cn('col-start-2 grid justify-items-start gap-1 text-sm opacity-90', className)}
+      className={cn('col-start-2 grid justify-items-start gap-1 text-[13px] text-muted-foreground', className)}
       {...props}
     />
   )

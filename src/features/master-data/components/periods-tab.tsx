@@ -82,7 +82,7 @@ export function PeriodsTab() {
         id: 'actions',
         header: () => <span className="sr-only">Aksi</span>,
         enableSorting: false,
-        meta: { headerClassName: 'w-24', className: 'text-right' },
+        meta: { headerClassName: 'w-12', className: 'text-right' },
         cell: ({ row }) => (
           <RowActions label={`jam ke-${row.original.number}`} onEdit={() => openEdit(row.original)} onDelete={() => askDelete(row.original)} />
         ),

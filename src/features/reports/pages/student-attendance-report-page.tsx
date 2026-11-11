@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, UserX, Users } from 'lucide-react'
+import { CheckCircle2, ClipboardList, Table2, UserX, Users } from 'lucide-react'
 import { EmptyState, StatCard } from '@/components/page'
 import type { ColumnDef } from '@/components/data-table'
 import { PrintTable } from '@/components/print-layout'
@@ -7,7 +7,7 @@ import { formatDate, formatDateShort } from '@/lib/date'
 import { ATTENDANCE_STATUSES } from '@/types/entities'
 import { reportDef } from '../catalog'
 import { DrillLink, InfoTip, MiniStat, Num } from '../components/cells'
-import { ReportTable, ReportView, SectionTitle, SummaryGrid } from '../components/report-shell'
+import { ReportTable, ReportView, SummaryGrid } from '../components/report-shell'
 import { formatNumber, formatPercent } from '../lib/format'
 import { drillHref, useReportFilters } from '../lib/use-report-filters'
 import { useReport } from '../queries'
@@ -99,15 +99,14 @@ export function StudentAttendanceReportPage({ mode = 'screen' }: { mode?: 'scree
               </span>
             }
             icon={<CheckCircle2 />}
-            tone="success"
           />
-          <StatCard label="Record status" value={formatNumber(d.totals.total)} hint={`${formatNumber(d.totals.sessions)} sesi dihitung`} icon={<ClipboardList />} tone="info" />
+          <StatCard label="Record status" value={formatNumber(d.totals.total)} hint={`${formatNumber(d.totals.sessions)} sesi dihitung`} icon={<ClipboardList />} />
           <StatCard
             label="Sakit · Izin · Alpa"
             value={`${d.totals.counts.SICK} · ${d.totals.counts.PERMISSION} · ${d.totals.counts.ABSENT}`}
             hint="Telusuri daftar siswa tidak hadir"
             icon={<UserX />}
-            tone="danger"
+            tone={d.totals.counts.SICK + d.totals.counts.PERMISSION + d.totals.counts.ABSENT > 0 ? 'danger' : 'neutral'}
             href={absenteesHref({ classId: null, date: null })}
           />
           <StatCard
@@ -115,57 +114,55 @@ export function StudentAttendanceReportPage({ mode = 'screen' }: { mode?: 'scree
             value={formatNumber(d.totals.counts.LATE)}
             hint={d.sessionsExcluded > 0 ? `${d.sessionsExcluded} sesi Draft belum dihitung` : 'Semua sesi sudah dikirim'}
             icon={<Users />}
-            tone="warning"
+            tone={d.totals.counts.LATE > 0 ? 'warning' : 'neutral'}
           />
         </SummaryGrid>
       )}
       content={(d) => (
-        <section className="space-y-3">
-          <SectionTitle description={`${formatNumber(d.rows.length)} baris · dikelompokkan ${GROUP_OPTIONS.find((g) => g.value === d.groupBy)?.label.toLowerCase()}`}>
-            Rincian per status
-          </SectionTitle>
-          <ReportTable
-            caption={`${def.title} ${filters.periodText}`}
-            columns={columns}
-            data={d.rows}
-            getRowId={(r) => r.key}
-            pageSize={d.groupBy === 'student' ? 30 : 50}
-            emptyState={
-              <EmptyState
-                title="Belum ada data absensi pada periode ini"
-                description={
-                  d.sessionsExcluded > 0
-                    ? `Ada ${d.sessionsExcluded} sesi Draft yang belum dikirim sehingga belum dihitung. Kirim absensi dari halaman Absensi Siswa.`
-                    : 'Tidak ada sesi absensi yang dikirim/final untuk filter ini. Ubah periode atau filter kelas.'
-                }
-              />
-            }
-            renderMobileCard={(r) => (
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold">{r.date ? formatDate(r.date) : r.label}</p>
-                    {r.sublabel && <p className="text-xs text-muted-foreground">{r.sublabel}</p>}
-                  </div>
-                  <span className="text-lg font-bold tabular-nums">{formatPercent(r.percentPresent)}</span>
+        <ReportTable
+          title="Rincian per status"
+          icon={<Table2 />}
+          description={`Dikelompokkan ${GROUP_OPTIONS.find((g) => g.value === d.groupBy)?.label.toLowerCase()}`}
+          caption={`${def.title} ${filters.periodText}`}
+          columns={columns}
+          data={d.rows}
+          getRowId={(r) => r.key}
+          pageSize={d.groupBy === 'student' ? 30 : 50}
+          emptyState={
+            <EmptyState
+              title="Belum ada data absensi pada periode ini"
+              description={
+                d.sessionsExcluded > 0
+                  ? `Ada ${d.sessionsExcluded} sesi Draft yang belum dikirim sehingga belum dihitung. Kirim absensi dari halaman Absensi Siswa.`
+                  : 'Tidak ada sesi absensi yang dikirim/final untuk filter ini. Ubah periode atau filter kelas.'
+              }
+            />
+          }
+          renderMobileCard={(r) => (
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold">{r.date ? formatDate(r.date) : r.label}</p>
+                  {r.sublabel && <p className="text-xs text-muted-foreground">{r.sublabel}</p>}
                 </div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {(['PRESENT', 'SICK', 'PERMISSION', 'ABSENT', 'LATE', 'LEFT_EARLY', 'EXCUSED'] as const).map((s) => (
-                    <MiniStat key={s} label={ATTENDANCE_META[s].label} value={r.counts[s]} />
-                  ))}
-                  <MiniStat label="Total" value={r.total} />
-                </div>
-                {r.total - r.present > 0 && <DrillLink to={absenteesHref(r)}>Lihat siswa tidak hadir</DrillLink>}
+                <span className="text-base font-semibold tabular-nums">{formatPercent(r.percentPresent)}</span>
               </div>
-            )}
-            totals={[
-              ['Sesi', formatNumber(d.totals.sessions)],
-              ...ATTENDANCE_STATUSES.map<[string, string]>((s) => [ATTENDANCE_META[s].short ?? s, formatNumber(d.totals.counts[s])]),
-              ['Total', formatNumber(d.totals.total)],
-              ['% Hadir', formatPercent(d.totals.percentPresent)],
-            ]}
-          />
-        </section>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(['PRESENT', 'SICK', 'PERMISSION', 'ABSENT', 'LATE', 'LEFT_EARLY', 'EXCUSED'] as const).map((s) => (
+                  <MiniStat key={s} label={ATTENDANCE_META[s].label} value={r.counts[s]} />
+                ))}
+                <MiniStat label="Total" value={r.total} />
+              </div>
+              {r.total - r.present > 0 && <DrillLink to={absenteesHref(r)}>Lihat siswa tidak hadir</DrillLink>}
+            </div>
+          )}
+          totals={[
+            ['Sesi', formatNumber(d.totals.sessions)],
+            ...ATTENDANCE_STATUSES.map<[string, string]>((s) => [ATTENDANCE_META[s].short ?? s, formatNumber(d.totals.counts[s])]),
+            ['Total', formatNumber(d.totals.total)],
+            ['% Hadir', formatPercent(d.totals.percentPresent)],
+          ]}
+        />
       )}
       printMeta={(d) => [
         ['Pengelompokan', GROUP_OPTIONS.find((g) => g.value === d.groupBy)?.label ?? '—'],

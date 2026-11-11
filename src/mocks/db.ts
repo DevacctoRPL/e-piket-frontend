@@ -10,6 +10,8 @@ import type {
   DutyAssignment,
   ExtraActivity,
   ID,
+  ISODateTime,
+  LoginEvent,
   Period,
   Role,
   SchoolSettings,
@@ -35,12 +37,26 @@ export interface MockUser {
   roles: Role[]
   teacherId: ID | null
   status: 'ACTIVE' | 'INACTIVE'
+  lastLoginAt?: ISODateTime | null
+  createdAt?: ISODateTime | null
+  updatedAt?: ISODateTime | null
+  /** true setelah dibuat/di-reset dengan kata sandi sementara. */
+  mustChangePassword?: boolean
+  /** Optimistic locking untuk PATCH/status (default 1). */
+  version?: number
 }
 
 /** Sesi tanpa ringkasan (summary dihitung saat dibaca). */
 export type StoredSession = Omit<StudentAttendanceSession, 'summary'>
 
+/**
+ * Naikkan setiap kali bentuk data/seed berubah. Data localStorage dengan versi lain otomatis di-seed ulang
+ * agar handler baru tidak membaca data lama yang strukturnya tidak cocok (penyebab 500 di dashboard).
+ */
+export const MOCK_SCHEMA_VERSION = 5
+
 export interface MockDb {
+  schemaVersion?: number
   seedDate: string
   users: MockUser[]
   academicYears: AcademicYear[]
@@ -62,6 +78,8 @@ export interface MockDb {
   substitutions: SubstitutionRecord[]
   extraActivities: ExtraActivity[]
   auditLogs: AuditLog[]
+  /** Jejak percobaan masuk (terbaru di depan, dipangkas MAX_LOGIN_EVENTS). Tanpa kata sandi. */
+  loginEvents: LoginEvent[]
   settings: SchoolSettings
   /** Soft-delete marker per koleksi: { collection: [ids] } */
   deleted: Record<string, ID[]>
@@ -70,6 +88,9 @@ export interface MockDb {
   /** accessToken → { userId, exp(ms) } */
   tokens: Record<string, { userId: ID; exp: number }>
 }
+
+/** Batas jejak login yang disimpan. */
+export const MAX_LOGIN_EVENTS = 500
 
 const STORAGE_KEY = 'epiket-mock-db-v1'
 export const REFRESH_KEY = 'epiket-mock-refresh'
@@ -85,7 +106,11 @@ function load(): MockDb {
   if (typeof localStorage !== 'undefined') {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) return JSON.parse(raw) as MockDb
+      if (raw) {
+        const stored = JSON.parse(raw) as MockDb
+        // versi lama → jatuh ke seed ulang di bawah (id user seed stabil, jadi sesi login tetap berlaku)
+        if (stored.schemaVersion === MOCK_SCHEMA_VERSION) return stored
+      }
     } catch {
       /* data rusak → seed ulang */
     }
@@ -107,8 +132,9 @@ function persistNow(value: MockDb) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
   } catch {
-    // kuota penuh: pangkas audit & idempotency lalu coba lagi
-    value.auditLogs = value.auditLogs.slice(-300)
+    // kuota penuh: pangkas audit & idempotency lalu coba lagi (audit terbaru di depan → simpan 300 pertama)
+    value.auditLogs = value.auditLogs.slice(0, 300)
+    value.loginEvents = (value.loginEvents ?? []).slice(0, 200)
     value.idempotency = {}
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(value))

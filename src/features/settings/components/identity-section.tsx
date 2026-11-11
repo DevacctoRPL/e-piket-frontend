@@ -1,8 +1,8 @@
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Eye, FileText, Plus, School, Trash2 } from 'lucide-react'
 import { useFieldArray, useFormContext, useWatch } from 'react-hook-form'
 import { FormField } from '@/components/form-field'
+import { FramedCard } from '@/components/framed-card'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDateLong, todayISO } from '@/lib/date'
@@ -23,12 +23,12 @@ export function IdentitySection() {
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-5">
-        <Card>
-          <CardHeader>
-            <CardTitle>Identitas Sekolah</CardTitle>
-            <CardDescription>Dipakai pada kop, tanda tangan, dan dokumen cetak.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+        <FramedCard
+          icon={<School />}
+          title="Identitas Sekolah"
+          description="Dipakai pada kop, tanda tangan, dan dokumen cetak."
+          bodyClassName="grid gap-4 sm:grid-cols-2"
+        >
             <FormField label="Nama sekolah" required error={errors.schoolName?.message} className="sm:col-span-2">
               <Input {...register('schoolName')} autoComplete="organization" />
             </FormField>
@@ -45,23 +45,18 @@ export function IdentitySection() {
             <FormField label="NIP kepala sekolah" error={errors.principalNip?.message}>
               <Input inputMode="numeric" {...register('principalNip')} />
             </FormField>
-          </CardContent>
-        </Card>
+        </FramedCard>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Kop Cetak</CardTitle>
-            <CardDescription>
-              Baris kop surat di bagian atas setiap dokumen cetak. Baris ketiga ditampilkan paling besar (nama sekolah).
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
+        <FramedCard icon={<FileText />} title="Kop Cetak" bodyClassName="flex flex-col gap-3">
+          <p className="text-[13px] text-pretty text-muted-foreground">
+            Baris kop surat di bagian atas setiap dokumen cetak. Baris ketiga ditampilkan paling besar (nama sekolah).
+          </p>
             <ol className="flex flex-col gap-2">
               {lines.fields.map((f, i) => {
                 const err = errors.letterheadLines?.[i]?.value?.message
                 return (
                   <li key={f.id} className="flex items-start gap-2">
-                    <span className="mt-2 w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums" aria-hidden>
+                    <span className="mt-1.5 w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums" aria-hidden>
                       {i + 1}.
                     </span>
                     <div className="grid min-w-0 flex-1 gap-1">
@@ -91,7 +86,6 @@ export function IdentitySection() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
               className="self-start"
               disabled={lines.fields.length >= MAX_LINES}
               onClick={() => lines.append({ value: '' })}
@@ -101,8 +95,7 @@ export function IdentitySection() {
             {lines.fields.length >= MAX_LINES && (
               <p className="text-xs text-muted-foreground">Maksimal {MAX_LINES} baris kop.</p>
             )}
-          </CardContent>
-        </Card>
+        </FramedCard>
       </div>
 
       <LetterheadPreview />
@@ -120,14 +113,15 @@ function LetterheadPreview() {
   const visible = (lines ?? []).map((l) => l.value.trim()).filter(Boolean)
 
   return (
-    <Card className="lg:sticky lg:top-4 lg:self-start">
-      <CardHeader>
-        <CardTitle>Pratinjau Cetak</CardTitle>
-        <CardDescription>Tampilan kop dan tanda tangan pada dokumen cetak/PDF.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <FramedCard
+      icon={<Eye />}
+      title="Pratinjau Cetak"
+      description="Tampilan kop dan tanda tangan pada dokumen cetak/PDF."
+      className="lg:sticky lg:top-4 lg:self-start"
+      bodyClassName="bg-muted/40"
+    >
         <div
-          className="overflow-hidden rounded-lg border bg-white p-4 text-[12px] leading-snug text-black shadow-sm sm:p-6"
+          className="overflow-hidden rounded-md border border-border/80 bg-white p-4 text-[12px] leading-snug text-black shadow-2xs sm:p-6"
           aria-label="Pratinjau kop cetak"
           role="region"
         >
@@ -167,7 +161,6 @@ function LetterheadPreview() {
             {principalNip.trim() && <p>NIP. {principalNip.replace(/\s+/g, '')}</p>}
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </FramedCard>
   )
 }

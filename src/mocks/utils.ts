@@ -1,6 +1,6 @@
 import { HttpResponse, delay as mswDelay } from 'msw'
 import { toISODateTime } from '@/lib/date'
-import { permissionsForRoles } from '@/lib/permissions'
+import { FULL_SCOPE_ROLES, hasRole, permissionsForRoles } from '@/lib/permissions'
 import type { ApiErrorBody, PaginationMeta } from '@/types/api'
 import type { AuditAction, CurrentUser, ID, Permission } from '@/types/entities'
 import { db, newId, persist, type MockUser } from './db'
@@ -98,6 +98,7 @@ export function toCurrentUser(u: MockUser): CurrentUser {
     homeroomClassIds,
     teachingClassIds,
     coordinatedActivityIds,
+    mustChangePassword: !!u.mustChangePassword,
   }
 }
 
@@ -129,7 +130,7 @@ export function requirePermission(user: AuthedUser, ...perms: Permission[]) {
  * null = semua kelas.
  */
 export function accessibleClassIds(user: AuthedUser): ID[] | null {
-  if (user.roles.some((r) => r === 'ADMIN' || r === 'PRINCIPAL' || r === 'DUTY_TEACHER')) return null
+  if (hasRole(user, ...FULL_SCOPE_ROLES)) return null
   const cu = toCurrentUser(user)
   return [...new Set([...cu.homeroomClassIds, ...cu.teachingClassIds])]
 }

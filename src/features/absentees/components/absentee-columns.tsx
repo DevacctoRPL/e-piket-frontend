@@ -44,7 +44,7 @@ export function ReasonCell({ row }: { row: AbsenteeRow }) {
 function ContactButton({ row, onContact }: { row: AbsenteeRow; onContact: (row: AbsenteeRow) => void }) {
   return (
     <Button
-      variant={row.contact ? 'ghost' : 'outline'}
+      variant="outline"
       size="sm"
       onClick={(e) => {
         e.stopPropagation()
@@ -188,7 +188,7 @@ export function AbsenteeMobileCard({
       )}
       {canWrite && (
         <Button
-          variant={row.contact ? 'outline' : 'default'}
+          variant="outline"
           className="w-full"
           onClick={() => onContact(row)}
           aria-label={`${row.contact ? 'Ubah' : 'Catat'} konfirmasi untuk ${row.studentName}`}

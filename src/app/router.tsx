@@ -14,6 +14,7 @@ import { studentDismissalRoutes } from '@/features/student-dismissal/routes'
 import { substitutionsRoutes } from '@/features/substitutions/routes'
 import { teacherAttendanceRoutes } from '@/features/teacher-attendance/routes'
 import { teachingLogsRoutes } from '@/features/teaching-logs/routes'
+import { usersRoutes } from '@/features/users/routes'
 import { AppShell } from './app-shell'
 import { RouteErrorBoundary } from './error-boundary'
 import { NotFoundPage, RedirectIfAuthenticated, RequireAuth } from './guards'
@@ -53,6 +54,7 @@ export const routes: RouteObject[] = [
               ...substitutionsRoutes,
               ...extraActivitiesRoutes,
               ...reportsRoutes,
+              ...usersRoutes,
               ...auditRoutes,
               ...settingsRoutes,
               { path: '*', element: <NotFoundPage /> },

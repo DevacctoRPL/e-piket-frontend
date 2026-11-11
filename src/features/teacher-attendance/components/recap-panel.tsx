@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3 } from 'lucide-react'
+import { AlertTriangle, BarChart3, CalendarX2, Clock3, Hourglass, Table2, UserCheck, UserX } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 import { DataTable, type ColumnDef } from '@/components/data-table'
 import { ExportMenu } from '@/components/export-menu'
@@ -131,6 +131,16 @@ export function RecapPanel() {
   const periodLabel = `${values.rFrom}_${values.rTo}`
   const teacherName = teachers.data?.find((t) => t.id === values.rTeacher)?.name
   const absentRecords = (q.data?.records ?? []).filter((r) => ABSENT_KEYS.includes(r.status))
+  const quickRanges = [
+    { value: '7d', label: '7 hari', from: addDays(today, -6) },
+    { value: 'month', label: 'Bulan ini', from: startOfMonth(today) },
+    { value: '30d', label: '30 hari', from: addDays(today, -29) },
+  ] as const
+  // Segmen aktif hanya bila filter tanggal persis sama dengan salah satu rentang cepat.
+  const activeRange =
+    !values.rSemester && values.rTo === today
+      ? (quickRanges.find((r) => r.from === values.rFrom)?.value ?? '')
+      : ''
 
   return (
     <div className="flex flex-col gap-4">
@@ -168,10 +178,30 @@ export function RecapPanel() {
       </FilterBar>
 
       <div className="no-print flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2 text-xs">
-          <QuickRange label="7 hari" onClick={() => set({ rFrom: addDays(today, -6), rTo: today, rSemester: '' })} />
-          <QuickRange label="Bulan ini" onClick={() => set({ rFrom: startOfMonth(today), rTo: today, rSemester: '' })} />
-          <QuickRange label="30 hari" onClick={() => set({ rFrom: addDays(today, -29), rTo: today, rSemester: '' })} />
+        {/* Bukan SegmentedControl: rentang bebas = tidak ada segmen aktif, dan radiogroup tanpa pilihan aktif
+            tidak bisa dijangkau Tab (roving tabindex). Tombol aksi bergaya segmen tetap selalu fokusabel. */}
+        <div
+          role="group"
+          aria-label="Rentang cepat"
+          className="no-scrollbar inline-flex h-8 max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border/80 bg-muted/50 p-0.5"
+        >
+          {quickRanges.map((r) => {
+            const active = activeRange === r.value
+            return (
+              <button
+                key={r.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => set({ rFrom: r.from, rTo: today, rSemester: '' })}
+                className={cn(
+                  'inline-flex h-full shrink-0 items-center rounded-md px-2.5 text-[13px] font-medium whitespace-nowrap transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                  active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {r.label}
+              </button>
+            )
+          })}
         </div>
         <ExportMenu
           report="teacher-attendance"
@@ -201,22 +231,34 @@ export function RecapPanel() {
       ) : (
         <>
           <div className="no-print grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard label="Hadir" value={s?.PRESENT ?? 0} tone="success" hint={`dari ${s?.total ?? 0} catatan`} />
-            <StatCard label="Terlambat" value={s?.LATE ?? 0} tone="warning" hint={`${s?.lateMinutes ?? 0} menit total`} />
+            <StatCard
+              label="Hadir"
+              value={s?.PRESENT ?? 0}
+              icon={<UserCheck />}
+              tone="success"
+              hint={`dari ${s?.total ?? 0} catatan`}
+            />
+            <StatCard
+              label="Terlambat"
+              value={s?.LATE ?? 0}
+              icon={<Clock3 />}
+              tone="warning"
+              hint={`${s?.lateMinutes ?? 0} menit total`}
+            />
             <StatCard
               label="Tidak hadir"
               value={absentTotal}
+              icon={<UserX />}
               tone="danger"
               hint={`S ${s?.SICK ?? 0} · I ${s?.PERMISSION ?? 0} · A ${s?.ABSENT ?? 0} · DL ${s?.OFFICIAL_DUTY ?? 0}`}
             />
-            <StatCard label="Jam terdampak" value={s?.affectedPeriods ?? 0} tone="info" hint="jam pelajaran" />
+            <StatCard label="Jam terdampak" value={s?.affectedPeriods ?? 0} icon={<Hourglass />} hint="jam pelajaran" />
           </div>
 
-          <section className="no-print flex flex-col gap-2" aria-labelledby="recap-per-teacher">
-            <h3 id="recap-per-teacher" className="text-sm font-semibold">
-              Rekap per guru · {formatDate(q.data.dateFrom)} – {formatDate(q.data.dateTo)}
-            </h3>
+          <div className="no-print">
             <DataTable
+              title={`Rekap per guru · ${formatDate(q.data.dateFrom)} – ${formatDate(q.data.dateTo)}`}
+              icon={<Table2 />}
               columns={recapColumns}
               data={q.data.byTeacher}
               getRowId={(r) => r.teacherId}
@@ -227,6 +269,7 @@ export function RecapPanel() {
                   icon={<BarChart3 className="size-5" />}
                   title="Tidak ada data pada filter ini"
                   description="Ubah rentang tanggal, guru, status, atau shift untuk melihat rekap."
+                  className="border-0 bg-transparent py-8"
                 />
               }
               renderMobileCard={(r) => (
@@ -237,7 +280,7 @@ export function RecapPanel() {
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
                     {TEACHER_ATTENDANCE_STATUSES.map((st) => (
-                      <div key={st} className="rounded-md bg-muted/60 px-1 py-1">
+                      <div key={st} className="rounded-md border border-border/70 px-1 py-1">
                         <p className="text-muted-foreground">{TEACHER_ATTENDANCE_META[st].label}</p>
                         <p className="font-semibold tabular-nums">{r.counts[st]}</p>
                       </div>
@@ -249,21 +292,20 @@ export function RecapPanel() {
                 </div>
               )}
             />
-          </section>
+          </div>
 
           {absentRecords.length > 0 && (
-            <section className="no-print flex flex-col gap-2" aria-labelledby="recap-absent">
-              <h3 id="recap-absent" className="text-sm font-semibold">
-                Rincian guru tidak hadir
-              </h3>
+            <div className="no-print">
               <DataTable
+                title="Rincian guru tidak hadir"
+                icon={<CalendarX2 />}
                 columns={detailColumns}
                 data={absentRecords}
                 getRowId={(r) => r.id}
                 caption="Rincian guru tidak hadir"
                 pageSize={10}
               />
-            </section>
+            </div>
           )}
 
           <div className="print-only">
@@ -320,17 +362,5 @@ export function RecapPanel() {
         </>
       )}
     </div>
-  )
-}
-
-function QuickRange({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-full border bg-card px-3 py-1 font-medium hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-    >
-      {label}
-    </button>
   )
 }

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { ContextHeader } from '@/components/context-header'
 import { ExportMenu } from '@/components/export-menu'
 import { FilterBar, FilterDate, FilterSelect, SearchInput, useFilters } from '@/components/filter-bar'
-import { EmptyState, ErrorState, Page, PageHeader, StatCard, TableSkeleton } from '@/components/page'
+import { CardsSkeleton, EmptyState, ErrorState, Page, PageHeader, StatCard, TableSkeleton } from '@/components/page'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/features/auth/auth-context'
@@ -102,8 +102,8 @@ export function DismissalPage() {
       </Tabs>
 
       {canWrite && (
-        <div className="no-print sticky bottom-16 z-20 -mx-3 border-t bg-background/95 px-3 py-2 backdrop-blur md:hidden">
-          <Button onClick={openForm} className="h-11 w-full">
+        <div className="no-print sticky bottom-16 z-20 -mx-3 border-t border-border/80 bg-background/95 px-3 py-2.5 backdrop-blur md:hidden">
+          <Button onClick={openForm} className="w-full">
             <Plus /> Catat kepulangan
           </Button>
         </div>
@@ -182,11 +182,7 @@ function TodayView({
       />
 
       {query.isPending ? (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-[6.5rem] animate-pulse rounded-xl bg-muted" />
-          ))}
-        </div>
+        <CardsSkeleton count={4} />
       ) : (
         !query.isError && (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -228,6 +224,8 @@ function TodayView({
       ) : (
         <DismissalTable
           data={rows}
+          title="Daftar kepulangan"
+          icon={<DoorOpen />}
           caption={`Daftar kepulangan siswa ${formatDate(date)}`}
           emptyState={
             filtered && all.length > 0 ? (
@@ -237,7 +235,7 @@ function TodayView({
                 description="Ubah atau reset filter kelas/jenis untuk melihat catatan lainnya."
                 action={
                   onReset && (
-                    <Button variant="outline" size="sm" onClick={onReset}>
+                    <Button variant="outline" onClick={onReset}>
                       Reset filter
                     </Button>
                   )
@@ -254,7 +252,7 @@ function TodayView({
                 }
                 action={
                   onCreate && (
-                    <Button size="sm" onClick={onCreate}>
+                    <Button onClick={onCreate}>
                       <Plus /> Catat kepulangan
                     </Button>
                   )
@@ -367,6 +365,8 @@ function HistoryView({
           <DismissalTable
             data={query.data.data}
             showDate
+            title="Riwayat kepulangan"
+            icon={<History />}
             caption="Riwayat kepulangan siswa"
             serverPagination={{ meta: query.data.meta, onPageChange: (p) => onChange({ page: String(p) }) }}
             emptyState={

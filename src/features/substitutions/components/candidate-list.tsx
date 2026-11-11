@@ -42,9 +42,9 @@ export function CandidateList({
             key={c.teacher.id}
             htmlFor={inputId}
             className={cn(
-              'flex cursor-pointer gap-3 rounded-xl border bg-card p-3 shadow-xs transition-[border-color,box-shadow] duration-150 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
-              selected && 'border-primary ring-1 ring-primary',
-              !selected && busy && 'border-tone-warning/40',
+              'flex cursor-pointer gap-3 rounded-lg border border-border/85 bg-card p-3 shadow-2xs transition-colors duration-150 hover:bg-muted/30 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
+              selected && 'border-foreground/40 bg-muted/40 hover:bg-muted/40',
+              !selected && busy && 'border-l-2 border-l-tone-warning',
               absent && 'cursor-not-allowed opacity-60',
             )}
           >
@@ -79,30 +79,30 @@ export function CandidateList({
                   <Clock className="size-3" aria-hidden /> {c.loadPeriods} jam hari ini
                 </span>
                 {c.teachesSameSubject && (
-                  <span className="inline-flex items-center gap-1 font-medium text-tone-info">
-                    <BookOpen className="size-3" aria-hidden /> Mapel sama
+                  <span className="inline-flex items-center gap-1 font-medium text-foreground/85">
+                    <BookOpen className="size-3 text-tone-info" aria-hidden /> Mapel sama
                   </span>
                 )}
               </span>
               {busy && (
                 <ul className="grid gap-0.5 text-xs">
                   {c.conflicts.map((x, i) => (
-                    <li
-                      key={i}
-                      className={cn(
-                        'flex items-start gap-1.5',
-                        x.type === 'TEACHER_ABSENT' ? 'text-tone-danger' : 'text-tone-warning',
-                      )}
-                    >
-                      <AlertTriangle className="mt-0.5 size-3 shrink-0" aria-hidden />
+                    <li key={i} className="flex items-start gap-1.5 text-muted-foreground">
+                      <AlertTriangle
+                        className={cn(
+                          'mt-0.5 size-3 shrink-0',
+                          x.type === 'TEACHER_ABSENT' ? 'text-tone-danger' : 'text-tone-warning',
+                        )}
+                        aria-hidden
+                      />
                       <span>{x.message}</span>
                     </li>
                   ))}
                 </ul>
               )}
               {selected && !busy && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-tone-success">
-                  <CheckCircle2 className="size-3" aria-hidden /> Dipilih
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-foreground">
+                  <CheckCircle2 className="size-3 text-tone-success" aria-hidden /> Dipilih
                 </span>
               )}
             </span>
@@ -117,7 +117,7 @@ export function CandidateListSkeleton() {
   return (
     <div className="grid gap-2" aria-busy="true" aria-label="Memuat kandidat">
       {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-[76px] rounded-xl" />
+        <Skeleton key={i} className="h-[76px] rounded-lg" />
       ))}
     </div>
   )

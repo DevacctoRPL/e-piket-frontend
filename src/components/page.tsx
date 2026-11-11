@@ -1,6 +1,6 @@
 import { AlertTriangle, Inbox, RefreshCw, WifiOff } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router'
+import { KpiCard } from '@/components/kpi-card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/misc'
 import { ApiError } from '@/lib/api-client'
@@ -26,13 +26,13 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="min-w-0 space-y-1">
-        <h1 className="text-xl font-bold tracking-tight text-balance sm:text-2xl">{title}</h1>
+      <div className="min-w-0 space-y-0.5">
+        <h1 className="text-xl font-semibold tracking-tight text-balance text-foreground sm:text-[22px]">{title}</h1>
         {description && (
-          <p className="text-sm text-pretty text-muted-foreground">{description}</p>
+          <p className="max-w-3xl text-[13px] text-pretty text-muted-foreground">{description}</p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2 sm:pt-0.5">{actions}</div>}
     </div>
   )
 }
@@ -59,15 +59,15 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 py-12 text-center',
+        'flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card/60 px-6 py-10 text-center',
         className,
       )}
     >
-      <div className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        {icon ?? <Inbox className="size-5" />}
+      <div className="flex size-9 items-center justify-center rounded-lg border border-border/80 bg-card text-muted-foreground shadow-2xs [&_svg]:size-4">
+        {icon ?? <Inbox />}
       </div>
       <div className="space-y-1">
-        <p className="font-semibold">{title}</p>
+        <p className="text-sm font-semibold">{title}</p>
         {description && (
           <p className="mx-auto max-w-md text-sm text-pretty text-muted-foreground">{description}</p>
         )}
@@ -96,15 +96,15 @@ export function ErrorState({
     <div
       role="alert"
       className={cn(
-        'flex flex-col items-center justify-center gap-3 rounded-xl border border-tone-danger/20 bg-tone-danger-bg/40 px-6 py-10 text-center',
+        'flex flex-col items-center justify-center gap-3 rounded-xl border border-border/85 bg-card px-6 py-10 text-center shadow-2xs',
         className,
       )}
     >
-      <div className="flex size-11 items-center justify-center rounded-full bg-tone-danger-bg text-tone-danger">
-        {isNetwork ? <WifiOff className="size-5" /> : <AlertTriangle className="size-5" />}
+      <div className="flex size-9 items-center justify-center rounded-lg border border-border/80 bg-card text-tone-danger shadow-2xs [&_svg]:size-4">
+        {isNetwork ? <WifiOff /> : <AlertTriangle />}
       </div>
       <div className="space-y-1">
-        <p className="font-semibold">
+        <p className="text-sm font-semibold">
           {title ?? (isForbidden ? 'Akses ditolak' : isNetwork ? 'Koneksi terputus' : 'Gagal memuat data')}
         </p>
         <p className="mx-auto max-w-md text-sm text-pretty text-muted-foreground">
@@ -128,7 +128,11 @@ export function ErrorState({
 /** Skeleton tabel untuk pemuatan pertama. */
 export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: number }) {
   return (
-    <div className="space-y-2 rounded-xl border p-4" aria-busy="true" aria-label="Memuat data">
+    <div
+      className="space-y-2.5 rounded-xl border border-border/85 bg-card p-3 shadow-2xs"
+      aria-busy="true"
+      aria-label="Memuat data"
+    >
       <Skeleton className="h-8 w-full" />
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex gap-3">
@@ -145,7 +149,7 @@ export function CardsSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true">
       {Array.from({ length: count }).map((_, i) => (
-        <Skeleton key={i} className="h-24 rounded-xl" />
+        <Skeleton key={i} className="h-[104px] rounded-xl" />
       ))}
     </div>
   )
@@ -175,7 +179,18 @@ export function QueryBoundary<T>({
   return <>{children(query.data)}</>
 }
 
-/** Kartu statistik ringkas yang dapat ditelusuri (FR-RPT-01). `href` dinavigasi via router (SPA, tanpa reload). */
+const STAT_ICON_TONE = {
+  neutral: undefined,
+  success: 'text-tone-success',
+  warning: 'text-tone-warning',
+  danger: 'text-tone-danger',
+  info: undefined,
+} as const
+
+/**
+ * Kartu statistik ringkas yang dapat ditelusuri (FR-RPT-01) — dibangun di atas KpiCard (bingkai Nuvio).
+ * `tone` hanya mewarnai ikon kecil; angka & label tetap netral. `href` dinavigasi via router (SPA).
+ */
 export function StatCard({
   label,
   value,
@@ -193,42 +208,15 @@ export function StatCard({
   href?: string
   onClick?: () => void
 }) {
-  const toneRing = {
-    neutral: 'text-muted-foreground bg-muted',
-    success: 'text-tone-success bg-tone-success-bg',
-    warning: 'text-tone-warning bg-tone-warning-bg',
-    danger: 'text-tone-danger bg-tone-danger-bg',
-    info: 'text-tone-info bg-tone-info-bg',
-  }[tone]
-  const content = (
-    <>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</p>
-        {icon && (
-          <span className={cn('flex size-8 items-center justify-center rounded-lg [&_svg]:size-4', toneRing)}>
-            {icon}
-          </span>
-        )}
-      </div>
-      <p className="text-2xl font-bold tabular-nums">{value}</p>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-    </>
+  return (
+    <KpiCard
+      label={label}
+      value={value}
+      hint={hint}
+      icon={icon}
+      iconClassName={STAT_ICON_TONE[tone]}
+      href={href}
+      onClick={onClick}
+    />
   )
-  const cls =
-    'flex flex-col gap-1.5 rounded-xl border bg-card p-4 text-left shadow-xs transition-[box-shadow,border-color] duration-150'
-  if (href) {
-    return (
-      <Link to={href} className={cn(cls, 'hover:border-primary/40 hover:shadow-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none')}>
-        {content}
-      </Link>
-    )
-  }
-  if (onClick) {
-    return (
-      <button type="button" onClick={onClick} className={cn(cls, 'hover:border-primary/40 hover:shadow-sm')}>
-        {content}
-      </button>
-    )
-  }
-  return <div className={cls}>{content}</div>
 }

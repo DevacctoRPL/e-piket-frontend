@@ -181,6 +181,8 @@ export function AuditLogPage() {
       ) : (
         <div className={logs.isPlaceholderData ? 'opacity-60 transition-opacity' : undefined} aria-busy={logs.isFetching}>
           <DataTable
+            title="Riwayat audit"
+            icon={<History />}
             caption="Daftar riwayat audit"
             columns={columns}
             data={logs.data.data}

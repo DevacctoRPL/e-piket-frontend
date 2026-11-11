@@ -1,4 +1,4 @@
-import { CalendarClock, CircleCheck, CircleDashed, Clock } from 'lucide-react'
+import { CalendarClock, CalendarDays, CircleCheck, CircleDashed, Clock, ListChecks } from 'lucide-react'
 import { EmptyState, StatCard } from '@/components/page'
 import type { ColumnDef } from '@/components/data-table'
 import { PrintTable } from '@/components/print-layout'
@@ -9,7 +9,7 @@ import { formatDate, formatDateShort } from '@/lib/date'
 import type { SubstitutionSlot } from '@/types/entities'
 import { reportDef } from '../catalog'
 import { DrillLink, MiniStat, Num } from '../components/cells'
-import { ReportTable, ReportView, SectionTitle, SummaryGrid } from '../components/report-shell'
+import { ReportTable, ReportView, SummaryGrid } from '../components/report-shell'
 import { formatNumber, periodRange } from '../lib/format'
 import { drillHref, useReportFilters } from '../lib/use-report-filters'
 import { useReport } from '../queries'
@@ -111,9 +111,9 @@ export function SubstitutionsReportPage({ mode = 'screen' }: { mode?: 'screen' |
       note="Slot jam kosong = slot jadwal yang gurunya berstatus Sakit/Izin/Alpa/Dinas Luar. Slot dianggap tertangani bila memiliki guru pengganti yang tidak dibatalkan (PRD §9.2)."
       summary={(d) => (
         <SummaryGrid>
-          <StatCard label="Slot kosong" value={formatNumber(d.totals.affectedSlots)} hint={`${d.days.length} hari`} icon={<CalendarClock />} tone="info" />
-          <StatCard label="Jam terdampak" value={formatNumber(d.totals.affectedPeriods)} icon={<Clock />} tone="warning" />
-          <StatCard label="Jam tertangani" value={formatNumber(d.totals.handledPeriods)} hint={`${d.totals.handledSlots} slot`} icon={<CircleCheck />} tone="success" />
+          <StatCard label="Slot kosong" value={formatNumber(d.totals.affectedSlots)} hint={`${d.days.length} hari`} icon={<CalendarClock />} />
+          <StatCard label="Jam terdampak" value={formatNumber(d.totals.affectedPeriods)} icon={<Clock />} />
+          <StatCard label="Jam tertangani" value={formatNumber(d.totals.handledPeriods)} hint={`${d.totals.handledSlots} slot`} icon={<CircleCheck />} />
           <StatCard
             label="Belum tertangani"
             value={formatNumber(d.totals.unhandledPeriods)}
@@ -125,63 +125,62 @@ export function SubstitutionsReportPage({ mode = 'screen' }: { mode?: 'screen' |
       )}
       content={(d) => (
         <>
-          <section className="space-y-3">
-            <SectionTitle description="Ringkasan per tanggal">Rekap harian</SectionTitle>
+          <ReportTable
+            title="Rekap harian"
+            icon={<CalendarDays />}
+            description="Ringkasan per tanggal"
+            caption={`${def.title} per hari`}
+            columns={dayColumns}
+            data={d.days}
+            getRowId={(r) => r.date}
+            emptyState={<EmptyState title="Tidak ada jam kosong" description="Tidak ada guru berhalangan yang memiliki jadwal mengajar pada periode/filter ini." />}
+            renderMobileCard={(r) => (
+              <div className="space-y-2">
+                <p className="font-semibold">{formatDate(r.date)}</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <MiniStat label="Terdampak" value={r.summary.affectedPeriods} />
+                  <MiniStat label="Tertangani" value={r.summary.handledPeriods} />
+                  <MiniStat label="Belum" value={r.summary.unhandledPeriods} />
+                </div>
+                <DrillLink to={dayHref(r.date, filters.values.classId)}>Buka jam kosong</DrillLink>
+              </div>
+            )}
+            totals={[
+              ['Slot', `${d.totals.handledSlots}/${d.totals.affectedSlots} tertangani`],
+              ['Jam terdampak', formatNumber(d.totals.affectedPeriods)],
+              ['Tertangani', formatNumber(d.totals.handledPeriods)],
+              ['Belum', formatNumber(d.totals.unhandledPeriods)],
+            ]}
+          />
+          {d.slots.length > 0 && (
             <ReportTable
-              caption={`${def.title} per hari`}
-              columns={dayColumns}
-              data={d.days}
-              getRowId={(r) => r.date}
-              emptyState={<EmptyState title="Tidak ada jam kosong" description="Tidak ada guru berhalangan yang memiliki jadwal mengajar pada periode/filter ini." />}
+              title="Rincian slot & guru pengganti"
+              icon={<ListChecks />}
+              caption={`${def.title} rincian slot`}
+              columns={slotColumns}
+              data={d.slots}
+              getRowId={(r) => r.id}
+              pageSize={25}
               renderMobileCard={(r) => (
-                <div className="space-y-2">
-                  <p className="font-semibold">{formatDate(r.date)}</p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <MiniStat label="Terdampak" value={r.summary.affectedPeriods} />
-                    <MiniStat label="Tertangani" value={r.summary.handledPeriods} />
-                    <MiniStat label="Belum" value={r.summary.unhandledPeriods} />
+                <div className="space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold">
+                        {r.className} · {r.subjectName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(r.date)} · jam ke-{periodRange(r.periodStart, r.periodEnd)} · {r.periodCount} JP
+                      </p>
+                    </div>
+                    <StatusBadge meta={SUBSTITUTION_SLOT_META} value={r.status} />
                   </div>
-                  <DrillLink to={dayHref(r.date, filters.values.classId)}>Buka jam kosong</DrillLink>
+                  <p className="text-sm">
+                    {r.absentTeacherName} ({TEACHER_ATTENDANCE_META[r.absentTeacherStatus].label})
+                    {r.substitution && ` → ${r.substitution.substituteTeacherName}`}
+                  </p>
                 </div>
               )}
-              totals={[
-                ['Slot', `${d.totals.handledSlots}/${d.totals.affectedSlots} tertangani`],
-                ['Jam terdampak', formatNumber(d.totals.affectedPeriods)],
-                ['Tertangani', formatNumber(d.totals.handledPeriods)],
-                ['Belum', formatNumber(d.totals.unhandledPeriods)],
-              ]}
             />
-          </section>
-          {d.slots.length > 0 && (
-            <section className="space-y-3">
-              <SectionTitle description={`${formatNumber(d.slots.length)} slot`}>Rincian slot &amp; guru pengganti</SectionTitle>
-              <ReportTable
-                caption={`${def.title} rincian slot`}
-                columns={slotColumns}
-                data={d.slots}
-                getRowId={(r) => r.id}
-                pageSize={25}
-                renderMobileCard={(r) => (
-                  <div className="space-y-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold">
-                          {r.className} · {r.subjectName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(r.date)} · jam ke-{periodRange(r.periodStart, r.periodEnd)} · {r.periodCount} JP
-                        </p>
-                      </div>
-                      <StatusBadge meta={SUBSTITUTION_SLOT_META} value={r.status} />
-                    </div>
-                    <p className="text-sm">
-                      {r.absentTeacherName} ({TEACHER_ATTENDANCE_META[r.absentTeacherStatus].label})
-                      {r.substitution && ` → ${r.substitution.substituteTeacherName}`}
-                    </p>
-                  </div>
-                )}
-              />
-            </section>
           )}
         </>
       )}

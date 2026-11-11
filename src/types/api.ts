@@ -27,6 +27,10 @@ export interface ApiErrorBody {
 
 export type ApiErrorCode =
   | 'VALIDATION_ERROR'
+  /** 409 — tindakan terhadap akun sendiri ditolak (turunkan peran/nonaktifkan/reset). */
+  | 'SELF_PROTECTED'
+  /** 409 — minimal satu Super Admin aktif harus tersisa. */
+  | 'LAST_SUPER_ADMIN'
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
   | 'NOT_FOUND'

@@ -51,7 +51,7 @@ export function MasterDataPage() {
           year ? (
             <>
               Periode aktif:{' '}
-              <span className="font-semibold text-foreground">
+              <span className="font-medium text-foreground">
                 {year.name}
                 {semester ? ` · Semester ${semester.name}` : ''}
               </span>
@@ -68,9 +68,10 @@ export function MasterDataPage() {
           setSp(new URLSearchParams({ tab: value }), { replace: true })
         }
       >
-        <TabsList className="h-auto w-full justify-start gap-0.5 sm:w-fit" aria-label="Kategori data master">
+        {/* 9 tab: daftar bergulir horizontal (tanpa bilah gulir) di layar sempit. */}
+        <TabsList className="w-full sm:w-fit" aria-label="Kategori data master">
           {TABS.map((t) => (
-            <TabsTrigger key={t.value} value={t.value} className="flex-none py-1.5">
+            <TabsTrigger key={t.value} value={t.value} className="flex-none">
               {t.icon}
               {t.label}
             </TabsTrigger>

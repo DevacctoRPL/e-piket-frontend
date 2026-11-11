@@ -10,8 +10,10 @@ import { masterWriteHandlers } from './master-write'
 import { reportsHandlers } from './reports'
 import { studentAttendanceHandlers } from './student-attendance'
 import { substitutionsHandlers } from './substitutions'
+import { systemOverviewHandlers } from './system-overview'
 import { teacherAttendanceHandlers } from './teacher-attendance'
 import { teachingLogsHandlers } from './teaching-logs'
+import { usersHandlers } from './users'
 
 /**
  * Urutan penting: handler fitur yang spesifik (mis. /students/:id/history) didaftarkan
@@ -19,6 +21,8 @@ import { teachingLogsHandlers } from './teaching-logs'
  */
 export const handlers = [
   ...authHandlers,
+  ...usersHandlers,
+  ...systemOverviewHandlers,
   ...dashboardHandlers,
   ...studentAttendanceHandlers,
   ...absenteesHandlers,

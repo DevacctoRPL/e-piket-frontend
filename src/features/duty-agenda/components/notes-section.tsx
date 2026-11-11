@@ -2,7 +2,8 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { ToneBadge } from '@/components/status-badge'
+import { RowActionsMenu } from '@/components/row-actions-menu'
+import { MetaTag } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api-client'
 import { formatTime } from '@/lib/date'
@@ -43,43 +44,39 @@ export function NotesList({
   return (
     <div className="flex flex-col gap-3">
       {agenda.notes.length > 0 ? (
-        <ol className="grid gap-2">
+        <ol className="divide-y divide-border/60 overflow-hidden rounded-md border border-border/75">
           {agenda.notes.map((n, i) => (
-            <li key={n.id} className="flex gap-3 rounded-lg border p-3">
-              <span className="w-12 shrink-0 pt-0.5 text-sm font-semibold tabular-nums">{formatTime(n.time)}</span>
+            <li key={n.id} className="flex gap-3 px-3 py-2.5">
+              <span className="w-12 shrink-0 pt-0.5 text-[13px] font-semibold tabular-nums">{formatTime(n.time)}</span>
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  {n.category && <ToneBadge tone="info">{n.category}</ToneBadge>}
+                  {n.category && <MetaTag>{n.category}</MetaTag>}
                   <span className="text-xs text-muted-foreground">oleh {n.createdByName}</span>
                 </div>
                 <p className="text-sm break-words whitespace-pre-line">{n.content}</p>
               </div>
               {editable && (
-                <div className="flex shrink-0 flex-col gap-1 sm:flex-row">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Ubah catatan ${i + 1}`}
-                    onClick={() => setDialog({ open: true, note: n })}
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Hapus catatan ${i + 1}`}
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => setToDelete(n)}
-                  >
-                    <Trash2 />
-                  </Button>
+                <div className="shrink-0">
+                  <RowActionsMenu
+                    label={`Aksi untuk catatan ${i + 1}`}
+                    actions={[
+                      { label: 'Ubah catatan', icon: Pencil, onSelect: () => setDialog({ open: true, note: n }) },
+                      {
+                        label: 'Hapus catatan',
+                        icon: Trash2,
+                        destructive: true,
+                        separated: true,
+                        onSelect: () => setToDelete(n),
+                      },
+                    ]}
+                  />
                 </div>
               )}
             </li>
           ))}
         </ol>
       ) : (
-        <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
           {agenda.noImportantNotes
             ? 'Ditandai: tidak ada hal penting/kejadian pada shift ini.'
             : 'Belum ada catatan. Tambahkan kejadian, tamu, atau hal penting selama piket.'}
@@ -87,7 +84,7 @@ export function NotesList({
       )}
 
       {editable && (
-        <Button variant="outline" size="sm" className="self-start" onClick={() => setDialog({ open: true, note: null })}>
+        <Button variant="outline" className="self-start" onClick={() => setDialog({ open: true, note: null })}>
           <Plus /> Tambah catatan
         </Button>
       )}

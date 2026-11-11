@@ -1,35 +1,27 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { KeyRound, Pencil, Save, UserRound } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { GraduationCap, KeyRound, Pencil, Save, TriangleAlert, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 import { toast } from 'sonner'
+import { Avatar } from '@/components/avatar'
 import { FormField } from '@/components/form-field'
+import { FramedCard } from '@/components/framed-card'
 import { Page, PageHeader } from '@/components/page'
-import { StatusBadge } from '@/components/status-badge'
+import { MetaTag } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/misc'
+import { Alert, AlertDescription, AlertTitle, Skeleton } from '@/components/ui/misc'
 import { UnsavedChangesGuard } from '@/components/unsaved-changes'
 import { useClasses, useSubjects, useTeachers } from '@/features/master-data/lookups'
 import { applyServerErrors, getErrorMessage } from '@/lib/error-mapping'
 import { ROLE_META } from '@/lib/enums'
 import type { CurrentUser } from '@/types/entities'
+import { authApi, authKeys } from './api'
 import { useCurrentUser } from './auth-context'
 import { profileSchema, type ProfileFormValues } from './profile-schema'
 import { useUpdateProfile } from './profile-queries'
-
-function initials(name: string) {
-  return (
-    name
-      .replace(/[^A-Za-z\s]/g, ' ')
-      .split(/\s+/)
-      .filter((w) => w.length > 2 || /^[A-Z]/.test(w))
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? '')
-      .join('') || '?'
-  )
-}
 
 export function ProfilePage() {
   const user = useCurrentUser()
@@ -39,46 +31,41 @@ export function ProfilePage() {
     <Page className="max-w-4xl">
       <PageHeader title="Profil Saya" description="Identitas akun, peran, dan keterkaitan dengan data guru." />
 
-      <Card>
-        <CardContent className="flex items-center gap-4">
-          <span
-            aria-hidden
-            className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary"
-          >
-            {initials(user.name)}
-          </span>
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-lg font-semibold break-words">{user.name}</p>
-            <p className="text-sm text-muted-foreground">@{user.username}</p>
-            <ul className="flex flex-wrap gap-1.5" aria-label="Peran">
-              {user.roles.map((r) => (
-                <li key={r}>
-                  <StatusBadge meta={ROLE_META} value={r} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
+      <section
+        aria-label="Ringkasan akun"
+        className="flex items-center gap-4 rounded-xl border border-border/85 bg-card p-4 shadow-2xs"
+      >
+        <Avatar name={user.name} size="lg" variant="solid" />
+        <div className="min-w-0 space-y-1">
+          <p className="text-[15px] font-semibold tracking-tight break-words">{user.name}</p>
+          <p className="text-[13px] text-muted-foreground">@{user.username}</p>
+          <ul className="flex flex-wrap gap-1.5 pt-0.5" aria-label="Peran">
+            {user.roles.map((r) => (
+              <li key={r}>
+                <MetaTag>{ROLE_META[r].label}</MetaTag>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
-      <div className="grid gap-5 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Informasi Akun</CardTitle>
-            <CardDescription>Nama dan email dapat Anda ubah sendiri.</CardDescription>
-            {!editing && (
-              <CardAction>
-                <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-                  <Pencil /> Ubah
-                </Button>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
+      <div className="grid gap-4 md:grid-cols-2">
+        <FramedCard
+          icon={<UserRound />}
+          title="Informasi Akun"
+          description="Nama dan email dapat Anda ubah sendiri."
+          headerRight={
+            !editing && (
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                <Pencil /> Ubah
+              </Button>
+            )
+          }
+        >
             {editing ? (
               <ProfileForm user={user} onDone={() => setEditing(false)} />
             ) : (
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-sm">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[13px]">
                 <dt className="text-muted-foreground">Nama</dt>
                 <dd className="font-medium break-words">{user.name}</dd>
                 <dt className="text-muted-foreground">Nama pengguna</dt>
@@ -87,23 +74,11 @@ export function ProfilePage() {
                 <dd className="break-all">{user.email ?? <span className="text-muted-foreground">Belum diisi</span>}</dd>
               </dl>
             )}
-          </CardContent>
-        </Card>
+        </FramedCard>
 
         <TeacherInfoCard user={user} />
 
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <KeyRound className="size-4 text-muted-foreground" /> Keamanan
-            </CardTitle>
-            <CardDescription>
-              Perubahan kata sandi dan nama pengguna dikelola oleh Admin/TU sekolah. Hubungi admin bila Anda lupa kata
-              sandi atau menduga akun digunakan orang lain. Selalu keluar dari aplikasi setelah memakai perangkat
-              bersama.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <ChangePasswordCard mustChange={!!user.mustChangePassword} />
       </div>
     </Page>
   )
@@ -169,18 +144,12 @@ function TeacherInfoCard({ user }: { user: CurrentUser }) {
 
   if (!user.teacherId) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Guru</CardTitle>
-          <CardDescription>Akun ini tidak terhubung dengan data guru.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            <UserRound className="size-5 shrink-0" />
-            Akun staf/pimpinan tanpa jadwal mengajar. Bila Anda juga mengajar, minta admin menautkan akun ke data guru.
-          </div>
-        </CardContent>
-      </Card>
+      <FramedCard icon={<GraduationCap />} title="Data Guru" description="Akun ini tidak terhubung dengan data guru.">
+        <div className="flex items-center gap-3 rounded-md border border-dashed border-border/90 p-4 text-[13px] text-muted-foreground">
+          <UserRound className="size-4 shrink-0" />
+          Akun staf/pimpinan tanpa jadwal mengajar. Bila Anda juga mengajar, minta Super Admin sekolah menautkan akun ke data guru.
+        </div>
+      </FramedCard>
     )
   }
 
@@ -194,12 +163,7 @@ function TeacherInfoCard({ user }: { user: CurrentUser }) {
   const loading = teachers.isPending || subjects.isPending || classes.isPending
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Data Guru</CardTitle>
-        <CardDescription>Ditautkan oleh admin dari data master guru.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <FramedCard icon={<GraduationCap />} title="Data Guru" description="Ditautkan oleh Super Admin dari data master guru.">
         {loading ? (
           <div className="space-y-2" aria-busy="true">
             <Skeleton className="h-5 w-2/3" />
@@ -207,9 +171,9 @@ function TeacherInfoCard({ user }: { user: CurrentUser }) {
             <Skeleton className="h-5 w-3/4" />
           </div>
         ) : teachers.isError ? (
-          <p className="text-sm text-muted-foreground">Data guru tidak dapat dimuat. {getErrorMessage(teachers.error)}</p>
+          <p className="text-[13px] text-muted-foreground">Data guru tidak dapat dimuat. {getErrorMessage(teachers.error)}</p>
         ) : (
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-sm">
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[13px]">
             <dt className="text-muted-foreground">NIP</dt>
             <dd className="font-mono tabular-nums break-all">{teacher?.nip || '—'}</dd>
             <dt className="text-muted-foreground">Mata pelajaran</dt>
@@ -220,7 +184,106 @@ function TeacherInfoCard({ user }: { user: CurrentUser }) {
             <dd className="tabular-nums">{user.teachingClassIds.length} kelas</dd>
           </dl>
         )}
-      </CardContent>
-    </Card>
+    </FramedCard>
+  )
+}
+
+/* ------------------------------------------------------------------ ganti kata sandi */
+
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Kata sandi saat ini wajib diisi.'),
+    newPassword: z.string().min(8, 'Minimal 8 karakter.').max(128, 'Maksimal 128 karakter.'),
+    confirmPassword: z.string().min(1, 'Ulangi kata sandi baru.'),
+  })
+  .superRefine((v, ctx) => {
+    if (v.newPassword && v.newPassword === v.currentPassword)
+      ctx.addIssue({ code: 'custom', path: ['newPassword'], message: 'Harus berbeda dari kata sandi saat ini.' })
+    if (v.confirmPassword && v.confirmPassword !== v.newPassword)
+      ctx.addIssue({ code: 'custom', path: ['confirmPassword'], message: 'Konfirmasi tidak sama dengan kata sandi baru.' })
+  })
+type ChangePasswordValues = z.input<typeof changePasswordSchema>
+
+const EMPTY_PASSWORDS: ChangePasswordValues = { currentPassword: '', newPassword: '', confirmPassword: '' }
+
+/**
+ * POST /auth/me/password (204). Nilai kata sandi hanya hidup di state form dan langsung dikosongkan
+ * setelah berhasil; tidak pernah masuk cache query (mutasi di-reset) maupun log.
+ */
+function ChangePasswordCard({ mustChange }: { mustChange: boolean }) {
+  const queryClient = useQueryClient()
+  const mutation = useMutation({
+    mutationFn: (body: { currentPassword: string; newPassword: string }) => authApi.changePassword(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.me }),
+  })
+  const form = useForm<ChangePasswordValues>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: EMPTY_PASSWORDS,
+  })
+  const {
+    register,
+    formState: { errors, isDirty },
+  } = form
+
+  const onSubmit = form.handleSubmit((v) => {
+    if (mutation.isPending) return
+    mutation.mutate(
+      { currentPassword: v.currentPassword, newPassword: v.newPassword },
+      {
+        onSuccess: () => {
+          form.reset(EMPTY_PASSWORDS)
+          mutation.reset()
+          toast.success('Kata sandi berhasil diganti.')
+        },
+        onError: (err) => {
+          if (!applyServerErrors(err, form.setError, ['currentPassword', 'newPassword'])) toast.error(getErrorMessage(err))
+          mutation.reset()
+        },
+      },
+    )
+  })
+
+  return (
+    <FramedCard icon={<KeyRound />} title="Keamanan" className="md:col-span-2">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:gap-6">
+        <div className="grid content-start gap-3">
+          <p className="text-[13px] text-pretty text-muted-foreground">
+            Perubahan kata sandi dapat Anda lakukan sendiri di sini. Nama pengguna, peran, dan reset kata sandi yang lupa
+            dikelola oleh Super Admin sekolah. Selalu keluar dari aplikasi setelah memakai perangkat bersama.
+          </p>
+          {mustChange && (
+            <Alert variant="warning">
+              <TriangleAlert />
+              <AlertTitle>Ganti kata sandi sementara</AlertTitle>
+              <AlertDescription>Akun Anda masih memakai kata sandi sementara dari Super Admin.</AlertDescription>
+            </Alert>
+          )}
+        </div>
+        <form
+          onSubmit={(e) => void onSubmit(e)}
+          noValidate
+          aria-label="Ganti kata sandi"
+          className="grid gap-3"
+        >
+          <UnsavedChangesGuard when={isDirty && !mutation.isPending} />
+          <FormField label="Kata sandi saat ini" required error={errors.currentPassword?.message}>
+            <Input type="password" autoComplete="current-password" {...register('currentPassword')} />
+          </FormField>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Kata sandi baru" required hint="Minimal 8 karakter." error={errors.newPassword?.message}>
+              <Input type="password" autoComplete="new-password" {...register('newPassword')} />
+            </FormField>
+            <FormField label="Ulangi kata sandi baru" required error={errors.confirmPassword?.message}>
+              <Input type="password" autoComplete="new-password" {...register('confirmPassword')} />
+            </FormField>
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={mutation.isPending || !isDirty}>
+              <KeyRound /> {mutation.isPending ? 'Menyimpan…' : 'Ganti kata sandi'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </FramedCard>
   )
 }

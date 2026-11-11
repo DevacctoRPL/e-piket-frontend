@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { AlertTriangle } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { FormField, NativeSelect } from '@/components/form-field'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Alert, AlertDescription } from '@/components/ui/misc'
 import { Textarea } from '@/components/ui/textarea'
 import { applyServerErrors, getErrorMessage } from '@/lib/error-mapping'
 import type { SubstitutionRecord } from '@/types/entities'
@@ -81,9 +83,10 @@ function EditForm({ record, onDone }: { record: SubstitutionRecord; onDone: () =
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-4">
       {formError && (
-        <p role="alert" className="rounded-lg bg-tone-danger-bg p-3 text-sm text-tone-danger">
-          {formError}
-        </p>
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertDescription className="text-foreground">{formError}</AlertDescription>
+        </Alert>
       )}
       <FormField label="Jumlah jam ditangani" error={errors.periodCount?.message} hint={canWrite ? undefined : 'Hanya guru piket/admin yang dapat mengubah jumlah jam.'}>
         <NativeSelect {...register('periodCount')} disabled={!canWrite || update.isPending}>

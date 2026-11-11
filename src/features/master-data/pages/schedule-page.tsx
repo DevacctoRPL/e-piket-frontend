@@ -3,11 +3,11 @@ import { useMemo } from 'react'
 import { DataTable, type ColumnDef } from '@/components/data-table'
 import { FilterBar, FilterSelect, useFilters } from '@/components/filter-bar'
 import { EmptyState, ErrorState, Page, PageHeader, TableSkeleton } from '@/components/page'
-import { ToneBadge } from '@/components/status-badge'
+import { SegmentedControl } from '@/components/segmented-control'
+import { MetaTag } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { useCurrentUser } from '@/features/auth/auth-context'
 import { dayName, isoDayOfWeek, todayISO } from '@/lib/date'
-import { cn } from '@/lib/utils'
 import type { TimetableSlot } from '@/types/entities'
 import { useActiveAcademicYear, useClasses, useLookupMaps, usePeriods, useShifts, useTeachers, useTimetable } from '../lookups'
 import { DayTabs, periodRangeLabel, slotTimeLabel } from '../components/schedule-shared'
@@ -107,28 +107,17 @@ export function SchedulePage() {
       />
 
       {isTeacher && (
-        <div className="no-print inline-flex w-full rounded-lg bg-muted p-1 sm:w-fit" role="tablist" aria-label="Jenis jadwal">
-          {(
-            [
-              ['mine', 'Jadwal Saya'],
-              ['school', 'Jadwal Sekolah'],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={mode === value}
-              onClick={() => filters.set({ mode: value })}
-              className={cn(
-                'min-h-9 flex-1 rounded-md px-4 text-sm font-medium transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:flex-none',
-                mode === value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          ariaLabel="Jenis jadwal"
+          value={mode}
+          onChange={(value) => filters.set({ mode: value })}
+          options={[
+            { value: 'mine', label: 'Jadwal Saya' },
+            { value: 'school', label: 'Jadwal Sekolah' },
+          ]}
+          className="no-print w-full sm:w-fit"
+          fullWidth
+        />
       )}
 
       {mode === 'school' && (
@@ -166,12 +155,12 @@ export function SchedulePage() {
       <DayTabs value={dayOfWeek} onChange={(d) => filters.set({ day: String(d) })} counts={week.data ? counts : undefined} today={todayDow} />
 
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-[15px] font-semibold tracking-tight">
           {dayName(dayOfWeek)}
-          {dayOfWeek === todayDow && <span className="ml-2 text-sm font-normal text-muted-foreground">(hari ini)</span>}
+          {dayOfWeek === todayDow && <span className="ml-2 text-[13px] font-normal text-muted-foreground">(hari ini)</span>}
         </h2>
         {week.data && slots.length > 0 && (
-          <p className="text-sm text-muted-foreground tabular-nums">
+          <p className="text-[13px] text-muted-foreground tabular-nums">
             {slots.length} pertemuan · {totalPeriods} jam pelajaran
           </p>
         )}
@@ -204,13 +193,13 @@ export function SchedulePage() {
                   <div className="flex items-center gap-2 text-sm">
                     <span className="font-semibold tabular-nums">{periodRangeLabel(first)}</span>
                     <span className="text-muted-foreground tabular-nums">{slotTimeLabel(first, periods.data)}</span>
-                    {!shiftCode && <ToneBadge tone="neutral">{lookups.shiftName(first.shiftCode)}</ToneBadge>}
+                    {!shiftCode && <MetaTag>{lookups.shiftName(first.shiftCode)}</MetaTag>}
                   </div>
                   <ul className="grid gap-1.5">
                     {g.map((s) => (
-                      <li key={s.id} className="rounded-xl border bg-card p-3 shadow-xs">
-                        <p className="font-semibold">{lookups.subjectById.get(s.subjectId)?.name ?? '—'}</p>
-                        <p className="text-sm text-muted-foreground">
+                      <li key={s.id} className="rounded-lg border border-border/85 bg-card p-3 shadow-2xs">
+                        <p className="text-sm font-medium">{lookups.subjectById.get(s.subjectId)?.name ?? '—'}</p>
+                        <p className="text-xs text-muted-foreground">
                           {lookups.classById.get(s.classId)?.name ?? '—'}
                           {mode === 'school' && ` · ${lookups.teacherById.get(s.teacherId)?.name ?? '—'}`}
                           {` · ${s.periodCount} jam`}

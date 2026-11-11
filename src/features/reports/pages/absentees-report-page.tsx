@@ -1,15 +1,15 @@
-import { PhoneCall, PhoneOff, UserX } from 'lucide-react'
+import { ListChecks, PhoneCall, PhoneOff, UserX } from 'lucide-react'
 import { EmptyState, StatCard } from '@/components/page'
 import type { ColumnDef } from '@/components/data-table'
 import { PrintTable } from '@/components/print-layout'
-import { StatusBadge } from '@/components/status-badge'
+import { StatusBadge, ToneBadge } from '@/components/status-badge'
 import { useLookupMaps } from '@/features/master-data/lookups'
 import { ATTENDANCE_META, enumOptions, NON_PRESENT_STATUSES } from '@/lib/enums'
 import { formatDate, formatDateShort, formatDateTime } from '@/lib/date'
 import type { AbsenteeRow } from '@/types/entities'
 import { reportDef } from '../catalog'
 import { DrillLink, textOrDash } from '../components/cells'
-import { ReportTable, ReportView, SectionTitle, SummaryGrid } from '../components/report-shell'
+import { ReportTable, ReportView, SummaryGrid } from '../components/report-shell'
 import { formatNumber } from '../lib/format'
 import { drillHref, useReportFilters } from '../lib/use-report-filters'
 import { useReport } from '../queries'
@@ -19,7 +19,12 @@ const def = reportDef('siswa-tidak-hadir')
 const STATUS_OPTIONS = enumOptions(ATTENDANCE_META, NON_PRESENT_STATUSES)
 
 function ContactCell({ r }: { r: AbsenteeRow }) {
-  if (!r.contact?.contactedAt) return <span className="text-xs text-tone-danger">Belum dihubungi</span>
+  if (!r.contact?.contactedAt)
+    return (
+      <ToneBadge tone="danger" icon={PhoneOff}>
+        Belum dihubungi
+      </ToneBadge>
+    )
   return (
     <div className="text-xs">
       <p className="font-medium">{textOrDash(r.contact.receiverName)} · {textOrDash(r.contact.contactedPhone)}</p>
@@ -80,48 +85,47 @@ export function AbsenteesReportPage({ mode = 'screen' }: { mode?: 'screen' | 'pr
       note="Hanya dari sesi absensi berstatus Dikirim/Final. Nomor telepon wali ditampilkan sesuai hak akses Anda."
       summary={(d) => (
         <SummaryGrid>
-          <StatCard label="Siswa tidak hadir" value={formatNumber(d.total)} hint="Record bukan Hadir" icon={<UserX />} tone="danger" href={operationalHref} />
-          <StatCard label="Sakit · Izin · Alpa" value={`${d.counts.SICK} · ${d.counts.PERMISSION} · ${d.counts.ABSENT}`} hint={`Terlambat ${d.counts.LATE}`} tone="warning" />
-          <StatCard label="Sudah dihubungi" value={formatNumber(d.contacted)} icon={<PhoneCall />} tone="success" />
+          <StatCard label="Siswa tidak hadir" value={formatNumber(d.total)} hint="Record bukan Hadir" icon={<UserX />} tone={d.total > 0 ? 'danger' : 'neutral'} href={operationalHref} />
+          <StatCard label="Sakit · Izin · Alpa" value={`${d.counts.SICK} · ${d.counts.PERMISSION} · ${d.counts.ABSENT}`} hint={`Terlambat ${d.counts.LATE}`} />
+          <StatCard label="Sudah dihubungi" value={formatNumber(d.contacted)} icon={<PhoneCall />} />
           <StatCard label="Belum dihubungi" value={formatNumber(d.notContacted)} icon={<PhoneOff />} tone={d.notContacted > 0 ? 'danger' : 'neutral'} href={operationalHref} />
         </SummaryGrid>
       )}
       content={(d) => (
-        <section className="space-y-3">
-          <SectionTitle description={`${formatNumber(d.total)} record`}>Daftar siswa</SectionTitle>
-          <ReportTable
-            caption={def.title}
-            columns={columns}
-            data={d.rows}
-            getRowId={(r) => r.recordId}
-            emptyState={
-              <EmptyState
-                title="Tidak ada siswa tidak hadir"
-                description="Semua siswa pada sesi yang sudah dikirim berstatus Hadir, atau absensi belum dikirim. Ubah periode/filter untuk melihat data lain."
-              />
-            }
-            renderMobileCard={(r) => (
-              <div className="space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold">{r.studentName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.className} · {formatDate(r.date)}
-                    </p>
-                  </div>
-                  <StatusBadge meta={ATTENDANCE_META} value={r.status} />
+        <ReportTable
+          title="Daftar siswa"
+          icon={<ListChecks />}
+          caption={def.title}
+          columns={columns}
+          data={d.rows}
+          getRowId={(r) => r.recordId}
+          emptyState={
+            <EmptyState
+              title="Tidak ada siswa tidak hadir"
+              description="Semua siswa pada sesi yang sudah dikirim berstatus Hadir, atau absensi belum dikirim. Ubah periode/filter untuk melihat data lain."
+            />
+          }
+          renderMobileCard={(r) => (
+            <div className="space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold">{r.studentName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.className} · {formatDate(r.date)}
+                  </p>
                 </div>
-                <p className="text-sm">{textOrDash(r.reason)}</p>
-                <ContactCell r={r} />
+                <StatusBadge meta={ATTENDANCE_META} value={r.status} />
               </div>
-            )}
-            totals={[
-              ['Total', formatNumber(d.total)],
-              ...NON_PRESENT_STATUSES.filter((s) => d.counts[s] > 0).map<[string, string]>((s) => [ATTENDANCE_META[s].label, formatNumber(d.counts[s])]),
-              ['Dihubungi', formatNumber(d.contacted)],
-            ]}
-          />
-        </section>
+              <p className="text-sm">{textOrDash(r.reason)}</p>
+              <ContactCell r={r} />
+            </div>
+          )}
+          totals={[
+            ['Total', formatNumber(d.total)],
+            ...NON_PRESENT_STATUSES.filter((s) => d.counts[s] > 0).map<[string, string]>((s) => [ATTENDANCE_META[s].label, formatNumber(d.counts[s])]),
+            ['Dihubungi', formatNumber(d.contacted)],
+          ]}
+        />
       )}
       printMeta={(d) => [['Jumlah', `${d.total} siswa (dihubungi ${d.contacted}, belum ${d.notContacted})`]]}
       print={(d) => (

@@ -11,7 +11,13 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/misc'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { useIdempotencyKey } from '@/hooks/use-idempotent-mutation'
 import { ApiError } from '@/lib/api-client'
@@ -49,11 +55,16 @@ export function AssignSheet({
   return (
     <>
       <Sheet open={!!slot} onOpenChange={(o) => (o ? onOpenChange(true) : requestClose())}>
-        <SheetContent side="right" className="w-full gap-0 sm:max-w-lg" aria-describedby="assign-desc">
+        <SheetContent
+          side="right"
+          className="w-full gap-0 sm:max-w-lg"
+          aria-describedby="assign-desc"
+        >
           <SheetHeader className="border-b pr-10">
             <SheetTitle>Tetapkan guru pengganti</SheetTitle>
             <SheetDescription id="assign-desc">
-              Pilih guru yang tidak bentrok jadwal, tentukan jam yang ditangani, lalu catat kegiatannya.
+              Pilih guru yang tidak bentrok jadwal, tentukan jam yang ditangani, lalu catat
+              kegiatannya.
             </SheetDescription>
           </SheetHeader>
           {slot && (
@@ -145,7 +156,10 @@ function AssignForm({
   useEffect(() => onPendingChange(busy), [busy, onPendingChange])
 
   const range = useMemo(
-    () => (span > 0 ? { periodStart: ps, periodEnd: pe } : { periodStart: slot.periodStart, periodEnd: slot.periodEnd }),
+    () =>
+      span > 0
+        ? { periodStart: ps, periodEnd: pe }
+        : { periodStart: slot.periodStart, periodEnd: slot.periodEnd },
     [ps, pe, span, slot.periodStart, slot.periodEnd],
   )
   const candidatesQ = useSubstituteCandidates(slot.id, range)
@@ -182,7 +196,10 @@ function AssignForm({
       return
     }
     if (hasConflict && v.overrideReason.trim().length < 3) {
-      setError('overrideReason', { type: 'required', message: 'Alasan override wajib diisi (minimal 3 karakter).' })
+      setError('overrideReason', {
+        type: 'required',
+        message: 'Alasan override wajib diisi (minimal 3 karakter).',
+      })
       return
     }
     try {
@@ -204,7 +221,9 @@ function AssignForm({
       idem.reset()
       onDirtyChange(false)
       form.reset(v)
-      toast.success(`${record.substituteTeacherName} ditetapkan sebagai guru pengganti ${slot.className}.`)
+      toast.success(
+        `${record.substituteTeacherName} ditetapkan sebagai guru pengganti ${slot.className}.`,
+      )
       onDone()
     } catch (e) {
       idem.reset()
@@ -260,7 +279,10 @@ function AssignForm({
                   <li key={i}>{c.message}</li>
                 ))}
               </ul>
-              <p>Daftar kandidat sudah diperbarui. Pilih guru lain atau ajukan override dengan alasan.</p>
+              <p>
+                Daftar kandidat sudah diperbarui. Pilih guru lain atau ajukan override dengan
+                alasan.
+              </p>
             </AlertDescription>
           </Alert>
         )}
@@ -311,9 +333,9 @@ function AssignForm({
             </NativeSelect>
           </FormField>
         </fieldset>
-        <p className="-mt-3 text-xs text-muted-foreground">
-          Slot terdampak {periodLabel(slot.periodStart, slot.periodEnd).toLowerCase()} ({slot.periodCount} jam). Jumlah
-          jam yang ditangani dipakai pada rekap jam digantikan.
+        <p className="text-muted-foreground -mt-3 text-xs">
+          Slot terdampak {periodLabel(slot.periodStart, slot.periodEnd).toLowerCase()} (
+          {slot.periodCount} jam). Jumlah jam yang ditangani dipakai pada rekap jam digantikan.
         </p>
 
         <section className="space-y-3" aria-labelledby="candidates-heading">
@@ -328,7 +350,7 @@ function AssignForm({
                   checked={sameSubjectOnly}
                   onCheckedChange={(c) => setSameSubjectOnly(c === true)}
                 />
-                <Label htmlFor="same-subject" className="text-sm font-normal">
+                <Label htmlFor="same-subject" className="text-xs font-normal">
                   Hanya mapel sama
                 </Label>
               </div>
@@ -345,7 +367,7 @@ function AssignForm({
             </div>
           </div>
           {errors.substituteTeacherId?.message && (
-            <p id={errorTeacherId} role="alert" className="text-xs font-medium text-destructive">
+            <p id={errorTeacherId} role="alert" className="text-destructive text-xs font-medium">
               {errors.substituteTeacherId.message}
             </p>
           )}
@@ -364,7 +386,12 @@ function AssignForm({
               }
               action={
                 sameSubjectOnly ? (
-                  <Button type="button" variant="outline" size="sm" onClick={() => setSameSubjectOnly(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSameSubjectOnly(false)}
+                  >
                     Tampilkan semua guru
                   </Button>
                 ) : undefined
@@ -395,65 +422,78 @@ function AssignForm({
         </section>
 
         {hasConflict && selected && (
-          <div className="space-y-3 rounded-xl border border-tone-warning/40 bg-tone-warning-bg/50 p-3">
-            <div className="flex gap-2 text-sm">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-tone-warning" aria-hidden />
-              <div className="space-y-1">
-                <p className="font-semibold">{selected.teacher.name} bentrok jadwal</p>
-                <ul className="list-disc pl-4 text-muted-foreground">
-                  {selectedConflicts.map((c, i) => (
-                    <li key={i}>{c.message}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            {canOverride ? (
-              <>
-                <div className="grid gap-1">
-                  <div className="flex items-start gap-2">
-                    <Controller
-                      control={control}
-                      name="overrideConflict"
-                      render={({ field }) => (
-                        <Checkbox
-                          id="override-conflict"
-                          checked={field.value}
-                          onCheckedChange={(c) => {
-                            field.onChange(c === true)
-                            clearErrors('overrideConflict')
-                          }}
-                          aria-invalid={!!errors.overrideConflict || undefined}
-                          aria-describedby={errors.overrideConflict ? 'override-error' : undefined}
-                          className="mt-0.5"
-                        />
-                      )}
-                    />
-                    <Label htmlFor="override-conflict" className="text-sm leading-snug font-normal">
-                      Tetap tetapkan guru ini (override konflik jadwal). Tindakan ini tercatat di audit log.
-                    </Label>
+          <Alert variant="warning">
+            <AlertTriangle aria-hidden />
+            <AlertTitle>{selected.teacher.name} bentrok jadwal</AlertTitle>
+            <AlertDescription className="justify-items-stretch gap-3">
+              <ul className="list-disc pl-4">
+                {selectedConflicts.map((c, i) => (
+                  <li key={i}>{c.message}</li>
+                ))}
+              </ul>
+              {canOverride ? (
+                <>
+                  <div className="grid gap-1">
+                    <div className="flex items-start gap-2">
+                      <Controller
+                        control={control}
+                        name="overrideConflict"
+                        render={({ field }) => (
+                          <Checkbox
+                            id="override-conflict"
+                            checked={field.value}
+                            onCheckedChange={(c) => {
+                              field.onChange(c === true)
+                              clearErrors('overrideConflict')
+                            }}
+                            aria-invalid={!!errors.overrideConflict || undefined}
+                            aria-describedby={
+                              errors.overrideConflict ? 'override-error' : undefined
+                            }
+                            className="mt-0.5"
+                          />
+                        )}
+                      />
+                      <Label
+                        htmlFor="override-conflict"
+                        className="text-foreground text-[13px] leading-snug font-normal"
+                      >
+                        Tetap tetapkan guru ini (override konflik jadwal). Tindakan ini tercatat di
+                        audit log.
+                      </Label>
+                    </div>
+                    {errors.overrideConflict?.message && (
+                      <p
+                        id="override-error"
+                        role="alert"
+                        className="text-destructive text-xs font-medium"
+                      >
+                        {errors.overrideConflict.message}
+                      </p>
+                    )}
                   </div>
-                  {errors.overrideConflict?.message && (
-                    <p id="override-error" role="alert" className="text-xs font-medium text-destructive">
-                      {errors.overrideConflict.message}
-                    </p>
+                  {override && (
+                    <FormField
+                      label="Alasan override"
+                      required
+                      error={errors.overrideReason?.message}
+                    >
+                      <Textarea
+                        {...register('overrideReason')}
+                        rows={2}
+                        placeholder="Mis. kelas digabung di aula, guru mengawasi dua kelas bersebelahan"
+                      />
+                    </FormField>
                   )}
-                </div>
-                {override && (
-                  <FormField label="Alasan override" required error={errors.overrideReason?.message}>
-                    <Textarea
-                      {...register('overrideReason')}
-                      rows={2}
-                      placeholder="Mis. kelas digabung di aula, guru mengawasi dua kelas bersebelahan"
-                    />
-                  </FormField>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Pilih guru lain yang tersedia. Override konflik hanya dapat dilakukan admin atau guru piket.
-              </p>
-            )}
-          </div>
+                </>
+              ) : (
+                <p>
+                  Pilih guru lain yang tersedia. Override konflik hanya dapat dilakukan admin atau
+                  guru piket.
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
         )}
 
         <FormField
@@ -468,12 +508,16 @@ function AssignForm({
         </FormField>
       </div>
 
-      <div className="flex flex-col-reverse gap-2 border-t bg-background p-4 sm:flex-row sm:justify-end">
+      <div className="bg-background flex flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end">
         <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
           Batal
         </Button>
         <Button type="submit" disabled={busy || candidatesQ.isPending}>
-          {busy ? 'Menyimpan…' : hasConflict && override ? 'Simpan dengan override' : 'Simpan pengganti'}
+          {busy
+            ? 'Menyimpan…'
+            : hasConflict && override
+              ? 'Simpan dengan override'
+              : 'Simpan pengganti'}
         </Button>
       </div>
     </form>

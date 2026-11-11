@@ -7,7 +7,7 @@ import { DataTable, type ColumnDef } from '@/components/data-table'
 import { FilterBar, FilterSelect, SearchInput, useFilters } from '@/components/filter-bar'
 import { FormField, NativeSelect } from '@/components/form-field'
 import { EmptyState, QueryBoundary } from '@/components/page'
-import { StatusBadge } from '@/components/status-badge'
+import { MetaTag, StatusBadge } from '@/components/status-badge'
 import { Input } from '@/components/ui/input'
 import type { Teacher } from '@/types/entities'
 import { useLookupMaps, useSubjects, useTeachers } from '../lookups'
@@ -62,9 +62,7 @@ export function TeachersTab() {
           <div className="flex max-w-80 flex-wrap gap-1">
             {row.original.subjectIds.length === 0 && <span className="text-muted-foreground">—</span>}
             {row.original.subjectIds.map((id) => (
-              <span key={id} className="rounded-md bg-muted px-1.5 py-0.5 text-xs">
-                {subjectById.get(id)?.name ?? id}
-              </span>
+              <MetaTag key={id}>{subjectById.get(id)?.name ?? id}</MetaTag>
             ))}
           </div>
         ),
@@ -75,7 +73,7 @@ export function TeachersTab() {
         id: 'actions',
         header: () => <span className="sr-only">Aksi</span>,
         enableSorting: false,
-        meta: { headerClassName: 'w-24', className: 'text-right' },
+        meta: { headerClassName: 'w-12', className: 'text-right' },
         cell: ({ row }) => (
           <RowActions label={row.original.name} onEdit={() => openEdit(row.original)} onDelete={() => askDelete(row.original)} />
         ),

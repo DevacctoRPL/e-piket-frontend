@@ -1,4 +1,5 @@
 import { Ban, Clock, Pencil, ShieldAlert, UserPlus } from 'lucide-react'
+import { RowActionsMenu } from '@/components/row-actions-menu'
 import { StatusBadge, ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { useLookupMaps } from '@/features/master-data/lookups'
@@ -8,7 +9,7 @@ import type { SubstitutionSlot } from '@/types/entities'
 import { usePeriodTimes, useSubstitutionAbilities } from '../hooks'
 import { periodLabel } from '../utils'
 
-/** Kartu satu slot jam kosong. Slot belum tertangani disorot (PRD §7.5.5). */
+/** Kartu satu slot jam kosong. Slot belum tertangani ditandai garis kiri merah (PRD §7.5.5). */
 export function SlotCard({
   slot,
   showShift,
@@ -34,17 +35,17 @@ export function SlotCard({
     <article
       aria-labelledby={headingId}
       className={cn(
-        'flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs',
-        unhandled && 'border-tone-danger/30 bg-tone-danger-bg/25',
+        'flex flex-col gap-3 rounded-lg border border-border/85 bg-card p-4 shadow-2xs',
+        unhandled && 'border-l-2 border-l-tone-danger',
       )}
     >
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
-          <h3 id={headingId} className="font-semibold break-words">
+          <h3 id={headingId} className="text-sm font-semibold break-words">
             {slot.className}
             <span className="font-normal text-muted-foreground"> · {slot.subjectName}</span>
           </h3>
-          <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground tabular-nums">
+          <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground tabular-nums">
             <Clock className="size-3.5" aria-hidden />
             <span>{periodLabel(slot.periodStart, slot.periodEnd)}</span>
             {times && <span>({times})</span>}
@@ -52,10 +53,33 @@ export function SlotCard({
             {showShift && <span>· Shift {shiftName(slot.shiftCode)}</span>}
           </p>
         </div>
-        <StatusBadge meta={SUBSTITUTION_SLOT_META} value={slot.status} />
+        <div className="flex shrink-0 items-center gap-1">
+          <StatusBadge meta={SUBSTITUTION_SLOT_META} value={slot.status} />
+          {sub && (
+            <RowActionsMenu
+              label={`Aksi untuk ${slot.className} ${periodLabel(slot.periodStart, slot.periodEnd).toLowerCase()}`}
+              actions={[
+                {
+                  label: 'Ubah catatan',
+                  icon: Pencil,
+                  hidden: !canEditRecord(sub.substituteTeacherId),
+                  onSelect: () => onEdit(slot),
+                },
+                {
+                  label: 'Batalkan',
+                  icon: Ban,
+                  destructive: true,
+                  separated: true,
+                  hidden: !canWrite,
+                  onSelect: () => onCancel(slot),
+                },
+              ]}
+            />
+          )}
+        </div>
       </header>
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
         <dt className="text-muted-foreground">Guru berhalangan</dt>
         <dd className="flex min-w-0 flex-wrap items-center gap-1.5">
           <span className="break-words">{slot.absentTeacherName}</span>
@@ -67,8 +91,8 @@ export function SlotCard({
             <dd className="flex min-w-0 flex-wrap items-center gap-1.5">
               <span className="font-medium break-words">{sub.substituteTeacherName}</span>
               {sub.conflictOverridden && (
-                <ToneBadge tone="warning">
-                  <ShieldAlert className="size-3" aria-hidden /> Override konflik
+                <ToneBadge tone="warning" icon={ShieldAlert}>
+                  Override konflik
                 </ToneBadge>
               )}
             </dd>
@@ -97,23 +121,9 @@ export function SlotCard({
       </dl>
 
       {unhandled && canWrite && (
-        <Button className="w-full sm:w-fit" onClick={() => onAssign(slot)}>
+        <Button variant="outline" className="w-full sm:w-fit" onClick={() => onAssign(slot)}>
           <UserPlus /> Tetapkan pengganti
         </Button>
-      )}
-      {sub && (canEditRecord(sub.substituteTeacherId) || canWrite) && (
-        <div className="flex flex-wrap gap-2">
-          {canEditRecord(sub.substituteTeacherId) && (
-            <Button variant="outline" size="sm" onClick={() => onEdit(slot)}>
-              <Pencil /> Ubah catatan
-            </Button>
-          )}
-          {canWrite && (
-            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => onCancel(slot)}>
-              <Ban /> Batalkan
-            </Button>
-          )}
-        </div>
       )}
     </article>
   )

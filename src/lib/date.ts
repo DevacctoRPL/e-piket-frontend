@@ -132,19 +132,28 @@ export function dayName(isoDow: number): string {
   return ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'][isoDow - 1] ?? '—'
 }
 
+/** Timestamp → Date, atau null bila kosong/tidak valid (Intl.format melempar RangeError untuk Invalid Date). */
+function toValidDate(ts: ISODateTime | null | undefined): Date | null {
+  if (!ts) return null
+  const d = new Date(ts)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
 /** Timestamp RFC 3339 → '07.15' di zona sekolah. */
 export function formatTime(ts: ISODateTime | null | undefined): string {
-  if (!ts) return '—'
-  return fmt({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }, SCHOOL_TZ).format(new Date(ts))
+  const d = toValidDate(ts)
+  if (!d) return '—'
+  return fmt({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }, SCHOOL_TZ).format(d)
 }
 
 /** Timestamp → '8 Nov 2026, 07.15' */
 export function formatDateTime(ts: ISODateTime | null | undefined): string {
-  if (!ts) return '—'
+  const d = toValidDate(ts)
+  if (!d) return '—'
   return fmt(
     { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' },
     SCHOOL_TZ,
-  ).format(new Date(ts))
+  ).format(d)
 }
 
 /** Timestamp → 'YYYY-MM-DD' di zona sekolah. */

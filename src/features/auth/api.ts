@@ -9,6 +9,9 @@ export const authApi = {
   me: (signal?: AbortSignal) => api.get<DataResponse<CurrentUser>>('/auth/me', undefined, { signal }),
   updateMe: (body: { name?: string; email?: string | null }) =>
     api.patch<DataResponse<CurrentUser>>('/auth/me', body),
+  /** Ganti kata sandi sendiri (204). Kata sandi tidak pernah disimpan di cache/log. */
+  changePassword: (body: { currentPassword: string; newPassword: string }) =>
+    api.post<null>('/auth/me/password', body),
 }
 
 export const authKeys = {

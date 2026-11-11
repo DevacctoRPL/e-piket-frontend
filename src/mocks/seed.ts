@@ -6,7 +6,7 @@
  * Catatan demo: jadwal di-seed untuk SEMUA hari (termasuk Minggu) agar demo selalu berisi data
  * kapan pun dijalankan. Histori melewati hari Minggu.
  */
-import { addDays, combineDateTime, isoDayOfWeek, todayISO } from '@/lib/date'
+import { addDays, combineDateTime, isoDayOfWeek, nowWallTime, todayISO, toISODateTime, wallTimeToMinutes } from '@/lib/date'
 import { TEACHER_ABSENT_STATUSES } from '@/lib/enums'
 import type {
   AcademicYear,
@@ -19,6 +19,8 @@ import type {
   ExtraActivity,
   ID,
   ISODate,
+  ISODateTime,
+  LoginEvent,
   Period,
   SchoolSettings,
   Shift,
@@ -33,7 +35,7 @@ import type {
   TeachingLog,
   TimetableSlot,
 } from '@/types/entities'
-import type { MockDb, MockUser, StoredSession } from './db'
+import { MOCK_SCHEMA_VERSION, type MockDb, type MockUser, type StoredSession } from './db'
 
 function mulberry32(seed: number) {
   let a = seed
@@ -183,7 +185,8 @@ export function seed(): MockDb {
       const shiftClasses = classes.filter((c) => c.shiftCode === shiftCode)
       shiftClasses.forEach((c, cIdx) => {
         for (let k = 0; k < 4; k++) {
-          const tIdx = si * 8 + ((cIdx + k + dow) % 8)
+          // cIdx*2 + k menutup 0..9 → kedelapan guru shift mengajar setiap hari (termasuk Senin); tetap bebas bentrok per jam
+          const tIdx = si * 8 + ((cIdx * 2 + k + dow) % 8)
           const teacher = teachers[tIdx] as Teacher
           timetable.push({
             id: `tt_${dow}_${c.id}_${k + 1}`,
@@ -210,6 +213,9 @@ export function seed(): MockDb {
     { id: 'usr_piket', username: 'piket', password: 'password', name: teachers[1]!.name, email: null, roles: ['TEACHER', 'DUTY_TEACHER'], teacherId: 'tch_2', status: 'ACTIVE' },
     { id: 'usr_walikelas', username: 'walikelas', password: 'password', name: teachers[2]!.name, email: null, roles: ['TEACHER', 'HOMEROOM'], teacherId: 'tch_3', status: 'ACTIVE' },
     { id: 'usr_koordinator', username: 'koordinator', password: 'password', name: teachers[9]!.name, email: null, roles: ['TEACHER', 'ACTIVITY_COORDINATOR'], teacherId: 'tch_10', status: 'ACTIVE' },
+    // Ditambahkan di AKHIR: indeks users[0..5] dipakai kode seed lain.
+    { id: 'usr_superadmin', username: 'superadmin', password: 'password', name: 'Dimas Prasetyo (Super Admin)', email: 'it@sekolah.example.id', roles: ['SUPER_ADMIN'], teacherId: null, status: 'ACTIVE' },
+    { id: 'usr_tu_lama', username: 'tu.lama', password: 'password', name: 'Siti Aminah (TU)', email: null, roles: ['ADMIN'], teacherId: null, status: 'INACTIVE' },
   ]
   for (const u of users) {
     const t = teachers.find((x) => x.id === u.teacherId)
@@ -599,6 +605,34 @@ export function seed(): MockDb {
     entity: 'DutyAgenda', entityId: dutyAgendas.at(-2)?.id ?? 'dag', summary: 'Finalisasi agenda piket shift Pagi', before: { status: 'SUBMITTED' }, after: { status: 'FINAL' }, reason: null, requestId: 'req_seed02',
   })
 
+  /* -------------------------------------------------- akun: audit contoh Super Admin */
+  const sa = users.find((u) => u.id === 'usr_superadmin') as MockUser
+  auditLogs.push(
+    {
+      id: 'aud_seed_3', timestamp: ts(addDays(today, -6), '08:05'), actorId: sa.id, actorName: sa.name, action: 'ROLE_CHANGE',
+      entity: 'User', entityId: piketUser.id, summary: `Mengubah peran akun ${piketUser.name}`,
+      before: { roles: ['TEACHER'] }, after: { roles: ['TEACHER', 'DUTY_TEACHER'] }, reason: null, requestId: 'req_seed03',
+    },
+    {
+      id: 'aud_seed_4', timestamp: ts(addDays(today, -5), '10:20'), actorId: sa.id, actorName: sa.name, action: 'PASSWORD_RESET',
+      entity: 'User', entityId: guruUser.id, summary: `Me-reset kata sandi akun ${guruUser.name}`,
+      before: null, after: { mustChangePassword: true }, reason: 'Pengguna lupa kata sandi', requestId: 'req_seed04',
+    },
+    {
+      id: 'aud_seed_5', timestamp: ts(addDays(today, -4), '13:40'), actorId: sa.id, actorName: sa.name, action: 'STATUS_CHANGE',
+      entity: 'User', entityId: 'usr_tu_lama', summary: 'Menonaktifkan akun Siti Aminah (TU)',
+      before: { status: 'ACTIVE' }, after: { status: 'INACTIVE' }, reason: 'Pindah tugas ke sekolah lain', requestId: 'req_seed05',
+    },
+    {
+      id: 'aud_seed_6', timestamp: ts(addDays(today, -2), '09:30'), actorId: sa.id, actorName: sa.name, action: 'UPDATE',
+      entity: 'SchoolSettings', entityId: 'settings', summary: 'Mengubah pengaturan sekolah: kategori catatan piket',
+      before: { dutyNoteCategories: ['Kejadian', 'Tamu', 'Kedisiplinan', 'Lainnya'] },
+      after: { dutyNoteCategories: ['Kejadian', 'Tamu', 'Kedisiplinan', 'Fasilitas', 'Lainnya'] }, reason: null, requestId: 'req_seed06',
+    },
+  )
+
+  const loginEvents = seedAccountHistory(users, today)
+
   const settings: SchoolSettings = {
     schoolName: 'SMK Negeri Contoh 1',
     schoolAddress: 'Jl. Pendidikan No. 1, Kota Contoh',
@@ -624,6 +658,7 @@ export function seed(): MockDb {
   }
 
   return {
+    schemaVersion: MOCK_SCHEMA_VERSION,
     seedDate: today,
     users,
     academicYears,
@@ -644,9 +679,75 @@ export function seed(): MockDb {
     substitutions,
     extraActivities,
     auditLogs,
+    loginEvents,
     settings,
     deleted: {},
     idempotency: {},
     tokens: {},
   }
+}
+
+/**
+ * Riwayat login 7 hari + lastLoginAt/createdAt tiap akun. Memakai PRNG TERPISAH agar urutan angka acak
+ * seed utama (siswa, absensi, dsb.) tidak bergeser. Kejadian hari ini selalu sebelum "sekarang".
+ * Kata sandi tidak pernah dicatat.
+ */
+function seedAccountHistory(users: MockUser[], today: ISODate): LoginEvent[] {
+  const rand = mulberry32(7331)
+  const nowMs = Date.now()
+  const minutesToday = wallTimeToMinutes(nowWallTime())
+  const events: LoginEvent[] = []
+  let seq = 0
+  /** Waktu acak pada hari `offset` (0 = hari ini, sebelum sekarang). */
+  const timeOn = (offset: number): ISODateTime => {
+    if (offset === 0) {
+      const maxBack = Math.max(1, minutesToday - 1)
+      const back = 1 + Math.floor(rand() * Math.min(maxBack, 600))
+      return toISODateTime(new Date(nowMs - Math.min(back, maxBack) * 60_000 - 1_000))
+    }
+    const minute = 6 * 60 + Math.floor(rand() * 10 * 60) // 06:00–15:59
+    return combineDateTime(addDays(today, -offset), `${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`)
+  }
+  const push = (e: Omit<LoginEvent, 'id'>) => {
+    seq += 1
+    events.push({ id: `lgn_seed_${pad(seq, 3)}`, ...e })
+  }
+
+  for (const u of users) {
+    u.version = 1
+    u.mustChangePassword = false
+    u.createdAt = combineDateTime(addDays(today, -(60 + Math.floor(rand() * 60))), '08:00')
+    u.updatedAt = u.createdAt
+    if (u.status !== 'ACTIVE') continue
+    for (let offset = 6; offset >= 0; offset--) {
+      if (rand() < 0.12) {
+        push({ timestamp: timeOn(offset), userId: u.id, username: u.username, success: false, reason: 'BAD_CREDENTIALS' })
+      }
+      if (rand() < 0.78) {
+        push({ timestamp: timeOn(offset), userId: u.id, username: u.username, success: true, reason: 'OK' })
+      }
+    }
+  }
+  const superAdmin = users.find((u) => u.id === 'usr_superadmin')
+  if (superAdmin) superAdmin.createdAt = combineDateTime(addDays(today, -150), '07:30')
+
+  // Akun nonaktif mencoba masuk 2 hari lalu (ditolak).
+  const tuLama = users.find((u) => u.id === 'usr_tu_lama')
+  if (tuLama) {
+    tuLama.lastLoginAt = combineDateTime(addDays(today, -9), '14:05')
+    tuLama.updatedAt = combineDateTime(addDays(today, -4), '13:40')
+    push({ timestamp: timeOn(2), userId: tuLama.id, username: tuLama.username, success: false, reason: 'INACTIVE' })
+  }
+  // 3× percobaan dengan username tak dikenal hari ini (contoh "percobaan gagal berulang").
+  for (let i = 0; i < 3; i++) {
+    push({ timestamp: timeOn(0), userId: null, username: 'administrator', success: false, reason: 'BAD_CREDENTIALS' })
+  }
+
+  events.sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+  for (const u of users) {
+    const last = events.find((e) => e.userId === u.id && e.success)
+    if (last) u.lastLoginAt = last.timestamp
+    else u.lastLoginAt ??= null
+  }
+  return events
 }

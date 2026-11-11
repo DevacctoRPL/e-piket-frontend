@@ -1,12 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CalendarClock, LayoutGrid, List, Plus } from 'lucide-react'
+import { CalendarClock, CircleAlert, LayoutGrid, List, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { DataTable, type ColumnDef } from '@/components/data-table'
 import { FilterBar, FilterSelect, useFilters } from '@/components/filter-bar'
 import { FormField, NativeSelect } from '@/components/form-field'
+import { CountChip, FramedCard } from '@/components/framed-card'
 import { EmptyState, ErrorState, TableSkeleton } from '@/components/page'
+import { SegmentedControl } from '@/components/segmented-control'
 import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api-client'
 import { dayName, formatWallTime } from '@/lib/date'
@@ -91,7 +93,7 @@ export function TimetableTab() {
         id: 'actions',
         header: () => <span className="sr-only">Aksi</span>,
         enableSorting: false,
-        meta: { headerClassName: 'w-24', className: 'text-right' },
+        meta: { headerClassName: 'w-12', className: 'text-right' },
         cell: ({ row }) => (
           <RowActions
             label={`jadwal ${lookups.subjectById.get(row.original.subjectId)?.name ?? ''} ${periodRangeLabel(row.original)}`}
@@ -125,27 +127,29 @@ export function TimetableTab() {
           allLabel="Semua kelas"
           options={shiftClasses.map((c) => ({ value: c.id, label: c.name }))}
         />
-        <div className="grid gap-1">
-          <span className="text-xs text-muted-foreground">Tampilan</span>
-          <div className="inline-flex rounded-md border p-0.5" role="group" aria-label="Tampilan jadwal">
-            <Button
-              size="sm"
-              variant={view === 'list' ? 'secondary' : 'ghost'}
-              aria-pressed={view === 'list'}
-              onClick={() => filters.set({ view: 'list' })}
-            >
-              <List /> Daftar
-            </Button>
-            <Button
-              size="sm"
-              variant={view === 'grid' ? 'secondary' : 'ghost'}
-              aria-pressed={view === 'grid'}
-              onClick={() => filters.set({ view: 'grid' })}
-            >
-              <LayoutGrid /> Grid
-            </Button>
-          </div>
-        </div>
+        <SegmentedControl
+          ariaLabel="Tampilan jadwal"
+          value={view}
+          onChange={(v) => filters.set({ view: v })}
+          options={[
+            {
+              value: 'list',
+              label: (
+                <>
+                  <List aria-hidden className="size-3.5" /> Daftar
+                </>
+              ),
+            },
+            {
+              value: 'grid',
+              label: (
+                <>
+                  <LayoutGrid aria-hidden className="size-3.5" /> Grid
+                </>
+              ),
+            },
+          ]}
+        />
       </FilterBar>
 
       <DayTabs value={dayOfWeek} onChange={(d) => filters.set({ day: String(d) })} />
@@ -258,22 +262,35 @@ function TimetableGrid({
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4">
       {byShift.map(([shiftCode, shiftClasses]) => {
         const ps = periods.filter((p) => p.shiftCode === shiftCode).sort((a, b) => a.number - b.number)
         return (
-          <section key={shiftCode} className="grid gap-2">
-            <h3 className="text-sm font-semibold">Shift {lookups.shiftName(shiftCode)}</h3>
-            <div className="overflow-x-auto rounded-xl border bg-card shadow-xs">
+          <FramedCard
+            key={shiftCode}
+            headingLevel="h3"
+            icon={<CalendarClock />}
+            title={`Shift ${lookups.shiftName(shiftCode)}`}
+            titleBadge={<CountChip>{shiftClasses.length}</CountChip>}
+            bodyClassName="p-0 overflow-hidden"
+          >
+            <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] border-collapse text-sm">
                 <caption className="sr-only">Grid jadwal shift {lookups.shiftName(shiftCode)}</caption>
                 <thead>
-                  <tr className="bg-muted/50">
-                    <th scope="col" className="sticky left-0 z-10 w-24 border-b bg-muted px-2 py-2 text-left text-xs font-semibold uppercase">
+                  <tr className="bg-muted/55">
+                    <th
+                      scope="col"
+                      className="sticky left-0 z-10 w-24 border-b border-border/70 bg-muted px-2.5 py-2 text-left text-xs font-medium text-muted-foreground"
+                    >
                       Jam
                     </th>
                     {shiftClasses.map((c) => (
-                      <th key={c.id} scope="col" className="border-b border-l px-2 py-2 text-left text-xs font-semibold">
+                      <th
+                        key={c.id}
+                        scope="col"
+                        className="border-b border-l border-border/70 px-2.5 py-2 text-left text-xs font-medium text-muted-foreground"
+                      >
                         {c.name}
                       </th>
                     ))}
@@ -282,8 +299,11 @@ function TimetableGrid({
                 <tbody>
                   {ps.map((p) => (
                     <tr key={p.id}>
-                      <th scope="row" className="sticky left-0 z-10 border-b bg-card px-2 py-1.5 text-left align-top font-normal">
-                        <span className="block font-semibold tabular-nums">Ke-{p.number}</span>
+                      <th
+                        scope="row"
+                        className="sticky left-0 z-10 border-b border-border/60 bg-card px-2.5 py-1.5 text-left align-top font-normal"
+                      >
+                        <span className="block text-[13px] font-medium tabular-nums">Ke-{p.number}</span>
                         <span className="text-xs text-muted-foreground tabular-nums">
                           {formatWallTime(p.startTime)}–{formatWallTime(p.endTime)}
                         </span>
@@ -295,13 +315,13 @@ function TimetableGrid({
                         if (slot && slot.periodStart !== p.number) return null // tercakup rowSpan
                         if (slot) {
                           return (
-                            <td key={c.id} rowSpan={slot.periodCount} className="border-b border-l p-1 align-top">
+                            <td key={c.id} rowSpan={slot.periodCount} className="border-b border-l border-border/60 p-1 align-top">
                               <button
                                 type="button"
                                 onClick={() => onEdit(slot)}
-                                className="flex h-full min-h-12 w-full flex-col items-start gap-0.5 rounded-md border border-primary/20 bg-primary/5 p-2 text-left hover:border-primary/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                                className="flex h-full min-h-12 w-full flex-col items-start gap-0.5 rounded-md border border-border/80 bg-card p-2 text-left shadow-2xs transition-colors hover:border-foreground/30 hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                               >
-                                <span className="font-semibold">{lookups.subjectById.get(slot.subjectId)?.name ?? '—'}</span>
+                                <span className="text-[13px] font-medium">{lookups.subjectById.get(slot.subjectId)?.name ?? '—'}</span>
                                 <span className="text-xs text-muted-foreground">{lookups.teacherById.get(slot.teacherId)?.name ?? '—'}</span>
                                 <span className="text-xs text-muted-foreground tabular-nums">{slot.periodCount} jam</span>
                               </button>
@@ -309,7 +329,7 @@ function TimetableGrid({
                           )
                         }
                         return (
-                          <td key={c.id} className="border-b border-l p-1">
+                          <td key={c.id} className="border-b border-l border-border/60 p-1">
                             <button
                               type="button"
                               onClick={() => onAdd(c.id, shiftCode, p.number)}
@@ -329,7 +349,7 @@ function TimetableGrid({
                 </tbody>
               </table>
             </div>
-          </section>
+          </FramedCard>
         )
       })}
     </div>
@@ -519,13 +539,16 @@ function TimetableDialog({
         </FormField>
         <div className="col-span-2 grid content-end gap-1 sm:col-span-1">
           <span className="text-sm font-medium">Jumlah jam (JML)</span>
-          <span className="flex h-9 items-center rounded-md border bg-muted/50 px-3 font-semibold tabular-nums" aria-live="polite">
+          <span className="flex h-8 items-center rounded-md border border-input bg-muted/50 px-2.5 text-[13px] font-semibold tabular-nums" aria-live="polite">
             {count ?? '—'}
           </span>
         </div>
       </div>
       {shiftPeriods.length === 0 && (
-        <p className="text-sm text-tone-warning">Shift ini belum memiliki periode jam. Tambahkan di tab Periode Jam.</p>
+        <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          <CircleAlert aria-hidden className="size-3.5 shrink-0 text-tone-warning" />
+          Shift ini belum memiliki periode jam. Tambahkan di tab Periode Jam.
+        </p>
       )}
       {slot && onRequestDelete && (
         <div className="flex justify-start">
@@ -533,7 +556,7 @@ function TimetableDialog({
             type="button"
             variant="ghost"
             size="sm"
-            className="text-destructive hover:bg-tone-danger-bg hover:text-destructive"
+            className="text-destructive hover:text-destructive"
             disabled={isSubmitting}
             onClick={() => onRequestDelete(slot)}
           >

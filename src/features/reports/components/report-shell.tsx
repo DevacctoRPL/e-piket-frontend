@@ -1,4 +1,5 @@
 import type { UseQueryResult } from '@tanstack/react-query'
+import { FULL_SCOPE_ROLES } from '@/lib/permissions'
 import { ArrowLeft, CalendarRange, Info, Loader2, ShieldCheck } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
@@ -62,7 +63,7 @@ function useFilterText(filters: ReportFilters, config: ReportFilterConfig) {
 
 function useScopeNotice() {
   const { is } = useAuth()
-  if (is('ADMIN', 'PRINCIPAL', 'DUTY_TEACHER')) return null
+  if (is(...FULL_SCOPE_ROLES)) return null
   if (is('HOMEROOM')) return 'Data dibatasi pada kelas binaan dan kelas yang Anda ajar.'
   return 'Data dibatasi pada data pribadi Anda dan kelas yang Anda ajar.'
 }
@@ -112,9 +113,9 @@ function ReportScreen<T extends ReportData>({
       />
       <ReportFilterBar filters={filters} config={filterConfig} />
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground" aria-live="polite">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground" aria-live="polite">
         <span className="inline-flex items-center gap-1.5">
-          <CalendarRange className="size-4" />
+          <CalendarRange className="size-3.5" />
           Periode: <span className="font-medium text-foreground">{filters.periodText}</span>
         </span>
         {query.data && (
@@ -215,8 +216,8 @@ function ReportPrint<T extends ReportData>({ def, filters, filterConfig, query, 
 /** Baris total (angka server) — dipakai sebagai footer tabel & kartu di ponsel. */
 export function TotalsBar({ items, label = 'Total', className }: { items: [string, ReactNode][]; label?: string; className?: string }) {
   return (
-    <div className={cn('flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-sm', className)} aria-label={label}>
-      <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</span>
+    <div className={cn('flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[13px]', className)} aria-label={label}>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {items.map(([k, v]) => (
         <span key={k} className="inline-flex items-baseline gap-1.5">
           <span className="text-muted-foreground">{k}</span>
@@ -227,20 +228,40 @@ export function TotalsBar({ items, label = 'Total', className }: { items: [strin
   )
 }
 
-/** DataTable + baris total yang tampil di desktop (footer tabel) maupun ponsel (kartu). */
+/**
+ * DataTable berbingkai (FramedCard: ikon + judul + jumlah baris) + baris total yang tampil di desktop
+ * (footer tabel) maupun ponsel (kartu). `description` tampil sebagai teks kecil di kanan header.
+ */
 export function ReportTable<T>({
   totals,
   totalsLabel,
+  description,
+  toolbar,
   ...props
-}: React.ComponentProps<typeof DataTable<T>> & { totals?: [string, ReactNode][]; totalsLabel?: string }) {
+}: React.ComponentProps<typeof DataTable<T>> & {
+  totals?: [string, ReactNode][]
+  totalsLabel?: string
+  description?: ReactNode
+}) {
   return (
     <div className="space-y-2">
       <DataTable<T>
         {...props}
-        footer={totals ? <TotalsBar items={totals} label={totalsLabel} className="border-t bg-muted/40 px-4 py-3" /> : undefined}
+        toolbar={
+          toolbar ?? (description ? <span className="text-xs text-muted-foreground">{description}</span> : undefined)
+        }
+        footer={
+          totals ? (
+            <TotalsBar items={totals} label={totalsLabel} className="border-t border-border/60 bg-muted/40 px-4 py-2.5" />
+          ) : undefined
+        }
       />
       {totals && props.data.length > 0 && (
-        <TotalsBar items={totals} label={totalsLabel} className="rounded-xl border bg-muted/40 p-3 md:hidden" />
+        <TotalsBar
+          items={totals}
+          label={totalsLabel}
+          className="rounded-lg border border-border/85 bg-card p-3 shadow-2xs md:hidden"
+        />
       )}
     </div>
   )
@@ -249,14 +270,4 @@ export function ReportTable<T>({
 /** Kisi kartu ringkasan. */
 export function SummaryGrid({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{children}</div>
-}
-
-/** Judul bagian dalam laporan. */
-export function SectionTitle({ children, description }: { children: ReactNode; description?: ReactNode }) {
-  return (
-    <div className="space-y-0.5">
-      <h2 className="text-base font-semibold">{children}</h2>
-      {description && <p className="text-sm text-muted-foreground">{description}</p>}
-    </div>
-  )
 }

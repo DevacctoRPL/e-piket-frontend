@@ -154,7 +154,7 @@ function MobileCard({ d, showDate }: { d: StudentDismissal; showDate: boolean })
           </Item>
         )}
       </dl>
-      <div className="flex items-center justify-between gap-2 border-t pt-2">
+      <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
         <p className="min-w-0 truncate text-xs text-muted-foreground">
           Dicatat {d.recordedByName} · <span className="tabular-nums">{formatTime(d.recordedAt)}</span>
         </p>
@@ -179,22 +179,29 @@ export function DismissalTable({
   emptyState,
   serverPagination,
   caption,
+  title,
+  icon,
 }: {
   data: StudentDismissal[]
   showDate?: boolean
   emptyState: ReactNode
   serverPagination?: { meta: PaginationMeta; onPageChange: (page: number) => void }
   caption: string
+  /** Judul seksi (FramedCard) di atas tabel. */
+  title?: string
+  icon?: ReactNode
 }) {
   return (
     <DataTable
+      title={title}
+      icon={icon}
       columns={showDate ? COLUMNS_HISTORY : COLUMNS_TODAY}
       data={data}
       getRowId={(d) => d.id}
       emptyState={emptyState}
       serverPagination={serverPagination}
       caption={caption}
-      rowClassName={(d) => (isAwaitingReturn(d) ? 'bg-tone-warning-bg/30' : undefined)}
+      rowClassName={(d) => (isAwaitingReturn(d) ? 'border-l-2 border-l-tone-warning' : undefined)}
       renderMobileCard={(d) => <MobileCard d={d} showDate={showDate} />}
     />
   )

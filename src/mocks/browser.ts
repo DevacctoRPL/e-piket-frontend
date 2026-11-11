@@ -15,4 +15,15 @@ export async function startMockApi() {
     },
     quiet: true,
   })
+
+  // Saat tab kembali aktif setelah idle/sleep, pastikan Service Worker MSW mengaktifkan ulang clientId
+  // sebelum refetchOnWindowFocus dari TanStack Query berjalan.
+  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    const reactivateWorker = () => {
+      if (document.visibilityState === 'hidden') return
+      navigator.serviceWorker.controller?.postMessage('MOCK_ACTIVATE')
+    }
+    window.addEventListener('focus', reactivateWorker, true)
+    document.addEventListener('visibilitychange', reactivateWorker, true)
+  }
 }

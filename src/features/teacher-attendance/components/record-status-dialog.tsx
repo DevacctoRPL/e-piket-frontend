@@ -249,7 +249,7 @@ function RecordStatusForm({
         </div>
       )}
       {isAbsent && (
-        <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+        <p className="rounded-md border border-border/80 px-3 py-2 text-xs text-muted-foreground">
           Jam mengajar terdampak dihitung otomatis dari jadwal ({row.scheduledPeriods} jam terjadwal). Koreksi dapat
           dilakukan setelah disimpan.
         </p>

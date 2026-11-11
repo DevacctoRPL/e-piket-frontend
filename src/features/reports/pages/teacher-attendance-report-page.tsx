@@ -1,4 +1,4 @@
-import { AlarmClock, CalendarX2, UserCheck, Users } from 'lucide-react'
+import { AlarmClock, CalendarDays, CalendarX2, UserCheck, Users } from 'lucide-react'
 import { EmptyState, StatCard } from '@/components/page'
 import type { ColumnDef } from '@/components/data-table'
 import { PrintTable } from '@/components/print-layout'
@@ -10,7 +10,7 @@ import { formatDate, formatDateShort, formatTime } from '@/lib/date'
 import { TEACHER_ATTENDANCE_STATUSES, type TeacherAttendance } from '@/types/entities'
 import { reportDef } from '../catalog'
 import { DrillLink, MiniStat, Num, textOrDash } from '../components/cells'
-import { ReportTable, ReportView, SectionTitle, SummaryGrid } from '../components/report-shell'
+import { ReportTable, ReportView, SummaryGrid } from '../components/report-shell'
 import { formatNumber } from '../lib/format'
 import { drillHref, useReportFilters } from '../lib/use-report-filters'
 import { useReport } from '../queries'
@@ -97,80 +97,89 @@ export function TeacherAttendanceReportPage({ mode = 'screen' }: { mode?: 'scree
       note="Jam terdampak dihitung dari jadwal aktif untuk status Sakit/Izin/Alpa/Dinas Luar (termasuk koreksi piket bila ada). Menit terlambat dihitung setelah batas toleransi shift."
       summary={(d) => (
         <SummaryGrid>
-          <StatCard label="Kehadiran tercatat" value={formatNumber(d.totals.records)} hint={`${d.teachers.length} guru`} icon={<Users />} tone="info" />
-          <StatCard label="Hadir" value={formatNumber(d.totals.counts.PRESENT + d.totals.counts.LATE)} hint={`Terlambat ${d.totals.counts.LATE}`} icon={<UserCheck />} tone="success" />
+          <StatCard label="Kehadiran tercatat" value={formatNumber(d.totals.records)} hint={`${d.teachers.length} guru`} icon={<Users />} />
+          <StatCard label="Hadir" value={formatNumber(d.totals.counts.PRESENT + d.totals.counts.LATE)} hint={`Terlambat ${d.totals.counts.LATE}`} icon={<UserCheck />} />
           <StatCard
             label="Tidak hadir"
             value={formatNumber(d.totals.counts.SICK + d.totals.counts.PERMISSION + d.totals.counts.ABSENT + d.totals.counts.OFFICIAL_DUTY)}
             hint={`${d.totals.affectedPeriods} jam terdampak`}
             icon={<CalendarX2 />}
-            tone="danger"
+            tone={
+              d.totals.counts.SICK + d.totals.counts.PERMISSION + d.totals.counts.ABSENT + d.totals.counts.OFFICIAL_DUTY > 0
+                ? 'danger'
+                : 'neutral'
+            }
           />
-          <StatCard label="Menit terlambat" value={formatNumber(d.totals.lateMinutes)} icon={<AlarmClock />} tone="warning" />
+          <StatCard
+            label="Menit terlambat"
+            value={formatNumber(d.totals.lateMinutes)}
+            icon={<AlarmClock />}
+            tone={d.totals.lateMinutes > 0 ? 'warning' : 'neutral'}
+          />
         </SummaryGrid>
       )}
       content={(d) => (
         <>
-          <section className="space-y-3">
-            <SectionTitle description="Jumlah hari per status">Rekap per guru</SectionTitle>
+          <ReportTable
+            title="Rekap per guru"
+            icon={<Users />}
+            description="Jumlah hari per status"
+            caption={`${def.title} per guru`}
+            columns={summaryColumns}
+            data={d.teachers}
+            getRowId={(r) => r.teacherId}
+            emptyState={<EmptyState title="Belum ada absensi guru" description="Tidak ada catatan kehadiran guru pada periode/filter ini." />}
+            renderMobileCard={(r) => (
+              <div className="space-y-2">
+                <div>
+                  <p className="font-semibold">{r.teacherName}</p>
+                  <p className="text-xs text-muted-foreground">NIP {r.nip} · {r.records} hari</p>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {TEACHER_ATTENDANCE_STATUSES.map((s) => (
+                    <MiniStat key={s} label={TEACHER_ATTENDANCE_META[s].label} value={r.counts[s]} />
+                  ))}
+                  <MiniStat label="Menit terlambat" value={r.lateMinutes} />
+                  <MiniStat label="Jam terdampak" value={r.affectedPeriods} />
+                </div>
+              </div>
+            )}
+            totals={[
+              ...TEACHER_ATTENDANCE_STATUSES.map<[string, string]>((s) => [TEACHER_ATTENDANCE_META[s].short ?? s, formatNumber(d.totals.counts[s])]),
+              ['Hari', formatNumber(d.totals.records)],
+              ['Menit terlambat', formatNumber(d.totals.lateMinutes)],
+              ['Jam terdampak', formatNumber(d.totals.affectedPeriods)],
+            ]}
+          />
+          {d.records.length > 0 && (
             <ReportTable
-              caption={`${def.title} per guru`}
-              columns={summaryColumns}
-              data={d.teachers}
-              getRowId={(r) => r.teacherId}
-              emptyState={<EmptyState title="Belum ada absensi guru" description="Tidak ada catatan kehadiran guru pada periode/filter ini." />}
+              title="Rincian harian"
+              icon={<CalendarDays />}
+              description="Catatan check-in/out"
+              caption={`${def.title} rincian`}
+              columns={detailColumns}
+              data={d.records}
+              getRowId={(r) => r.id}
+              pageSize={25}
               renderMobileCard={(r) => (
-                <div className="space-y-2">
-                  <div>
-                    <p className="font-semibold">{r.teacherName}</p>
-                    <p className="text-xs text-muted-foreground">NIP {r.nip} · {r.records} hari</p>
+                <div className="space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold">{r.teacherName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(r.date)} · {shiftName(r.shiftCode)}
+                      </p>
+                    </div>
+                    <StatusBadge meta={TEACHER_ATTENDANCE_META} value={r.status} />
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {TEACHER_ATTENDANCE_STATUSES.map((s) => (
-                      <MiniStat key={s} label={TEACHER_ATTENDANCE_META[s].label} value={r.counts[s]} />
-                    ))}
-                    <MiniStat label="Menit terlambat" value={r.lateMinutes} />
-                    <MiniStat label="Jam terdampak" value={r.affectedPeriods} />
-                  </div>
+                  <p className="text-sm tabular-nums">
+                    Masuk {formatTime(r.checkInAt)} · Pulang {formatTime(r.checkOutAt)}
+                    {r.lateMinutes ? ` · terlambat ${r.lateMinutes} mnt` : ''}
+                  </p>
+                  {r.reason && <p className="text-xs text-muted-foreground">{r.reason}</p>}
                 </div>
               )}
-              totals={[
-                ...TEACHER_ATTENDANCE_STATUSES.map<[string, string]>((s) => [TEACHER_ATTENDANCE_META[s].short ?? s, formatNumber(d.totals.counts[s])]),
-                ['Hari', formatNumber(d.totals.records)],
-                ['Menit terlambat', formatNumber(d.totals.lateMinutes)],
-                ['Jam terdampak', formatNumber(d.totals.affectedPeriods)],
-              ]}
             />
-          </section>
-          {d.records.length > 0 && (
-            <section className="space-y-3">
-              <SectionTitle description={`${formatNumber(d.records.length)} catatan check-in/out`}>Rincian harian</SectionTitle>
-              <ReportTable
-                caption={`${def.title} rincian`}
-                columns={detailColumns}
-                data={d.records}
-                getRowId={(r) => r.id}
-                pageSize={25}
-                renderMobileCard={(r) => (
-                  <div className="space-y-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-semibold">{r.teacherName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(r.date)} · {shiftName(r.shiftCode)}
-                        </p>
-                      </div>
-                      <StatusBadge meta={TEACHER_ATTENDANCE_META} value={r.status} />
-                    </div>
-                    <p className="text-sm tabular-nums">
-                      Masuk {formatTime(r.checkInAt)} · Pulang {formatTime(r.checkOutAt)}
-                      {r.lateMinutes ? ` · terlambat ${r.lateMinutes} mnt` : ''}
-                    </p>
-                    {r.reason && <p className="text-xs text-muted-foreground">{r.reason}</p>}
-                  </div>
-                )}
-              />
-            </section>
           )}
         </>
       )}

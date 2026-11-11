@@ -89,7 +89,7 @@ export function StudentsTab() {
         id: 'actions',
         header: () => <span className="sr-only">Aksi</span>,
         enableSorting: false,
-        meta: { headerClassName: 'w-24', className: 'text-right' },
+        meta: { headerClassName: 'w-12', className: 'text-right' },
         cell: ({ row }) => (
           <RowActions label={row.original.name} onEdit={() => openEdit(row.original)} onDelete={() => askDelete(row.original)} />
         ),
@@ -335,7 +335,7 @@ function StudentDialog({
           </FormField>
         )}
       </div>
-      <fieldset className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
+      <fieldset className="grid gap-3 rounded-md border border-border/80 p-3 sm:grid-cols-2">
         <legend className="px-1 text-sm font-semibold">Kontak wali murid</legend>
         <FormField label="Nama wali" error={errors.guardianName?.message}>
           <Input {...register('guardianName')} autoComplete="off" maxLength={120} />

@@ -44,7 +44,7 @@ export function TeachingLogDetailPage() {
       />
       {query.isPending ? (
         <div className="grid gap-4" aria-busy="true" aria-label="Memuat jurnal">
-          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-6 w-64" />
           <Skeleton className="h-32 rounded-xl" />
           <Skeleton className="h-64 rounded-xl" />
         </div>

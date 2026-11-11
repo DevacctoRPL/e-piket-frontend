@@ -1,9 +1,13 @@
 import { CalculatorIcon, ClipboardPen, ShieldCheck, Users } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { DataTable, type ColumnDef } from '@/components/data-table'
-import { EmptyState, QueryBoundary } from '@/components/page'
+import { FramedCard } from '@/components/framed-card'
+import { EmptyState, ErrorState } from '@/components/page'
+import { RowActionsMenu } from '@/components/row-actions-menu'
+import { SegmentedControl } from '@/components/segmented-control'
 import { StatusBadge, ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/misc'
 import { useAuth } from '@/features/auth/auth-context'
 import { useLookupMaps } from '@/features/master-data/lookups'
 import { formatTime } from '@/lib/date'
@@ -21,21 +25,15 @@ import {
 import { OverrideDialog } from './override-dialog'
 import { RecordStatusDialog } from './record-status-dialog'
 
-const CHIPS: { key: ScheduledFilter; label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info' }[] = [
-  { key: 'all', label: 'Semua', tone: 'neutral' },
-  { key: 'present', label: 'Hadir', tone: 'success' },
-  { key: 'late', label: 'Terlambat', tone: 'warning' },
-  { key: 'absent', label: 'Tidak hadir', tone: 'danger' },
-  { key: 'notCheckedIn', label: 'Belum check-in', tone: 'info' },
+const FILTERS: { key: ScheduledFilter; label: string }[] = [
+  { key: 'all', label: 'Semua' },
+  { key: 'present', label: 'Hadir' },
+  { key: 'late', label: 'Terlambat' },
+  { key: 'absent', label: 'Tidak hadir' },
+  { key: 'notCheckedIn', label: 'Belum check-in' },
 ]
 
-const CHIP_ACTIVE: Record<(typeof CHIPS)[number]['tone'], string> = {
-  neutral: 'border-foreground/30 bg-muted',
-  success: 'border-tone-success/40 bg-tone-success-bg text-tone-success',
-  warning: 'border-tone-warning/40 bg-tone-warning-bg text-tone-warning',
-  danger: 'border-tone-danger/40 bg-tone-danger-bg text-tone-danger',
-  info: 'border-tone-info/40 bg-tone-info-bg text-tone-info',
-}
+const DESCRIPTION = 'Hanya guru yang memiliki jadwal mengajar atau tugas piket pada tanggal ini.'
 
 /** Daftar "Guru Terjadwal" (FR-TCH-02..04, §7.3). */
 export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCode: ShiftCode | '' }) {
@@ -71,11 +69,11 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
         cell: ({ row: { original: r } }) => (
           <div className="min-w-0">
             <p className="font-medium">{r.teacher.name}</p>
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
               NIP {r.teacher.nip}
               {r.isDutyTeacher && (
-                <ToneBadge tone="success" className="py-0">
-                  <ShieldCheck className="size-3" /> Piket
+                <ToneBadge tone="success" icon={ShieldCheck}>
+                  Piket
                 </ToneBadge>
               )}
             </p>
@@ -102,7 +100,9 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
             <div className="flex flex-col gap-0.5">
               <StatusBadge meta={TEACHER_ATTENDANCE_META} value={r.attendance.status} />
               {r.attendance.lateMinutes ? (
-                <span className="text-xs text-tone-warning">+{formatLate(r.attendance.lateMinutes)}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  +{formatLate(r.attendance.lateMinutes)}
+                </span>
               ) : null}
             </div>
           ) : (
@@ -124,7 +124,9 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
         header: 'Alasan',
         enableSorting: false,
         cell: ({ row: { original: r } }) => (
-          <span className="line-clamp-2 max-w-56 text-sm">{r.attendance?.reason ?? '—'}</span>
+          <span className={cn('line-clamp-2 max-w-56', !r.attendance?.reason && 'text-muted-foreground')}>
+            {r.attendance?.reason ?? '—'}
+          </span>
         ),
       },
       {
@@ -167,54 +169,61 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
     [canWrite, slotLabel],
   )
 
+  const filterControl = (
+    <SegmentedControl
+      ariaLabel="Saring status"
+      size="sm"
+      className="no-print"
+      value={filter}
+      onChange={setFilter}
+      options={FILTERS.map((c) => ({
+        value: c.key,
+        label: c.label,
+        count: q.data ? (c.key === 'all' ? summary.total : summary[c.key]) : undefined,
+      }))}
+    />
+  )
+
+  /** Bingkai untuk status memuat/error/kosong — judul & filter tetap terlihat. */
+  const frame = (children: ReactNode) => (
+    <FramedCard
+      title="Guru Terjadwal"
+      titleId="scheduled-title"
+      icon={<Users />}
+      description={DESCRIPTION}
+      headerRight={filterControl}
+    >
+      {children}
+    </FramedCard>
+  )
+
   return (
-    <section aria-labelledby="scheduled-title" className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 id="scheduled-title" className="font-semibold">
-            Guru Terjadwal
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Hanya guru yang memiliki jadwal mengajar atau tugas piket pada tanggal ini.
-          </p>
-        </div>
-      </div>
-
-      <div className="no-print flex flex-wrap gap-2" role="group" aria-label="Saring status">
-        {CHIPS.map((c) => {
-          const count = c.key === 'all' ? summary.total : summary[c.key]
-          const active = filter === c.key
-          return (
-            <button
-              key={c.key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setFilter(c.key)}
-              className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-full border bg-card px-3 text-sm font-medium transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
-                active && CHIP_ACTIVE[c.tone],
-              )}
-            >
-              {c.label}
-              <span className="tabular-nums opacity-80">{q.data ? count : '–'}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      <QueryBoundary
-        query={q}
-        empty={(d) => d.length === 0}
-        emptyState={
+    <>
+      {q.isPending ? (
+        frame(
+          <div className="grid gap-2.5" aria-busy="true" aria-label="Memuat data">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>,
+        )
+      ) : q.isError || !q.data ? (
+        frame(<ErrorState error={q.error} onRetry={reload} className="border-0 py-6 shadow-none" />)
+      ) : q.data.length === 0 ? (
+        frame(
           <EmptyState
             icon={<Users className="size-5" />}
             title="Tidak ada guru terjadwal"
             description="Tidak ada jadwal mengajar maupun tugas piket pada tanggal/shift ini. Pilih tanggal atau shift lain."
-          />
-        }
-      >
-        {() => (
+            className="border-0 bg-transparent py-6"
+          />,
+        )
+      ) : (
+        <div className="flex flex-col gap-1.5">
           <DataTable
+            title="Guru Terjadwal"
+            icon={<Users />}
+            toolbar={filterControl}
             columns={columns}
             data={rows}
             getRowId={(r) => r.teacher.id}
@@ -224,6 +233,7 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
               <EmptyState
                 title="Tidak ada guru pada kategori ini"
                 description="Pilih kategori lain untuk melihat guru terjadwal."
+                className="border-0 bg-transparent py-8"
                 action={
                   <Button variant="outline" size="sm" onClick={() => setFilter('all')}>
                     Tampilkan semua
@@ -239,8 +249,9 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
               />
             )}
           />
-        )}
-      </QueryBoundary>
+          <p className="px-1 text-xs text-muted-foreground">{DESCRIPTION}</p>
+        </div>
+      )}
 
       <RecordStatusDialog
         row={recordRow}
@@ -256,7 +267,7 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
         onOpenChange={(o) => !o && setOverrideFor(null)}
         onReload={reload}
       />
-    </section>
+    </>
   )
 }
 
@@ -269,6 +280,10 @@ function SlotLabel({ row, label }: { row: ScheduledTeacherRow; label: (r: Schedu
   )
 }
 
+/**
+ * Aksi utama baris = "Catat status" / "Ubah" (tombol kecil); aksi sekunder (koreksi jam terdampak) di kebab.
+ * Slot kebab selalu disediakan agar tombol utama sejajar antarbaris.
+ */
 function RowActions({
   row,
   onRecord,
@@ -281,24 +296,22 @@ function RowActions({
   const a = row.attendance
   const absent = !!a && TEACHER_ABSENT_STATUSES.includes(a.status)
   return (
-    <div className="flex flex-wrap justify-end gap-1.5">
+    <div className="flex items-center justify-end gap-1">
       <Button
         size="sm"
-        variant={a ? 'ghost' : 'outline'}
+        variant="outline"
         onClick={() => onRecord(row)}
         aria-label={`${a ? 'Ubah status' : 'Catat status'} ${row.teacher.name}`}
       >
         <ClipboardPen /> {a ? 'Ubah' : 'Catat status'}
       </Button>
-      {a && absent && (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onOverride(a)}
-          aria-label={`Koreksi jam terdampak ${row.teacher.name}`}
-        >
-          <CalculatorIcon /> Koreksi jam
-        </Button>
+      {a && absent ? (
+        <RowActionsMenu
+          label={`Aksi untuk ${row.teacher.name}`}
+          actions={[{ label: 'Koreksi jam terdampak', icon: CalculatorIcon, onSelect: () => onOverride(a) }]}
+        />
+      ) : (
+        <span aria-hidden className="size-7 shrink-0" />
       )}
     </div>
   )
@@ -334,7 +347,7 @@ function MobileCard({
         <dt className="text-muted-foreground">Datang / Pulang</dt>
         <dd className="tabular-nums">
           {formatTime(a?.checkInAt)} / {formatTime(a?.checkOutAt)}
-          {a?.lateMinutes ? <span className="text-tone-warning"> · +{formatLate(a.lateMinutes)}</span> : null}
+          {a?.lateMinutes ? <span className="text-muted-foreground"> · +{formatLate(a.lateMinutes)}</span> : null}
         </dd>
         {a?.reason && (
           <>
@@ -355,7 +368,7 @@ function MobileCard({
           </>
         )}
       </dl>
-      {actions && <div className="border-t pt-2">{actions}</div>}
+      {actions && <div className="flex justify-end border-t border-border/70 pt-2">{actions}</div>}
     </div>
   )
 }

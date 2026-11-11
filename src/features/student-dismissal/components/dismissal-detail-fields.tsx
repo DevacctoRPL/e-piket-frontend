@@ -30,13 +30,13 @@ export function DismissalTypeSegmented({
       <legend className="mb-1.5 text-sm font-medium">
         Jenis kepulangan <span className="text-destructive" aria-hidden>*</span>
       </legend>
-      <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+      <div className="grid grid-cols-3 gap-0.5 rounded-lg border border-border/80 bg-muted/50 p-0.5">
         {DISMISSAL_TYPES.map((t) => (
           <label
             key={t}
             className={cn(
-              'flex min-h-10 cursor-pointer items-center justify-center rounded-md px-2 py-1.5 text-center text-xs leading-tight font-semibold text-foreground/70 transition-[color,background-color,box-shadow] duration-150 select-none sm:text-sm',
-              'has-[:checked]:bg-background has-[:checked]:text-foreground has-[:checked]:shadow-sm',
+              'flex min-h-7 cursor-pointer items-center justify-center rounded-md px-2 py-1 text-center text-xs leading-tight font-medium text-muted-foreground transition-colors duration-150 select-none hover:text-foreground sm:text-[13px]',
+              'has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:hover:text-primary-foreground',
               'has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
               disabled && 'cursor-not-allowed opacity-60',
             )}

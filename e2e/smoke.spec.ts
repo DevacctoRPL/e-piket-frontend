@@ -29,6 +29,18 @@ test.describe('menu per peran (PRD §4.1)', () => {
     await expect(nav(page).getByRole('link', { name: 'Audit Log' })).toBeVisible()
   })
 
+  test('super admin melihat Kelola Pengguna', async ({ page }) => {
+    await login(page, 'superadmin')
+    await expect(nav(page).getByRole('link', { name: 'Kelola Pengguna' })).toBeVisible()
+    await expect(nav(page).getByRole('link', { name: 'Data Master' })).toBeVisible()
+  })
+
+  test('admin tidak melihat Kelola Pengguna', async ({ page }) => {
+    await login(page, 'admin')
+    await expect(nav(page).getByRole('link', { name: 'Data Master' })).toBeVisible()
+    await expect(nav(page).getByRole('link', { name: 'Kelola Pengguna' })).toHaveCount(0)
+  })
+
   test('guru tidak melihat Data Master', async ({ page }) => {
     await login(page, 'guru')
     await expect(nav(page).getByRole('link', { name: 'Jurnal Mengajar' })).toBeVisible()

@@ -1,27 +1,63 @@
+import {
+  CircleCheck,
+  CircleDashed,
+  CircleDot,
+  CircleX,
+  Clock3,
+  type LucideIcon,
+} from 'lucide-react'
+import { Children, isValidElement, type ReactNode } from 'react'
 import type { EnumMeta, Tone } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 
-const TONE_CLASS: Record<Tone, string> = {
-  success: 'bg-tone-success-bg text-tone-success border-tone-success/25',
-  warning: 'bg-tone-warning-bg text-tone-warning border-tone-warning/25',
-  danger: 'bg-tone-danger-bg text-tone-danger border-tone-danger/25',
-  info: 'bg-tone-info-bg text-tone-info border-tone-info/25',
-  neutral: 'bg-tone-neutral-bg text-tone-neutral border-tone-neutral/20',
-  purple: 'bg-tone-purple-bg text-tone-purple border-tone-purple/25',
+/** Permukaan badge yang tenang: latar tipis + tepi semantik lembut + teks kontras tinggi. */
+const TONE_SURFACE: Record<Tone, string> = {
+  success: 'border-tone-success/25 bg-tone-success-bg text-tone-success',
+  warning: 'border-tone-warning/30 bg-tone-warning-bg text-tone-warning',
+  danger: 'border-tone-danger/25 bg-tone-danger-bg text-tone-danger',
+  info: 'border-tone-info/25 bg-tone-info-bg text-tone-info',
+  neutral: 'border-border/85 bg-muted/55 text-foreground/80',
+  purple: 'border-tone-purple/25 bg-tone-purple-bg text-tone-purple',
 }
 
-const DOT_CLASS: Record<Tone, string> = {
-  success: 'bg-tone-success',
-  warning: 'bg-tone-warning',
-  danger: 'bg-tone-danger',
-  info: 'bg-tone-info',
-  neutral: 'bg-tone-neutral',
-  purple: 'bg-tone-purple',
+/** Warna ikon mengikuti tone semantik. */
+const ICON_TONE: Record<Tone, string> = {
+  success: 'text-tone-success',
+  warning: 'text-tone-warning',
+  danger: 'text-tone-danger',
+  info: 'text-tone-info',
+  neutral: 'text-muted-foreground',
+  purple: 'text-tone-purple',
+}
+
+/** Ikon bawaan per tone bila meta tidak menyediakan ikon spesifik. */
+const TONE_ICON: Record<Tone, LucideIcon> = {
+  success: CircleCheck,
+  warning: Clock3,
+  danger: CircleX,
+  info: CircleDot,
+  neutral: CircleDashed,
+  purple: CircleDot,
+}
+
+/** Kelas statis untuk ikon sisipan pemanggil. */
+const CHILD_ICON_TONE: Record<Tone, string> = {
+  success: '[&>svg]:text-tone-success',
+  warning: '[&>svg]:text-tone-warning',
+  danger: '[&>svg]:text-tone-danger',
+  info: '[&>svg]:text-tone-info',
+  neutral: '[&>svg]:text-muted-foreground',
+  purple: '[&>svg]:text-tone-purple',
+}
+
+/** Pemanggil yang sudah menyisipkan komponen ikon (mis. <ShieldCheck />) tidak perlu ikon bawaan. */
+function hasOwnIcon(children: ReactNode) {
+  return Children.toArray(children).some((c) => isValidElement(c) && typeof c.type !== 'string')
 }
 
 /**
- * Badge status: SELALU menampilkan teks label (warna bukan satu-satunya indikator — PRD §8.1, §12).
- *   <StatusBadge meta={ATTENDANCE_META} value="SICK" />  →  "Sakit"
+ * Badge status persegi membulat halus (rounded-md) dengan warna teredam dan tanpa titik otomatis.
+ * Teks label SELALU tampil — warna bukan satu-satunya indikator (PRD §8.1, §12).
  */
 export function StatusBadge<K extends string>({
   meta,
@@ -38,27 +74,58 @@ export function StatusBadge<K extends string>({
   if (!value) return <span className="text-muted-foreground">—</span>
   const m = meta[value]
   if (!m) return <span>{value}</span>
-  return <ToneBadge tone={m.tone} className={className}>{showShort && m.short ? `${m.short} · ${m.label}` : m.label}</ToneBadge>
+  return (
+    <ToneBadge tone={m.tone} icon={m.icon} className={className}>
+      {showShort && m.short ? `${m.short} · ${m.label}` : m.label}
+    </ToneBadge>
+  )
 }
 
 export function ToneBadge({
   tone,
+  icon,
   children,
   className,
 }: {
   tone: Tone
-  children: React.ReactNode
+  /** Ganti ikon bawaan tone. */
+  icon?: LucideIcon
+  /** @deprecated tidak berpengaruh; dipertahankan untuk kompatibilitas pemanggil lama. */
+  dot?: boolean
+  children: ReactNode
   className?: string
 }) {
+  const Icon = icon ?? TONE_ICON[tone]
+  const custom = hasOwnIcon(children)
   return (
     <span
+      data-slot="status"
+      data-tone={tone}
       className={cn(
-        'inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-semibold whitespace-nowrap',
-        TONE_CLASS[tone],
+        'inline-flex w-fit shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap',
+        TONE_SURFACE[tone],
+        '[&>svg]:size-3.5 [&>svg]:shrink-0',
+        CHILD_ICON_TONE[tone],
         className,
       )}
     >
-      <span aria-hidden className={cn('size-1.5 rounded-full', DOT_CLASS[tone])} />
+      {!custom && <Icon aria-hidden className={cn('size-3.5 shrink-0', ICON_TONE[tone])} />}
+      {children}
+    </span>
+  )
+}
+
+/**
+ * Label metadata statis (peran, kategori, shift, label hari) — tag netral monokrom, bukan status.
+ */
+export function MetaTag({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex w-fit shrink-0 items-center gap-1 rounded-md border border-border/80 bg-muted/50 px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-foreground/80',
+        className,
+      )}
+    >
       {children}
     </span>
   )

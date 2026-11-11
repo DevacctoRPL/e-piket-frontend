@@ -84,8 +84,8 @@ export function HistoryTab() {
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="font-medium">{row.original.substituteTeacherName}</span>
             {row.original.conflictOverridden && (
-              <ToneBadge tone="warning">
-                <ShieldAlert className="size-3" aria-hidden /> Override
+              <ToneBadge tone="warning" icon={ShieldAlert}>
+                Override
               </ToneBadge>
             )}
           </div>
@@ -126,8 +126,12 @@ export function HistoryTab() {
     teacherId: values.hTeacher || undefined,
   }
 
+  const exportMenu = (
+    <ExportMenu report="substitutions" filters={exportFilters} period={`${values.hFrom}_${values.hTo}`} />
+  )
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <FilterBar onReset={isDirty ? reset : undefined}>
         <FilterDate label="Dari tanggal" value={values.hFrom} max={values.hTo} onChange={(v) => set({ hFrom: v })} />
         <FilterDate label="Sampai tanggal" value={values.hTo} min={values.hFrom} max={today} onChange={(v) => set({ hTo: v })} />
@@ -155,13 +159,6 @@ export function HistoryTab() {
             { value: 'CANCELLED', label: RECORD_META.CANCELLED.label },
           ]}
         />
-        <div className="flex items-end">
-          <ExportMenu
-            report="substitutions"
-            filters={exportFilters}
-            period={`${values.hFrom}_${values.hTo}`}
-          />
-        </div>
       </FilterBar>
 
       {invalidRange ? (
@@ -173,6 +170,9 @@ export function HistoryTab() {
       ) : (
         <div className={q.isPlaceholderData ? 'opacity-60 transition-opacity' : undefined} aria-busy={q.isFetching}>
           <DataTable
+            title="Riwayat guru pengganti"
+            icon={<History />}
+            toolbar={exportMenu}
             caption="Riwayat guru pengganti"
             columns={columns}
             data={q.data.data}
@@ -203,7 +203,7 @@ export function HistoryTab() {
                 <p>
                   <span className="text-muted-foreground">Pengganti: </span>
                   <span className="font-medium">{r.substituteTeacherName}</span>
-                  {r.conflictOverridden && <span className="text-tone-warning"> (override)</span>}
+                  {r.conflictOverridden && <span className="text-muted-foreground"> (override)</span>}
                 </p>
                 <p className="text-muted-foreground">
                   Menggantikan {teacherById.get(r.absentTeacherId)?.name ?? '—'}
@@ -228,7 +228,7 @@ function JournalLink({ record }: { record: SubstitutionRecord }) {
   return (
     <Link
       to={`/jurnal-mengajar/${encodeURIComponent(record.teachingLogId)}`}
-      className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:underline"
+      className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-2 hover:underline focus-visible:underline"
       onClick={(e) => e.stopPropagation()}
     >
       <NotebookPen className="size-3.5" aria-hidden /> Lihat jurnal

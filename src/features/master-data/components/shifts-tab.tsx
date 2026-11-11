@@ -63,7 +63,7 @@ export function ShiftsTab() {
         id: 'actions',
         header: () => <span className="sr-only">Aksi</span>,
         enableSorting: false,
-        meta: { headerClassName: 'w-24', className: 'text-right' },
+        meta: { headerClassName: 'w-12', className: 'text-right' },
         cell: ({ row }) => (
           <RowActions label={`shift ${row.original.name}`} onEdit={() => openEdit(row.original)} onDelete={() => askDelete(row.original)} />
         ),
@@ -204,7 +204,7 @@ function ShiftDialog({ shift, onClose }: { shift: Shift | null; onClose: () => v
         control={control}
         name="isActive"
         render={({ field }) => (
-          <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border/80 p-3">
             <div>
               <Label htmlFor="shift-active">Shift aktif</Label>
               <p className="text-xs text-muted-foreground">Shift nonaktif tidak ditawarkan pada pilihan harian.</p>

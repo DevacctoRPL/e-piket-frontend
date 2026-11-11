@@ -1,4 +1,4 @@
-import { ChevronRight, History, Loader2, School, Users, X } from 'lucide-react'
+import { ChevronRight, CircleDashed, FilePen, History, Loader2, LockKeyhole, School, Users, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -120,7 +120,7 @@ export function AttendanceIndexPage() {
               <option value="2">Sesi 2 (Akhir)</option>
             </NativeSelect>
             {values.classId && (
-              <Button variant="outline" size="sm" onClick={() => set({ classId: '' })}>
+              <Button variant="outline" onClick={() => set({ classId: '' })}>
                 <X className="size-3.5" /> Semua kelas
               </Button>
             )}
@@ -129,18 +129,30 @@ export function AttendanceIndexPage() {
       />
 
       {!loading && !error && classes.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 text-sm" aria-live="polite">
-          <ToneBadge tone="success" className="tabular-nums">Final {stats.final}</ToneBadge>
-          <ToneBadge tone="info" className="tabular-nums">Draft/Dikirim {stats.draft}</ToneBadge>
-          <ToneBadge tone="neutral" className="tabular-nums">Belum dibuat {stats.none}</ToneBadge>
-          <span className="text-muted-foreground tabular-nums">dari {classes.length} kelas</span>
-        </div>
+        <p
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground tabular-nums"
+          aria-live="polite"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <LockKeyhole aria-hidden className="size-3.5 text-tone-success" />
+            <span className="font-medium text-foreground/85">Final {stats.final}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <FilePen aria-hidden className="size-3.5 text-tone-info" />
+            <span className="font-medium text-foreground/85">Draft/Dikirim {stats.draft}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <CircleDashed aria-hidden className="size-3.5" />
+            <span className="font-medium text-foreground/85">Belum dibuat {stats.none}</span>
+          </span>
+          <span>dari {classes.length} kelas</span>
+        </p>
       )}
 
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Memuat kelas">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-36 rounded-xl" />
+            <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
       ) : error ? (
@@ -187,14 +199,14 @@ export function AttendanceIndexPage() {
                   disabled={!actionable || (openSession.isPending && !opening)}
                   aria-busy={opening || undefined}
                   className={cn(
-                    'group flex h-full w-full flex-col gap-3 rounded-xl border bg-card p-4 text-left shadow-xs transition-[border-color,box-shadow] duration-150 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                    actionable && 'hover:border-primary/40 hover:shadow-sm',
+                    'flex h-full w-full flex-col gap-3 rounded-xl border border-border/85 bg-card p-3.5 text-left shadow-2xs transition-colors duration-150 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                    actionable && 'hover:border-foreground/25 hover:bg-accent/30',
                     'disabled:cursor-not-allowed disabled:opacity-60',
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold">{c.name}</p>
+                      <p className="truncate text-sm font-semibold">{c.name}</p>
                       <p className="truncate text-xs text-muted-foreground">{c.program}</p>
                     </div>
                     {s ? (
@@ -211,8 +223,8 @@ export function AttendanceIndexPage() {
                       <span className="tabular-nums">{c.studentCount ?? '—'} siswa</span>
                     </p>
                   )}
-                  <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3 text-sm">
-                    <span className="text-xs text-muted-foreground">
+                  <div className="mt-auto flex items-center justify-between gap-2 border-t border-border/70 pt-2.5 text-[13px]">
+                    <span className="min-w-0 truncate text-xs text-muted-foreground">
                       {s?.submittedAt
                         ? `Final ${formatTime(s.submittedAt)} · ${s.submittedByName ?? ''}`
                         : s
@@ -221,15 +233,15 @@ export function AttendanceIndexPage() {
                             ? 'Ketuk untuk mulai mengisi'
                             : 'Belum diisi'}
                     </span>
-                    <span className="flex shrink-0 items-center gap-1 font-semibold text-primary">
+                    <span className="flex shrink-0 items-center gap-1 font-medium text-foreground">
                       {opening ? (
                         <>
-                          <Loader2 className="size-4 animate-spin" /> Membuka…
+                          <Loader2 className="size-3.5 animate-spin text-muted-foreground" /> Membuka…
                         </>
                       ) : (
                         <>
                           {s ? (s.status === 'FINAL' || !canWrite ? 'Lihat' : 'Lanjutkan') : 'Isi absensi'}
-                          <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                          <ChevronRight className="size-3.5 text-muted-foreground" />
                         </>
                       )}
                     </span>

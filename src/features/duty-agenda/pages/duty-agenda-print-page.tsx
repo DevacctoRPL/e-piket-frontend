@@ -1,9 +1,9 @@
-import { ArrowLeft } from 'lucide-react'
+import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import { ErrorState, Page } from '@/components/page'
 import { PrintButton, PrintDocument, PrintTable } from '@/components/print-layout'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/misc'
+import { Alert, AlertDescription, Skeleton } from '@/components/ui/misc'
 import { useLookupMaps, useSettings } from '@/features/master-data/lookups'
 import { formatDateLong, formatDateTime, formatTime } from '@/lib/date'
 import { RECORD_STATUS_META, TEACHER_ATTENDANCE_META } from '@/lib/enums'
@@ -39,9 +39,12 @@ export function DutyAgendaPrintPage() {
           return (
             <>
               {a.status !== 'FINAL' && (
-                <p className="no-print rounded-lg border border-tone-warning/30 bg-tone-warning-bg px-3 py-2 text-sm text-tone-warning">
-                  Agenda belum final (status: {RECORD_STATUS_META[a.status].label}). Hasil cetak dapat berubah.
-                </p>
+                <Alert variant="warning" className="no-print">
+                  <AlertTriangle />
+                  <AlertDescription>
+                    Agenda belum final (status: {RECORD_STATUS_META[a.status].label}). Hasil cetak dapat berubah.
+                  </AlertDescription>
+                </Alert>
               )}
               <PrintDocument
                 title="Agenda Kegiatan Sekolah / Guru Piket"

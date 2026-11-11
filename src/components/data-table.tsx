@@ -8,8 +8,9 @@ import {
   type PaginationState,
   type SortingState,
 } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import { CountChip, FramedCard } from '@/components/framed-card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { PaginationMeta } from '@/types/api'
@@ -32,6 +33,8 @@ declare module '@tanstack/react-table' {
  *
  * - Paginasi klien (default) atau server (`serverPagination` + `meta` + `onPageChange`).
  * - `renderMobileCard` opsional; default menampilkan pasangan header: nilai.
+ * - `title` (+ `icon`, `toolbar`) membungkus tabel dalam FramedCard bergaya "SLA Monitoring" referensi Nuvio:
+ *   judul + jumlah data di kiri, pencarian/filter/kebab di kanan header.
  */
 export function DataTable<T>({
   columns,
@@ -46,7 +49,18 @@ export function DataTable<T>({
   caption,
   initialSorting = [],
   footer,
+  title,
+  icon,
+  toolbar,
+  showCount = true,
 }: {
+  /** Judul seksi → tabel dibungkus FramedCard. */
+  title?: ReactNode
+  icon?: ReactNode
+  /** Kontrol di kanan header (SearchField, tombol Filter, kebab). */
+  toolbar?: ReactNode
+  /** Tampilkan jumlah data di samping judul (default true). */
+  showCount?: boolean
   columns: ColumnDef<T, unknown>[] | ColumnDef<T, never>[]
   data: T[]
   getRowId?: (row: T, index: number) => string
@@ -83,12 +97,24 @@ export function DataTable<T>({
   const goTo = (p: number) =>
     serverPagination ? serverPagination.onPageChange(p) : table.setPageIndex(p - 1)
 
-  if (data.length === 0 && emptyState) return <>{emptyState}</>
+  const framed = title !== undefined
 
-  return (
+  const body =
+    data.length === 0 && emptyState ? (
+      framed ? (
+        <div className="-m-1">{emptyState}</div>
+      ) : (
+        emptyState
+      )
+    ) : (
     <div className="space-y-3">
       {/* Desktop */}
-      <div className="hidden overflow-hidden rounded-xl border bg-card shadow-xs md:block">
+      <div
+        className={cn(
+          'hidden overflow-hidden md:block',
+          framed ? '-mx-4 -mt-4 border-b border-border/60' : 'rounded-xl border border-border/85 bg-card shadow-2xs',
+        )}
+      >
         <Table>
           {caption && <caption className="sr-only">{caption}</caption>}
           <TableHeader>
@@ -101,21 +127,23 @@ export function DataTable<T>({
                     <TableHead
                       key={header.id}
                       className={header.column.columnDef.meta?.headerClassName}
-                      aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : undefined}
+                      aria-sort={
+                        sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : canSort ? 'none' : undefined
+                      }
                     >
                       {header.isPlaceholder ? null : canSort && header.column.accessorFn ? (
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 uppercase hover:text-foreground"
+                          className="-mx-1 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                           onClick={header.column.getToggleSortingHandler()}
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {sorted === 'asc' ? (
-                            <ArrowUp className="size-3" />
+                            <ChevronUp aria-hidden className="size-3.5 text-foreground" />
                           ) : sorted === 'desc' ? (
-                            <ArrowDown className="size-3" />
+                            <ChevronDown aria-hidden className="size-3.5 text-foreground" />
                           ) : (
-                            <ArrowUpDown className="size-3 opacity-40" />
+                            <ChevronsUpDown aria-hidden className="size-3 opacity-50" />
                           )}
                         </button>
                       ) : (
@@ -147,11 +175,15 @@ export function DataTable<T>({
       </div>
 
       {/* Ponsel */}
-      <ul className="grid gap-2 md:hidden">
+      <ul className={cn('grid gap-2 md:hidden', framed && '-m-1')}>
         {rows.map((row) => (
           <li
             key={row.id}
-            className={cn('rounded-xl border bg-card p-3 shadow-xs', rowClassName?.(row.original))}
+            className={cn(
+              'rounded-lg border border-border/85 bg-card p-3 shadow-2xs',
+              onRowClick && 'cursor-pointer active:bg-muted/40',
+              rowClassName?.(row.original),
+            )}
             onClick={onRowClick ? () => onRowClick(row.original) : undefined}
           >
             {renderMobileCard ? (
@@ -178,7 +210,7 @@ export function DataTable<T>({
       </ul>
 
       {totalPages > 1 && (
-        <nav className="no-print flex items-center justify-between gap-2 text-sm" aria-label="Paginasi">
+        <nav className="no-print flex items-center justify-between gap-2 text-xs" aria-label="Paginasi">
           <p className="text-muted-foreground tabular-nums">
             Halaman {page} dari {totalPages} · {totalItems} data
           </p>
@@ -193,5 +225,18 @@ export function DataTable<T>({
         </nav>
       )}
     </div>
+    )
+
+  if (!framed) return <>{body}</>
+  return (
+    <FramedCard
+      title={title}
+      icon={icon}
+      titleBadge={showCount ? <CountChip>{totalItems}</CountChip> : undefined}
+      headerRight={toolbar}
+      bodyClassName="p-4"
+    >
+      {body}
+    </FramedCard>
   )
 }

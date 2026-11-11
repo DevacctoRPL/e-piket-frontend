@@ -1,4 +1,4 @@
-import { DoorOpen, LogOut, Timer, Undo2 } from 'lucide-react'
+import { DoorOpen, ListChecks, LogOut, Timer, Undo2 } from 'lucide-react'
 import { EmptyState, StatCard } from '@/components/page'
 import type { ColumnDef } from '@/components/data-table'
 import { PrintTable } from '@/components/print-layout'
@@ -9,7 +9,7 @@ import { formatDate, formatDateShort, formatTime } from '@/lib/date'
 import { DISMISSAL_TYPES, type StudentDismissal } from '@/types/entities'
 import { reportDef } from '../catalog'
 import { DrillLink, textOrDash } from '../components/cells'
-import { ReportTable, ReportView, SectionTitle, SummaryGrid } from '../components/report-shell'
+import { ReportTable, ReportView, SummaryGrid } from '../components/report-shell'
 import { formatNumber } from '../lib/format'
 import { drillHref, useReportFilters } from '../lib/use-report-filters'
 import { useReport } from '../queries'
@@ -62,49 +62,48 @@ export function DismissalsReportPage({ mode = 'screen' }: { mode?: 'screen' | 'p
       note="Kepulangan dicatat terpisah dari absensi kedatangan (PRD §9.2) — tidak mengubah status hadir siswa."
       summary={(d) => (
         <SummaryGrid>
-          <StatCard label="Total kepulangan" value={formatNumber(d.total)} icon={<DoorOpen />} tone="info" />
-          <StatCard label={DISMISSAL_META.EARLY_LEAVE.label} value={formatNumber(d.counts.EARLY_LEAVE)} icon={<LogOut />} tone="warning" />
-          <StatCard label={DISMISSAL_META.TEMPORARY_EXIT.label} value={formatNumber(d.counts.TEMPORARY_EXIT)} icon={<Undo2 />} tone="info" />
-          <StatCard label={DISMISSAL_META.NORMAL.label} value={formatNumber(d.counts.NORMAL)} icon={<Timer />} tone="success" />
+          <StatCard label="Total kepulangan" value={formatNumber(d.total)} icon={<DoorOpen />} />
+          <StatCard label={DISMISSAL_META.EARLY_LEAVE.label} value={formatNumber(d.counts.EARLY_LEAVE)} icon={<LogOut />} />
+          <StatCard label={DISMISSAL_META.TEMPORARY_EXIT.label} value={formatNumber(d.counts.TEMPORARY_EXIT)} icon={<Undo2 />} />
+          <StatCard label={DISMISSAL_META.NORMAL.label} value={formatNumber(d.counts.NORMAL)} icon={<Timer />} />
         </SummaryGrid>
       )}
       content={(d) => (
-        <section className="space-y-3">
-          <SectionTitle description={`${formatNumber(d.total)} catatan`}>Rincian kepulangan</SectionTitle>
-          <ReportTable
-            caption={def.title}
-            columns={columns}
-            data={d.rows}
-            getRowId={(r) => r.id}
-            emptyState={
-              <EmptyState
-                title="Belum ada catatan kepulangan"
-                description="Tidak ada siswa yang tercatat pulang lebih awal atau izin keluar pada periode/filter ini."
-                action={<DrillLink to={def.operationalPath}>Catat kepulangan</DrillLink>}
-              />
-            }
-            renderMobileCard={(r) => (
-              <div className="space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold">{r.studentName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.className} · {formatDate(r.date)} · {formatTime(r.exitTime)}
-                      {r.returnTime && ` → ${formatTime(r.returnTime)}`}
-                    </p>
-                  </div>
-                  <StatusBadge meta={DISMISSAL_META} value={r.type} />
+        <ReportTable
+          title="Rincian kepulangan"
+          icon={<ListChecks />}
+          caption={def.title}
+          columns={columns}
+          data={d.rows}
+          getRowId={(r) => r.id}
+          emptyState={
+            <EmptyState
+              title="Belum ada catatan kepulangan"
+              description="Tidak ada siswa yang tercatat pulang lebih awal atau izin keluar pada periode/filter ini."
+              action={<DrillLink to={def.operationalPath}>Catat kepulangan</DrillLink>}
+            />
+          }
+          renderMobileCard={(r) => (
+            <div className="space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold">{r.studentName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.className} · {formatDate(r.date)} · {formatTime(r.exitTime)}
+                    {r.returnTime && ` → ${formatTime(r.returnTime)}`}
+                  </p>
                 </div>
-                <p className="text-sm">Penjemput: {pickup(r)}</p>
-                {r.note && <p className="text-xs text-muted-foreground">{r.note}</p>}
+                <StatusBadge meta={DISMISSAL_META} value={r.type} />
               </div>
-            )}
-            totals={[
-              ['Total', formatNumber(d.total)],
-              ...DISMISSAL_TYPES.map<[string, string]>((t) => [DISMISSAL_META[t].label, formatNumber(d.counts[t])]),
-            ]}
-          />
-        </section>
+              <p className="text-sm">Penjemput: {pickup(r)}</p>
+              {r.note && <p className="text-xs text-muted-foreground">{r.note}</p>}
+            </div>
+          )}
+          totals={[
+            ['Total', formatNumber(d.total)],
+            ...DISMISSAL_TYPES.map<[string, string]>((t) => [DISMISSAL_META[t].label, formatNumber(d.counts[t])]),
+          ]}
+        />
       )}
       print={(d) => (
         <PrintTable>

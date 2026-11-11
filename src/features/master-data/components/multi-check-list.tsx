@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
+import { SearchField } from '@/components/search-field'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 /**
@@ -47,21 +47,19 @@ export function MultiCheckList({
         <span className="text-xs font-normal text-muted-foreground tabular-nums">{value.length} dipilih</span>
       </legend>
       {options.length > 8 && (
-        <Input
-          type="search"
+        <SearchField
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onValueChange={setQ}
           placeholder="Cari…"
           aria-label={`Cari ${label.toLowerCase()}`}
-          className="h-8"
         />
       )}
       {options.length === 0 ? (
-        <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">{emptyText}</p>
+        <p className="rounded-md border border-dashed border-border/90 p-3 text-[13px] text-muted-foreground">{emptyText}</p>
       ) : (
         <div
           className={cn(
-            'grid max-h-56 gap-1 overflow-y-auto rounded-lg border p-2',
+            'grid max-h-56 gap-0.5 overflow-y-auto rounded-md border border-input p-1.5',
             columns === 2 && 'sm:grid-cols-2',
             error && 'border-destructive',
           )}
@@ -73,7 +71,7 @@ export function MultiCheckList({
                 key={o.value}
                 htmlFor={cid}
                 className={cn(
-                  'flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-accent',
+                  'flex min-h-8 cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-[13px] hover:bg-accent',
                   o.disabled && 'cursor-not-allowed opacity-50',
                 )}
               >

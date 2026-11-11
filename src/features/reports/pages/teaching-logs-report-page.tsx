@@ -1,4 +1,4 @@
-import { BookCheck, BookX, Clock, Gauge } from 'lucide-react'
+import { BookCheck, BookX, Clock, Gauge, NotebookPen } from 'lucide-react'
 import { EmptyState, StatCard } from '@/components/page'
 import type { ColumnDef } from '@/components/data-table'
 import { PrintTable } from '@/components/print-layout'
@@ -9,7 +9,7 @@ import { formatDate, formatDateShort } from '@/lib/date'
 import type { TeachingLog } from '@/types/entities'
 import { reportDef } from '../catalog'
 import { DrillLink, InfoTip, textOrDash } from '../components/cells'
-import { ReportTable, ReportView, SectionTitle, SummaryGrid } from '../components/report-shell'
+import { ReportTable, ReportView, SummaryGrid } from '../components/report-shell'
 import { formatNumber, formatPercent, periodRange } from '../lib/format'
 import { drillHref, useReportFilters } from '../lib/use-report-filters'
 import { useReport } from '../queries'
@@ -96,58 +96,57 @@ export function TeachingLogsReportPage({ mode = 'screen' }: { mode?: 'screen' | 
               </span>
             }
             icon={<Gauge />}
-            tone={d.totals.fillRate !== null && d.totals.fillRate >= 90 ? 'success' : 'warning'}
+            tone={d.totals.fillRate !== null && d.totals.fillRate < 90 ? 'warning' : 'neutral'}
           />
-          <StatCard label="Terlaksana" value={formatNumber(d.totals.held)} hint={`dari ${d.totals.logs} jurnal`} icon={<BookCheck />} tone="success" />
+          <StatCard label="Terlaksana" value={formatNumber(d.totals.held)} hint={`dari ${d.totals.logs} jurnal`} icon={<BookCheck />} />
           <StatCard label="Tidak terlaksana" value={formatNumber(d.totals.notHeld)} icon={<BookX />} tone={d.totals.notHeld > 0 ? 'danger' : 'neutral'} />
-          <StatCard label="JML terlaksana" value={formatNumber(d.totals.periods)} hint={d.totals.draftExcluded > 0 ? `${d.totals.draftExcluded} jurnal Draft belum dihitung` : 'Jam pelajaran'} icon={<Clock />} tone="info" />
+          <StatCard label="JML terlaksana" value={formatNumber(d.totals.periods)} hint={d.totals.draftExcluded > 0 ? `${d.totals.draftExcluded} jurnal Draft belum dihitung` : 'Jam pelajaran'} icon={<Clock />} />
         </SummaryGrid>
       )}
       content={(d) => (
-        <section className="space-y-3">
-          <SectionTitle description={`${formatNumber(d.totals.logs)} jurnal`}>Rincian jurnal</SectionTitle>
-          <ReportTable
-            caption={def.title}
-            columns={columns}
-            data={d.rows}
-            getRowId={(r) => r.id}
-            pageSize={25}
-            emptyState={
-              <EmptyState
-                title="Belum ada jurnal pada periode ini"
-                description="Jurnal yang masih Draft belum masuk rekap. Kirim jurnal dari halaman Jurnal Mengajar."
-                action={<DrillLink to={def.operationalPath}>Buka jurnal mengajar</DrillLink>}
-              />
-            }
-            renderMobileCard={(r) => (
-              <div className="space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold">
-                      {r.className} · {r.subjectName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(r.date)} · Jam ke-{periodRange(r.periodStart, r.periodEnd)} · {r.periodCount} JP
-                    </p>
-                  </div>
-                  <StatusBadge meta={TEACHING_EXECUTION_META} value={r.execution} />
+        <ReportTable
+          title="Rincian jurnal"
+          icon={<NotebookPen />}
+          caption={def.title}
+          columns={columns}
+          data={d.rows}
+          getRowId={(r) => r.id}
+          pageSize={25}
+          emptyState={
+            <EmptyState
+              title="Belum ada jurnal pada periode ini"
+              description="Jurnal yang masih Draft belum masuk rekap. Kirim jurnal dari halaman Jurnal Mengajar."
+              action={<DrillLink to={def.operationalPath}>Buka jurnal mengajar</DrillLink>}
+            />
+          }
+          renderMobileCard={(r) => (
+            <div className="space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold">
+                    {r.className} · {r.subjectName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(r.date)} · Jam ke-{periodRange(r.periodStart, r.periodEnd)} · {r.periodCount} JP
+                  </p>
                 </div>
-                <p className="text-sm">{r.execution === 'NOT_HELD' ? textOrDash(r.notHeldReason) : textOrDash(r.topic)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {r.teacherName}
-                  {r.meetingNumber ? ` · Pertemuan ke-${r.meetingNumber}` : ''}
-                </p>
+                <StatusBadge meta={TEACHING_EXECUTION_META} value={r.execution} />
               </div>
-            )}
-            totals={[
-              ['Jurnal', formatNumber(d.totals.logs)],
-              ['Terlaksana', formatNumber(d.totals.held)],
-              ['Tidak terlaksana', formatNumber(d.totals.notHeld)],
-              ['JML', formatNumber(d.totals.periods)],
-              ['Kelengkapan', formatPercent(d.totals.fillRate)],
-            ]}
-          />
-        </section>
+              <p className="text-sm">{r.execution === 'NOT_HELD' ? textOrDash(r.notHeldReason) : textOrDash(r.topic)}</p>
+              <p className="text-xs text-muted-foreground">
+                {r.teacherName}
+                {r.meetingNumber ? ` · Pertemuan ke-${r.meetingNumber}` : ''}
+              </p>
+            </div>
+          )}
+          totals={[
+            ['Jurnal', formatNumber(d.totals.logs)],
+            ['Terlaksana', formatNumber(d.totals.held)],
+            ['Tidak terlaksana', formatNumber(d.totals.notHeld)],
+            ['JML', formatNumber(d.totals.periods)],
+            ['Kelengkapan', formatPercent(d.totals.fillRate)],
+          ]}
+        />
       )}
       printMeta={(d) => [['Kelengkapan jurnal', `${formatPercent(d.totals.fillRate)} (${d.totals.filledSlots}/${d.totals.expectedSlots} slot)`]]}
       print={(d) => (

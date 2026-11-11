@@ -6,6 +6,7 @@ import { useCallback, useRef, useState, type ReactNode } from 'react'
 import type { FieldValues, UseFormSetError } from 'react-hook-form'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { RowActionsMenu } from '@/components/row-actions-menu'
 import { Button } from '@/components/ui/button'
 import { useIdempotencyKey } from '@/hooks/use-idempotent-mutation'
 import { ApiError } from '@/lib/api-client'
@@ -77,34 +78,29 @@ export function AddButton({ onClick, children }: { onClick: () => void; children
   )
 }
 
+/**
+ * Aksi baris standar Data Master: kebab (⋯) berisi "Ubah" dan "Hapus" (destruktif, dengan dialog konfirmasi
+ * dari pemanggil). Aksi yang tidak diberikan (mis. tahun ajaran aktif tidak bisa dihapus) tidak ditampilkan.
+ */
 export function RowActions({
   label,
   onEdit,
   onDelete,
 }: {
-  /** Nama item untuk label aksesibel, mis. "Matematika". */
+  /** Nama item untuk label aksesibel, mis. "Matematika" → "Aksi untuk Matematika". */
   label: string
   onEdit?: () => void
   onDelete?: () => void
 }) {
   return (
-    <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-      {onEdit && (
-        <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label={`Ubah ${label}`}>
-          <Pencil />
-        </Button>
-      )}
-      {onDelete && (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onDelete}
-          aria-label={`Hapus ${label}`}
-          className="text-destructive hover:bg-tone-danger-bg hover:text-destructive"
-        >
-          <Trash2 />
-        </Button>
-      )}
+    <div className="flex justify-end">
+      <RowActionsMenu
+        label={`Aksi untuk ${label}`}
+        actions={[
+          { label: 'Ubah', icon: Pencil, onSelect: onEdit, hidden: !onEdit },
+          { label: 'Hapus', icon: Trash2, onSelect: onDelete, hidden: !onDelete, destructive: true, separated: true },
+        ]}
+      />
     </div>
   )
 }
@@ -146,7 +142,7 @@ export function DeleteDialog({
   )
 }
 
-/** Kartu ponsel ringkas: judul, baris info, aksi. */
+/** Kartu ponsel ringkas: judul, baris info, aksi (kebab). */
 export function MobileCard({
   title,
   badge,
@@ -160,28 +156,28 @@ export function MobileCard({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="min-w-0 flex-1 space-y-1">
+      <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold break-words">{title}</p>
+          <p className="text-sm font-medium break-words text-foreground">{title}</p>
           {badge}
         </div>
         {lines.filter(Boolean).map((l, i) => (
-          <p key={i} className="text-sm break-words text-muted-foreground">
+          <p key={i} className="text-xs break-words text-muted-foreground">
             {l}
           </p>
         ))}
       </div>
-      {actions}
+      {actions && <div className="-mt-1 -mr-1 shrink-0">{actions}</div>}
     </div>
   )
 }
 
-/** Toolbar di atas tabel tab: deskripsi kiri, aksi kanan. */
+/** Toolbar ringkas di atas tabel tab: deskripsi singkat kiri, tombol aksi (h-8) kanan — tanpa kartu pembungkus. */
 export function TabToolbar({ description, actions }: { description: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-pretty text-muted-foreground">{description}</p>
-      {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <p className="max-w-3xl text-[13px] text-pretty text-muted-foreground">{description}</p>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   )
 }

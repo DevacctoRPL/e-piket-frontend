@@ -124,7 +124,7 @@ function ContactForm({ row, onDone }: { row: AbsenteeRow; onDone: () => void }) 
         </DialogDescription>
       </DialogHeader>
 
-      <div className="grid gap-1 rounded-lg border bg-muted/40 p-3 text-sm">
+      <div className="grid gap-1 rounded-md border border-border/80 p-3 text-[13px]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-semibold">{row.studentName}</p>
           <StatusBadge meta={ATTENDANCE_META} value={row.status} showShort />
@@ -188,7 +188,7 @@ function ContactForm({ row, onDone }: { row: AbsenteeRow; onDone: () => void }) 
               key={s}
               type="button"
               onClick={() => setValue('receiverName', s, { shouldDirty: true, shouldValidate: true })}
-              className="rounded-full border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+              className="rounded-md border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
             >
               {s}
             </button>

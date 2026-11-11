@@ -1,6 +1,7 @@
 import { ChevronRight, Info } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
+import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/misc'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '../lib/format'
@@ -20,13 +21,15 @@ export function InfoTip({ children, label = 'Keterangan' }: { children: ReactNod
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label={label}
-            className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="size-5 text-muted-foreground hover:text-foreground"
           >
             <Info className="size-3.5" />
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent className="max-w-64 text-pretty">{children}</TooltipContent>
       </Tooltip>
@@ -41,12 +44,12 @@ export function DrillLink({ to, children, className }: { to: string; children: R
       to={to}
       onClick={(e) => e.stopPropagation()}
       className={cn(
-        'inline-flex items-center gap-0.5 font-medium text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+        'group/drill inline-flex items-center gap-0.5 rounded-sm font-medium text-foreground/85 underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
         className,
       )}
     >
       {children}
-      <ChevronRight className="size-3.5 shrink-0" aria-hidden />
+      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover/drill:text-foreground" aria-hidden />
     </Link>
   )
 }
@@ -54,7 +57,7 @@ export function DrillLink({ to, children, className }: { to: string; children: R
 /** Pasangan label/nilai ringkas di kartu ponsel. */
 export function MiniStat({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex flex-col rounded-lg bg-muted/50 px-2 py-1.5">
+    <div className="flex flex-col rounded-md border border-border/70 bg-muted/40 px-2 py-1.5">
       <span className="text-[11px] text-muted-foreground">{label}</span>
       <span className="text-sm font-semibold tabular-nums">{value}</span>
     </div>

@@ -57,9 +57,9 @@ export const RosterRowItem = memo(function RosterRowItem({
     <li
       id={`row-${student.id}`}
       className={cn(
-        'scroll-mt-24 border-b bg-card px-3 py-3 transition-colors last:border-b-0 sm:px-4',
-        dirty && 'bg-tone-warning-bg/40 shadow-[inset_3px_0_0_var(--color-tone-warning)]',
-        hasError && 'bg-tone-danger-bg/40 shadow-[inset_3px_0_0_var(--color-tone-danger)]',
+        'scroll-mt-24 border-b border-l-2 border-border/70 border-l-transparent bg-card px-3 py-3 transition-colors last:border-b-0 sm:px-4',
+        dirty && 'border-l-tone-warning',
+        hasError && 'border-l-tone-danger',
       )}
       aria-invalid={hasError || undefined}
     >
@@ -78,12 +78,12 @@ export const RosterRowItem = memo(function RosterRowItem({
               <span aria-hidden>·</span>
               <span>{student.gender === 'L' ? 'Laki-laki' : 'Perempuan'}</span>
               {dirty && (
-                <ToneBadge tone="warning" className="py-0 text-[10px]">
+                <ToneBadge tone="warning" className="text-[11px]">
                   diubah
                 </ToneBadge>
               )}
               {!draft && !readOnly && (
-                <ToneBadge tone="neutral" className="py-0 text-[10px]">
+                <ToneBadge tone="neutral" className="text-[11px]">
                   belum diisi
                 </ToneBadge>
               )}
@@ -111,7 +111,7 @@ export const RosterRowItem = memo(function RosterRowItem({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="ml-auto min-h-9"
+                  className="ml-auto"
                   onClick={() => onCorrect(row)}
                   aria-label={`Koreksi absensi ${student.name}`}
                 >
@@ -133,7 +133,7 @@ export const RosterRowItem = memo(function RosterRowItem({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="min-h-11 text-muted-foreground"
+                    className="min-h-11 text-muted-foreground sm:min-h-8"
                     onClick={() => setNoteOpen(true)}
                     aria-label={`Tambah catatan untuk ${student.name}`}
                   >
@@ -169,7 +169,7 @@ export const RosterRowItem = memo(function RosterRowItem({
                         aria-invalid={(showErrors || !!reasonError) && !!reasonError ? true : undefined}
                         aria-describedby={reasonError ? `${uid}-reason-err` : undefined}
                         maxLength={500}
-                        className="h-11 sm:h-9"
+                        className="h-11 sm:h-8"
                       />
                       {reasonError && showErrors ? (
                         <p id={`${uid}-reason-err`} className="text-xs font-medium text-destructive" role="alert">
@@ -193,7 +193,7 @@ export const RosterRowItem = memo(function RosterRowItem({
                         value={draft?.arrivalTime ?? ''}
                         onChange={(e) => onChange(student.id, { arrivalTime: e.target.value })}
                         aria-invalid={arrivalError && showErrors ? true : undefined}
-                        className="h-11 w-full sm:h-9 sm:w-32"
+                        className="h-11 w-full sm:h-8 sm:w-32"
                       />
                       {arrivalError && showErrors && (
                         <p className="text-xs font-medium text-destructive" role="alert">
@@ -214,7 +214,7 @@ export const RosterRowItem = memo(function RosterRowItem({
                         placeholder="Catatan tambahan"
                         maxLength={500}
                         disabled={!draft}
-                        className="h-11 sm:h-9"
+                        className="h-11 sm:h-8"
                       />
                       {errors?.note && showErrors && (
                         <p className="text-xs font-medium text-destructive" role="alert">

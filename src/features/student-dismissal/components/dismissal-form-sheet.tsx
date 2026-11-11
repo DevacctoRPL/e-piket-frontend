@@ -152,7 +152,7 @@ export function DismissalFormSheet({
           }}
         >
           <SheetHeader className="border-b">
-            <SheetTitle className="text-lg">Catat kepulangan</SheetTitle>
+            <SheetTitle className="text-base">Catat kepulangan</SheetTitle>
             <SheetDescription>{formatDateLong(date)}</SheetDescription>
           </SheetHeader>
 

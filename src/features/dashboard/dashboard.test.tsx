@@ -1,4 +1,5 @@
 import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { useAuth } from '@/features/auth/auth-context'
@@ -161,12 +162,18 @@ describe('DashboardPage', () => {
     )
     expect(await screen.findByRole('heading', { name: 'Tugas yang perlu diselesaikan' }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /Yulia Rahman/ })).toBeInTheDocument()
+    expect(screen.getByText(/Peran:/)).toBeInTheDocument()
 
     const absentCard = screen.getByRole('link', { name: /Siswa tidak hadir/ })
     expect(absentCard.getAttribute('href')).toBe(`/siswa-tidak-hadir?dateFrom=${today()}&dateTo=${today()}`)
     expect(screen.getByRole('link', { name: /Kepulangan/ })).toHaveAttribute('href', `/kepulangan?date=${today()}`)
-    expect(screen.getByRole('link', { name: /Jam kosong belum tertangani/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Guru tidak hadir/ })).toBeInTheDocument()
+    const unhandledCard = screen.getByRole('link', { name: /Jam kosong belum tertangani/ })
+    expect(unhandledCard).toBeInTheDocument()
+    expect(within(unhandledCard).getByText('Detail')).toBeInTheDocument()
+    expect(within(unhandledCard).getByText('Detail').closest('[data-slot="status"]')).toBeNull()
+    const absentTeacherCard = screen.getByRole('link', { name: /Guru tidak hadir/ })
+    expect(absentTeacherCard).toBeInTheDocument()
+    expect(within(absentTeacherCard).getByText('3')).toHaveClass('text-tone-danger')
     expect(screen.getByRole('heading', { name: 'Agenda piket' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /Distribusi status/ })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Hari ini' })).not.toBeInTheDocument()
@@ -193,5 +200,54 @@ describe('DashboardPage', () => {
     // tidak punya absentees:read → kartu tidak dapat ditelusuri ke daftar siswa tidak hadir
     expect(screen.queryByRole('link', { name: /Siswa tidak hadir/ })).not.toBeInTheDocument()
     expect(screen.getAllByText(/belum diisi/).length).toBeGreaterThan(0)
+  })
+
+  it('renders Nuvio 7-day trend chart, latest updates tabs, and task monitoring search', async () => {
+    await loginAs('piket')
+    const user = userEvent.setup()
+    renderWithProviders(
+      <AuthGate>
+        <DashboardPage />
+      </AuthGate>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Tren Kehadiran' }, { timeout: 5000 })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Pembaruan Terkini' })).toBeInTheDocument()
+    expect(screen.getByText('Bertugas piket').closest('[data-slot="status"]')).toBeNull()
+    expect(screen.getByRole('link', { name: /Buka agenda piket/ })).toBeInTheDocument()
+
+    // Grafik: data 7 hari tersedia untuk pembaca layar
+    const chart = screen.getByRole('figure', { name: 'Tren Kehadiran' })
+    expect(chart.querySelector('figcaption')?.textContent?.split(';')).toHaveLength(7)
+
+    // Beralih metrik grafik ke S/I/A (kontrol segmen)
+    const metric = screen.getByRole('radiogroup', { name: 'Metrik grafik' })
+    await user.click(within(metric).getByRole('radio', { name: 'S/I/A' }))
+    expect(within(metric).getByRole('radio', { name: 'S/I/A' })).toHaveAttribute('aria-checked', 'true')
+
+    // Beralih periode aktivitas terkini ke Minggu ini
+    const periods = screen.getByRole('radiogroup', { name: 'Rentang waktu aktivitas' })
+    const weekTab = within(periods).getByRole('radio', { name: 'Minggu ini' })
+    await user.click(weekTab)
+    expect(weekTab).toHaveAttribute('aria-checked', 'true')
+
+    // Cari tugas pada tabel monitoring
+    const taskSearch = screen.getByLabelText('Cari tugas tertunda')
+    await user.type(taskSearch, 'Agenda piket')
+    const tasksCard = screen
+      .getByRole('heading', { name: 'Tugas yang perlu diselesaikan' })
+      .closest('[data-slot="card"]') as HTMLElement
+    expect(within(tasksCard).getAllByText(/Agenda piket shift/).length).toBeGreaterThan(0)
+
+    // Pengurutan kolom (aria-sort) & menu aksi baris (kebab) pada tabel monitoring
+    const priorityHeader = within(tasksCard).getByRole('columnheader', { name: /Prioritas/ })
+    await user.click(within(priorityHeader).getByRole('button', { name: /Prioritas/ }))
+    expect(priorityHeader).toHaveAttribute('aria-sort', 'ascending')
+    expect(within(tasksCard).getAllByRole('button', { name: /^Aksi untuk / }).length).toBeGreaterThan(0)
+
+    // Kontrol periode: satu tombol yang membuka tanggal & shift
+    await user.click(screen.getByRole('button', { name: /^Periode: Hari ini · Semua shift/ }))
+    expect(await screen.findByLabelText('Tanggal')).toHaveValue(today())
+    expect(screen.getByLabelText('Shift')).toHaveValue('')
   })
 })

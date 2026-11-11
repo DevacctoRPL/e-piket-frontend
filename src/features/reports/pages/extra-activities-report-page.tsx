@@ -2,13 +2,13 @@ import { BookOpenCheck, GraduationCap, Timer, Users } from 'lucide-react'
 import { EmptyState, StatCard } from '@/components/page'
 import type { ColumnDef } from '@/components/data-table'
 import { PrintTable } from '@/components/print-layout'
-import { StatusBadge } from '@/components/status-badge'
+import { MetaTag, StatusBadge } from '@/components/status-badge'
 import { useLookupMaps } from '@/features/master-data/lookups'
 import { EXTRA_ACTIVITY_TYPE_META, RECORD_STATUS_META } from '@/lib/enums'
 import { formatDate, formatDateShort, formatWallTime } from '@/lib/date'
 import { reportDef } from '../catalog'
 import { DrillLink, textOrDash } from '../components/cells'
-import { ReportTable, ReportView, SectionTitle, SummaryGrid } from '../components/report-shell'
+import { ReportTable, ReportView, SummaryGrid } from '../components/report-shell'
 import { formatNumber } from '../lib/format'
 import { drillHref, useReportFilters } from '../lib/use-report-filters'
 import { useReport } from '../queries'
@@ -45,7 +45,7 @@ export function ExtraActivitiesReportPage({ mode = 'screen' }: { mode?: 'screen'
       cell: ({ row: { original: r } }) => (
         <div className="space-y-1">
           <p className="font-medium">{r.name}</p>
-          <StatusBadge meta={EXTRA_ACTIVITY_TYPE_META} value={r.type} />
+          <MetaTag>{EXTRA_ACTIVITY_TYPE_META[r.type].label}</MetaTag>
         </div>
       ),
     },
@@ -77,45 +77,44 @@ export function ExtraActivitiesReportPage({ mode = 'screen' }: { mode?: 'screen'
       note="Presensi peserta hanya dihitung untuk kegiatan yang mengaktifkan presensi. Hadir = status Hadir atau Terlambat."
       summary={(d) => (
         <SummaryGrid>
-          <StatCard label="Kegiatan" value={formatNumber(d.totals.activities)} icon={<BookOpenCheck />} tone="info" />
+          <StatCard label="Kegiatan" value={formatNumber(d.totals.activities)} icon={<BookOpenCheck />} />
           <StatCard label={EXTRA_ACTIVITY_TYPE_META.COURSE.label} value={formatNumber(d.totals.byType.COURSE)} icon={<GraduationCap />} />
           <StatCard label={EXTRA_ACTIVITY_TYPE_META.EXTRA_HOURS.label} value={formatNumber(d.totals.byType.EXTRA_HOURS)} hint={`Lainnya ${d.totals.byType.OTHER}`} icon={<Timer />} />
-          <StatCard label="Peserta hadir" value={`${d.totals.present}/${d.totals.participants}`} hint="Kegiatan dengan presensi" icon={<Users />} tone="success" />
+          <StatCard label="Peserta hadir" value={`${d.totals.present}/${d.totals.participants}`} hint="Kegiatan dengan presensi" icon={<Users />} />
         </SummaryGrid>
       )}
       content={(d) => (
-        <section className="space-y-3">
-          <SectionTitle description={`${formatNumber(d.totals.activities)} kegiatan`}>Daftar kegiatan</SectionTitle>
-          <ReportTable
-            caption={def.title}
-            columns={columns}
-            data={d.rows}
-            getRowId={(r) => r.id}
-            emptyState={<EmptyState title="Belum ada kegiatan tambahan" description="Tidak ada kursus atau jam tambahan pada periode/filter ini." />}
-            renderMobileCard={(r) => (
-              <div className="space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold">{r.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(r.date)} · {timeText(r)} · {r.classNames.join(', ')}
-                    </p>
-                  </div>
-                  <StatusBadge meta={RECORD_STATUS_META} value={r.status} />
+        <ReportTable
+          title="Daftar kegiatan"
+          icon={<BookOpenCheck />}
+          caption={def.title}
+          columns={columns}
+          data={d.rows}
+          getRowId={(r) => r.id}
+          emptyState={<EmptyState title="Belum ada kegiatan tambahan" description="Tidak ada kursus atau jam tambahan pada periode/filter ini." />}
+          renderMobileCard={(r) => (
+            <div className="space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold">{r.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(r.date)} · {timeText(r)} · {r.classNames.join(', ')}
+                  </p>
                 </div>
-                <p className="text-sm">{textOrDash(r.topic)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {r.instructorName} · {attendanceText(r)}
-                </p>
+                <StatusBadge meta={RECORD_STATUS_META} value={r.status} />
               </div>
-            )}
-            totals={[
-              ['Kegiatan', formatNumber(d.totals.activities)],
-              ['Peserta', formatNumber(d.totals.participants)],
-              ['Hadir', formatNumber(d.totals.present)],
-            ]}
-          />
-        </section>
+              <p className="text-sm">{textOrDash(r.topic)}</p>
+              <p className="text-xs text-muted-foreground">
+                {r.instructorName} · {attendanceText(r)}
+              </p>
+            </div>
+          )}
+          totals={[
+            ['Kegiatan', formatNumber(d.totals.activities)],
+            ['Peserta', formatNumber(d.totals.participants)],
+            ['Hadir', formatNumber(d.totals.present)],
+          ]}
+        />
       )}
       print={(d) => (
         <PrintTable>

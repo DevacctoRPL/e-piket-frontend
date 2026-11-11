@@ -3,22 +3,25 @@ import {
   ArrowLeft,
   CheckCheck,
   CheckCircle2,
+  CircleDot,
   CloudOff,
   History,
   Lock,
   RefreshCw,
   RotateCcw,
   Save,
-  Search,
+  Users,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { EmptyState, ErrorState, Page, TableSkeleton } from '@/components/page'
+import { CountChip, FramedCard } from '@/components/framed-card'
+import { EmptyState, ErrorState, Page, PageHeader, TableSkeleton } from '@/components/page'
+import { SearchField } from '@/components/search-field'
+import { SegmentedControl, type SegmentOption } from '@/components/segmented-control'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription, AlertTitle, Skeleton } from '@/components/ui/misc'
 import { UnsavedChangesGuard } from '@/components/unsaved-changes'
 import { useAuth } from '@/features/auth/auth-context'
@@ -65,7 +68,7 @@ export function SessionEditorPage() {
   if (sessionQ.isPending || rosterQ.isPending) {
     return (
       <Page>
-        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-16 rounded-lg" />
         <TableSkeleton rows={8} cols={3} />
       </Page>
     )
@@ -355,6 +358,15 @@ function SessionEditor({
 
   const title = cls?.name ?? 'Absensi kelas'
 
+  const filterOptions = (
+    [
+      { value: 'all', label: 'Semua', count: rows.length },
+      { value: 'unmarked', label: 'Belum diisi', count: summary.unmarked },
+      { value: 'absent', label: 'Tidak hadir', count: absentCount },
+      { value: 'dirty', label: 'Diubah', count: dirtyCount },
+    ] satisfies SegmentOption<RowFilter>[]
+  ).filter((o) => editable || o.value !== 'dirty')
+
   return (
     <Page className="gap-4">
       <UnsavedChangesGuard
@@ -364,43 +376,44 @@ function SessionEditor({
       <BackLink session={session} />
 
       {/* Header konteks sesi */}
-      <section className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs" aria-labelledby="session-title">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 id="session-title" className="text-xl font-bold tracking-tight sm:text-2xl">
-                {title}
-              </h1>
+      <PageHeader
+        title={title}
+        description={
+          <>
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <StatusBadge meta={RECORD_STATUS_META} value={session.status} />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {formatDateLong(session.date)} · Shift {shiftName} · {session.sessionLabel}
-            </p>
+              <span aria-hidden>·</span>
+              <span>
+                {formatDateLong(session.date)} · Shift {shiftName} · {session.sessionLabel}
+              </span>
+            </span>
             {session.submittedAt && (
-              <p className="text-xs text-muted-foreground">
+              <span className="mt-0.5 block text-xs">
                 Difinalisasi {formatDateTime(session.submittedAt)} oleh {session.submittedByName ?? '—'}
-              </p>
+              </span>
             )}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+          </>
+        }
+        actions={
+          <>
             {cls && (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline">
                 <Link to={`/absensi-siswa/riwayat?classId=${cls.id}`}>
                   <History /> Riwayat
                 </Link>
               </Button>
             )}
             {editable && dirtyCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setConfirmDiscard(true)} disabled={bulk.isPending}>
+              <Button variant="ghost" onClick={() => setConfirmDiscard(true)} disabled={bulk.isPending}>
                 <RotateCcw /> Batalkan perubahan
               </Button>
             )}
-          </div>
-        </div>
-        <div aria-live="polite">
-          <SummaryCounts counts={summary} />
-        </div>
-      </section>
+          </>
+        }
+      />
+      <div aria-live="polite">
+        <SummaryCounts counts={summary} />
+      </div>
 
       {pendingRestore && (
         <Alert variant="info">
@@ -479,116 +492,112 @@ function SessionEditor({
         </Alert>
       )}
 
-      {/* Toolbar roster */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative sm:w-64">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama atau NIS"
-            aria-label="Cari siswa"
-            className="h-10 pl-8"
-          />
-        </div>
-        <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0" role="group" aria-label="Saring siswa">
-          {(
-            [
-              ['all', `Semua (${rows.length})`],
-              ['unmarked', `Belum diisi (${summary.unmarked})`],
-              ['absent', `Tidak hadir (${absentCount})`],
-              ['dirty', `Diubah (${dirtyCount})`],
-            ] as const
-          )
-            .filter(([k]) => editable || k === 'all' || k === 'absent' || k === 'unmarked')
-            .map(([k, label]) => (
-              <Button
-                key={k}
-                size="sm"
-                variant={filter === k ? 'secondary' : 'ghost'}
-                aria-pressed={filter === k}
-                className={cn('shrink-0 tabular-nums', filter === k && 'ring-1 ring-border')}
-                onClick={() => setFilter(k)}
-              >
-                {label}
-              </Button>
-            ))}
-        </div>
-        {editable && (
-          <Button variant="outline" className="min-h-10 sm:ml-auto" onClick={onMarkAll} disabled={bulk.isPending}>
-            <CheckCheck /> Tandai semua hadir
-          </Button>
-        )}
-      </div>
-
-      {rows.length === 0 ? (
-        <EmptyState
-          title="Belum ada siswa aktif di kelas ini"
-          description="Roster kosong pada tanggal sesi. Hubungi admin/TU untuk memeriksa data siswa kelas ini."
-        />
-      ) : filteredRows.length === 0 ? (
-        <EmptyState
-          title="Tidak ada siswa yang cocok"
-          description="Ubah kata kunci atau saringan untuk melihat siswa lainnya."
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setFilter('all')
-                setSearch('')
-              }}
-            >
-              Tampilkan semua siswa
-            </Button>
-          }
-        />
-      ) : (
-        <ul className="overflow-hidden rounded-xl border bg-card shadow-xs" aria-label="Daftar siswa">
-          {filteredRows.map(({ row, index }) => {
-            const sid = row.student.id
-            const errs = serverErrors[sid] ?? (showClientErrors ? clientErrors[sid] : undefined)
-            return (
-              <RosterRowItem
-                key={sid}
-                index={index}
-                row={row}
-                draft={effectiveDraft(row, edits)}
-                dirty={isRowDirty(row, edits)}
-                errors={errs}
-                showErrors={!!errs}
-                readOnly={!editable}
-                requiresReason={requiresReason}
-                allowed={allowed}
-                onChange={onChange}
-                onCorrect={isFinal && canCorrect ? setCorrecting : undefined}
+      {/* Roster: seksi berbingkai — judul + jumlah di kiri, pencarian/saringan/aksi massal di kanan */}
+      <FramedCard
+        title="Siswa"
+        icon={<Users />}
+        titleBadge={<CountChip>{rows.length}</CountChip>}
+        headerRight={
+          rows.length > 0 ? (
+            <>
+              <SearchField
+                value={search}
+                onValueChange={setSearch}
+                placeholder="Cari nama atau NIS"
+                aria-label="Cari siswa"
+                className="w-full sm:w-56"
               />
-            )
-          })}
-        </ul>
-      )}
+              <SegmentedControl
+                value={filter}
+                onChange={setFilter}
+                options={filterOptions}
+                ariaLabel="Saring siswa"
+              />
+              {editable && (
+                <Button variant="outline" onClick={onMarkAll} disabled={bulk.isPending}>
+                  <CheckCheck /> Tandai semua hadir
+                </Button>
+              )}
+            </>
+          ) : undefined
+        }
+        bodyClassName="overflow-hidden p-0"
+      >
+        {rows.length === 0 ? (
+          <EmptyState
+            className="rounded-none border-0 bg-transparent"
+            title="Belum ada siswa aktif di kelas ini"
+            description="Roster kosong pada tanggal sesi. Hubungi admin/TU untuk memeriksa data siswa kelas ini."
+          />
+        ) : filteredRows.length === 0 ? (
+          <EmptyState
+            className="rounded-none border-0 bg-transparent"
+            title="Tidak ada siswa yang cocok"
+            description="Ubah kata kunci atau saringan untuk melihat siswa lainnya."
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFilter('all')
+                  setSearch('')
+                }}
+              >
+                Tampilkan semua siswa
+              </Button>
+            }
+          />
+        ) : (
+          <ul aria-label="Daftar siswa">
+            {filteredRows.map(({ row, index }) => {
+              const sid = row.student.id
+              const errs = serverErrors[sid] ?? (showClientErrors ? clientErrors[sid] : undefined)
+              return (
+                <RosterRowItem
+                  key={sid}
+                  index={index}
+                  row={row}
+                  draft={effectiveDraft(row, edits)}
+                  dirty={isRowDirty(row, edits)}
+                  errors={errs}
+                  showErrors={!!errs}
+                  readOnly={!editable}
+                  requiresReason={requiresReason}
+                  allowed={allowed}
+                  onChange={onChange}
+                  onCorrect={isFinal && canCorrect ? setCorrecting : undefined}
+                />
+              )
+            })}
+          </ul>
+        )}
+      </FramedCard>
 
       {/* Bar aksi lengket (di atas navigasi bawah ponsel) */}
       {editable && (
-        <div className="no-print sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-3 border-t bg-background/95 px-3 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border sm:shadow-sm md:bottom-4">
+        <div className="no-print sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-3 border-t border-border/85 bg-card px-3 py-2.5 shadow-2xs sm:mx-0 sm:rounded-lg sm:border md:bottom-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <p
               className={cn(
-                'flex items-center gap-1.5 text-sm tabular-nums',
-                dirtyCount > 0 ? 'font-medium text-tone-warning' : 'text-muted-foreground',
+                'flex items-center gap-1.5 text-[13px] tabular-nums',
+                dirtyCount > 0 || !online ? 'font-medium text-foreground' : 'text-muted-foreground',
               )}
               role="status"
               aria-live="polite"
             >
               {!online ? (
                 <>
-                  <CloudOff className="size-4 text-tone-danger" />
-                  <span className="text-tone-danger">Offline — isian disimpan sementara di perangkat</span>
+                  <CloudOff className="size-4 text-tone-danger" aria-hidden />
+                  <span>Offline — isian disimpan sementara di perangkat</span>
                 </>
               ) : (
                 <>
-                  {dirtyCount === 0 && !bulk.isPending && <CheckCircle2 className="size-4 text-tone-success" />}
+                  {!bulk.isPending &&
+                    (dirtyCount > 0 ? (
+                      <CircleDot className="size-4 text-tone-warning" aria-hidden />
+                    ) : (
+                      <CheckCircle2 className="size-4 text-tone-success" aria-hidden />
+                    ))}
                   {saveStatus}
                 </>
               )}
@@ -596,14 +605,12 @@ function SessionEditor({
             <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex">
               <Button
                 variant="outline"
-                size="lg"
                 onClick={() => save(false)}
                 disabled={bulk.isPending || dirtyCount === 0}
               >
                 <Save /> {bulk.isPending && !bulk.variables?.body.submit ? 'Menyimpan…' : 'Simpan Draft'}
               </Button>
               <Button
-                size="lg"
                 onClick={() => {
                   setFormError(null)
                   if (Object.keys(clientErrors).length) {
@@ -638,9 +645,9 @@ function SessionEditor({
             </p>
             <dl className="grid grid-cols-3 gap-2 text-center sm:grid-cols-5">
               {(['PRESENT', 'SICK', 'PERMISSION', 'ABSENT', 'LATE'] as const).map((s) => (
-                <div key={s} className="rounded-lg border p-2">
+                <div key={s} className="rounded-md border border-border/85 p-2">
                   <dt className="text-xs text-muted-foreground">{ATTENDANCE_META[s].label}</dt>
-                  <dd className="text-lg font-bold tabular-nums">{summary[s]}</dd>
+                  <dd className="text-lg font-semibold text-foreground tabular-nums">{summary[s]}</dd>
                 </div>
               ))}
             </dl>

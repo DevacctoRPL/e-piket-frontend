@@ -7,7 +7,6 @@ import { FilterBar, FilterDate, FilterField, FilterSelect, SearchInput } from '@
 import { EmptyState, ErrorState, Page, PageHeader, TableSkeleton } from '@/components/page'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
 import { useAuth } from '@/features/auth/auth-context'
 import { useClasses, useShifts } from '@/features/master-data/lookups'
 import { formatDate, formatDateLong } from '@/lib/date'
@@ -20,6 +19,8 @@ import { useAbsentees, useAbsenteeSummary } from '../queries'
 import { periodLabel, printSearch, useAbsenteeFilters, useShiftName } from '../use-absentee-filters'
 
 const PAGE_SIZE = 25
+const SUMMARY_LINK =
+  'inline-flex items-center gap-1.5 rounded-sm px-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none'
 
 /** Daftar siswa tidak hadir otomatis (FR-STU-05) + pencatatan konfirmasi wali (FR-STU-06). */
 export function AbsenteesPage() {
@@ -126,23 +127,27 @@ export function AbsenteesPage() {
           ]}
         />
         <SearchInput label="Cari siswa" placeholder="Nama atau NIS…" value={search} onChange={onSearch} />
-        <FilterField label="Sesi draft">
-          <div className="flex h-9 items-center gap-2">
+        <FilterField label="Sesi draft" htmlFor="absentees-include-draft">
+          <div className="flex h-full items-center gap-2 px-2.5">
             <Checkbox
               id="absentees-include-draft"
               checked={values.draft === '1'}
               onCheckedChange={(c) => filters.set({ draft: c === true ? '1' : '' })}
+              aria-label="Sertakan absensi draft"
             />
-            <Label htmlFor="absentees-include-draft" className="text-sm font-normal">
-              Sertakan absensi draft
-            </Label>
+            <label
+              htmlFor="absentees-include-draft"
+              className="cursor-pointer text-[13px] font-medium whitespace-nowrap"
+            >
+              Sertakan
+            </label>
           </div>
         </FilterField>
       </FilterBar>
 
       <section aria-label="Ringkasan" className="grid gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[13px] text-muted-foreground">
             <span className="font-medium text-foreground">{periodText}</span>
             {summary && (
               <>
@@ -152,23 +157,23 @@ export function AbsenteesPage() {
             )}
           </p>
           {summary && summary.total + summary.contacted > 0 && (
-            <div className="flex flex-wrap gap-3 text-sm">
+            <div className="flex flex-wrap gap-3 text-[13px]">
               <button
                 type="button"
-                className={cn('inline-flex items-center gap-1.5 rounded-md px-1 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none', values.contacted === 'false' && 'font-semibold text-tone-warning')}
+                className={cn(SUMMARY_LINK, values.contacted === 'false' && 'font-semibold text-foreground underline')}
                 onClick={() => filters.set({ contacted: values.contacted === 'false' ? '' : 'false' })}
                 aria-pressed={values.contacted === 'false'}
               >
-                <PhoneOff className="size-3.5" aria-hidden />
+                <PhoneOff className="size-3.5 text-tone-warning" aria-hidden />
                 <span className="tabular-nums">{summary.notContacted}</span> belum dikonfirmasi
               </button>
               <button
                 type="button"
-                className={cn('inline-flex items-center gap-1.5 rounded-md px-1 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none', values.contacted === 'true' && 'font-semibold text-tone-success')}
+                className={cn(SUMMARY_LINK, values.contacted === 'true' && 'font-semibold text-foreground underline')}
                 onClick={() => filters.set({ contacted: values.contacted === 'true' ? '' : 'true' })}
                 aria-pressed={values.contacted === 'true'}
               >
-                <CalendarCheck2 className="size-3.5" aria-hidden />
+                <CalendarCheck2 className="size-3.5 text-tone-success" aria-hidden />
                 <span className="tabular-nums">{summary.contacted}</span> sudah dikonfirmasi
               </button>
             </div>
@@ -190,6 +195,8 @@ export function AbsenteesPage() {
       ) : (
         <div className={cn('transition-opacity duration-150', listQuery.isPlaceholderData && 'opacity-60')} aria-busy={listQuery.isFetching}>
           <DataTable
+            title="Daftar siswa"
+            icon={<UserX />}
             caption="Daftar siswa tidak hadir"
             columns={columns}
             data={rows}
@@ -238,6 +245,7 @@ function AbsenteesEmpty({
   return (
     <EmptyState
       icon={<UserX className="size-5" />}
+      className="border-0 bg-transparent"
       title="Tidak ada siswa tidak hadir"
       description={
         <>

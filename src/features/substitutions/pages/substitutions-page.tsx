@@ -2,7 +2,8 @@ import { CalendarClock, CheckCircle2, CircleAlert, Clock, RefreshCw } from 'luci
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { ContextHeader } from '@/components/context-header'
-import { FilterSelect, useFilters } from '@/components/filter-bar'
+import { FilterBar, FilterSelect, useFilters } from '@/components/filter-bar'
+import { CountChip } from '@/components/framed-card'
 import { CardsSkeleton, EmptyState, ErrorState, Page, PageHeader, StatCard } from '@/components/page'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/misc'
@@ -147,21 +148,20 @@ function SlotsView({
         )
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <FilterBar onReset={classId ? () => onClass('') : undefined}>
         <FilterSelect
           label="Kelas"
           value={classId}
           onChange={onClass}
           allLabel="Semua kelas"
           options={(classes.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-          className="w-full sm:w-56"
         />
-      </div>
+      </FilterBar>
 
       {slotsQ.isPending ? (
         <div className="grid gap-3 md:grid-cols-2" aria-busy="true" aria-label="Memuat jam kosong">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-44 rounded-xl" />
+            <Skeleton key={i} className="h-44 rounded-lg" />
           ))}
         </div>
       ) : slotsQ.isError ? (
@@ -249,20 +249,17 @@ function SlotGroup({
   const id = `group-${tone}`
   return (
     <section aria-labelledby={id} className="space-y-3">
-      <h2 id={id} className="flex items-center gap-2 text-base font-semibold">
+      <h2 id={id} className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+        {tone === 'danger' ? (
+          <CircleAlert aria-hidden className="size-3.5 text-tone-danger" />
+        ) : (
+          <CheckCircle2 aria-hidden className="size-3.5 text-tone-success" />
+        )}
         {title}
-        <span
-          className={
-            tone === 'danger'
-              ? 'rounded-full bg-tone-danger-bg px-2 py-0.5 text-xs text-tone-danger tabular-nums'
-              : 'rounded-full bg-tone-success-bg px-2 py-0.5 text-xs text-tone-success tabular-nums'
-          }
-        >
-          {count} slot
-        </span>
+        <CountChip>{count} slot</CountChip>
       </h2>
       {slots.length === 0 ? (
-        <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">{empty}</p>
+        <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">{empty}</p>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {slots.map((slot) => (

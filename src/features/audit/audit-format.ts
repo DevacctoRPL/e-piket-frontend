@@ -2,9 +2,11 @@
  * Format tampilan audit: label entitas, label field, dan nilai diff sebelum/sesudah.
  */
 import {
+  ACCOUNT_STATUS_META,
   ATTENDANCE_META,
   DISMISSAL_META,
   RECORD_STATUS_META,
+  ROLE_META,
   TEACHER_ATTENDANCE_META,
   TEACHING_EXECUTION_META,
   TEACHING_PRESENCE_META,
@@ -78,6 +80,10 @@ const FIELD_LABEL: Record<string, string> = {
   returnTime: 'Waktu kembali',
   type: 'Jenis',
   version: 'Versi',
+  roles: 'Peran',
+  username: 'Nama pengguna',
+  teacherId: 'Guru tertaut',
+  mustChangePassword: 'Wajib ganti kata sandi',
 }
 
 /** 'attendanceStatuses.SICK.label' → 'Status absensi Sakit › Label' */
@@ -98,9 +104,12 @@ const ENUM_LOOKUPS: Record<string, EnumMeta>[] = [
   DISMISSAL_META,
   TEACHING_PRESENCE_META,
   TEACHING_EXECUTION_META,
+  ACCOUNT_STATUS_META,
 ]
 
 function enumLabel(value: string, field: string): string | null {
+  // Daftar peran akun → label peran ('ADMIN' → 'Admin/TU').
+  if (field === 'roles' || field === 'role') return ROLE_META[value as keyof typeof ROLE_META]?.label ?? null
   // Field status/jenis/daftar status → terjemahkan kode enum ke label Indonesia.
   if (!/status|type|presence|execution|statuses/i.test(field)) return null
   for (const meta of ENUM_LOOKUPS) {

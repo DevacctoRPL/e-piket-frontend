@@ -1,11 +1,13 @@
-import { ArrowRight, ClipboardCheck, ShieldCheck, Users } from 'lucide-react'
+import { ArrowRight, ClipboardCheck, History, ShieldCheck, Users } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { ContextHeader } from '@/components/context-header'
 import { DataTable, type ColumnDef } from '@/components/data-table'
+import { CountChip, FramedCard } from '@/components/framed-card'
 import { FilterBar, FilterDate, FilterSelect, useFilters } from '@/components/filter-bar'
 import { EmptyState, ErrorState, Page, PageHeader, TableSkeleton } from '@/components/page'
+import { ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/misc'
 import { useLookupMaps, useShifts } from '@/features/master-data/lookups'
@@ -129,10 +131,7 @@ export function DutyAgendaListPage() {
 
       <TodayAgendas />
 
-      <section aria-labelledby="riwayat-agenda" className="flex flex-col gap-3">
-        <h2 id="riwayat-agenda" className="text-base font-semibold">
-          Riwayat agenda
-        </h2>
+      <section aria-label="Riwayat agenda" className="flex flex-col gap-3">
         <FilterBar onReset={isDirty ? reset : undefined}>
           <FilterDate
             label="Dari tanggal"
@@ -168,8 +167,13 @@ export function DutyAgendaListPage() {
         ) : listQuery.isError ? (
           <ErrorState error={listQuery.error} onRetry={() => void listQuery.refetch()} />
         ) : (
-          <div className={cn(listQuery.isPlaceholderData && 'opacity-60 transition-opacity')}>
+          <div
+            className={cn('transition-opacity duration-150', listQuery.isPlaceholderData && 'opacity-60')}
+            aria-busy={listQuery.isFetching}
+          >
             <DataTable
+              title="Riwayat agenda"
+              icon={<History />}
               caption="Riwayat agenda guru piket"
               columns={columns}
               data={listQuery.data.data}
@@ -230,8 +234,8 @@ function TodayAgendas() {
   if (todayQuery.isPending) {
     return (
       <div className="grid gap-3 md:grid-cols-2" aria-busy="true" aria-label="Memuat agenda hari ini">
-        <Skeleton className="h-36 rounded-xl" />
-        <Skeleton className="h-36 rounded-xl" />
+        <Skeleton className="h-40 rounded-lg" />
+        <Skeleton className="h-40 rounded-lg" />
       </div>
     )
   }
@@ -241,16 +245,24 @@ function TodayAgendas() {
   const entries = [...todayQuery.data].sort((a, b) => Number(b.isDutyTeacher) - Number(a.isDutyTeacher))
   if (entries.length === 0) return null
   return (
-    <section aria-labelledby="agenda-hari-ini" className="flex flex-col gap-3">
-      <h2 id="agenda-hari-ini" className="text-base font-semibold">
-        Agenda piket hari ini
-      </h2>
-      <div className="grid gap-3 md:grid-cols-2">
+    <FramedCard
+      titleId="agenda-hari-ini"
+      title="Agenda piket hari ini"
+      icon={<ShieldCheck />}
+      titleBadge={
+        <CountChip>
+          {entries.length}
+          <span className="sr-only"> shift</span>
+        </CountChip>
+      }
+      bodyClassName="overflow-hidden p-0"
+    >
+      <div className="grid divide-y divide-border/60 md:grid-cols-2 md:divide-x md:divide-y-0">
         {entries.map((e) => (
           <TodayAgendaCard key={e.shiftCode} entry={e} />
         ))}
       </div>
-    </section>
+    </FramedCard>
   )
 }
 
@@ -284,30 +296,17 @@ function TodayAgendaCard({ entry }: { entry: TodayDutyAgenda }) {
 
   return (
     <article
-      className={cn(
-        'flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs',
-        highlight && 'border-primary/40 ring-1 ring-primary/20',
-      )}
+      className={cn('flex flex-col gap-3 p-4', highlight && 'border-l-2 border-l-foreground/40')}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 gap-3">
-          <span
-            className={cn(
-              'flex size-9 shrink-0 items-center justify-center rounded-lg',
-              highlight ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground',
-            )}
-          >
-            <ShieldCheck className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <h3 className="font-semibold">Shift {shiftName(entry.shiftCode)}</h3>
-            <p className="text-xs text-muted-foreground">{formatDate(entry.date)}</p>
-          </div>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold">Shift {shiftName(entry.shiftCode)}</h3>
+          <p className="text-xs text-muted-foreground">{formatDate(entry.date)}</p>
         </div>
         {exists ? (
           <AgendaStatusBadge status={agenda.status} />
         ) : (
-          <span className="text-xs font-medium text-muted-foreground">Belum dibuat</span>
+          <ToneBadge tone="neutral">Belum dibuat</ToneBadge>
         )}
       </div>
 
@@ -322,17 +321,20 @@ function TodayAgendaCard({ entry }: { entry: TodayDutyAgenda }) {
       </dl>
 
       {entry.isDutyTeacher && !exists && (
-        <p className="text-xs text-tone-info">Anda bertugas sebagai guru piket shift ini.</p>
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <ShieldCheck className="size-3.5 text-tone-info" aria-hidden />
+          Anda bertugas sebagai guru piket shift ini.
+        </p>
       )}
 
       <div className="mt-auto flex justify-end">
         {exists ? (
-          <Button variant={highlight ? 'default' : 'outline'} size="sm" onClick={() => void open()}>
+          <Button variant={highlight ? 'default' : 'outline'} onClick={() => void open()}>
             {agenda.status === 'FINAL' ? 'Lihat agenda' : entry.isDutyTeacher ? 'Lanjutkan pengisian' : 'Lihat agenda'}
             <ArrowRight />
           </Button>
         ) : entry.canCreate ? (
-          <Button size="sm" onClick={() => void open()} disabled={create.isPending}>
+          <Button onClick={() => void open()} disabled={create.isPending}>
             {create.isPending ? 'Membuat…' : 'Buka agenda piket'}
             {!create.isPending && <ArrowRight />}
           </Button>

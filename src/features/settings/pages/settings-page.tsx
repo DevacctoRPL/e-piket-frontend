@@ -55,7 +55,7 @@ export function SettingsPage() {
       />
       {settings.isPending ? (
         <div className="flex flex-col gap-4" aria-busy="true" aria-label="Memuat pengaturan">
-          <Skeleton className="h-9 w-full max-w-2xl" />
+          <Skeleton className="h-8 w-full max-w-2xl" />
           <div className="grid gap-5 lg:grid-cols-2">
             <Skeleton className="h-80 rounded-xl" />
             <Skeleton className="h-80 rounded-xl" />
@@ -204,7 +204,7 @@ function SettingsForm({
           </TabsContent>
         </Tabs>
 
-        <div className="sticky bottom-16 z-20 -mx-3 flex flex-wrap items-center justify-end gap-2 border-t bg-background/95 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:bottom-0">
+        <div className="sticky bottom-16 z-20 -mx-3 flex flex-wrap items-center justify-end gap-2 border-t border-border/70 bg-background/95 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:bottom-0">
           <p className="mr-auto text-xs text-muted-foreground" aria-live="polite">
             {isDirty ? 'Ada perubahan yang belum disimpan.' : `Tersimpan · versi ${baseVersion}`}
           </p>

@@ -1,10 +1,11 @@
 import type { CurrentUser, ExtraActivity } from '@/types/entities'
+import { isAdminLike } from '@/lib/permissions'
 
 /** Cermin aturan backend: ubah/hapus hanya ADMIN, koordinator, atau pengampu dengan extra_activity:write. */
 export function canManageActivity(user: CurrentUser | null, a: Pick<ExtraActivity, 'id' | 'coordinatorUserId' | 'instructorTeacherId'>) {
   if (!user || !user.permissions.includes('extra_activity:write')) return false
   return (
-    user.roles.includes('ADMIN') ||
+    isAdminLike(user) ||
     a.coordinatorUserId === user.id ||
     user.coordinatedActivityIds.includes(a.id) ||
     (user.teacherId !== null && a.instructorTeacherId === user.teacherId)

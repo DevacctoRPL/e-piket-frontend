@@ -1,10 +1,10 @@
-import { Clock, ExternalLink, Plus, X } from 'lucide-react'
+import { Clock, DoorOpen, ExternalLink, Plus, Tags, UserCheck, X } from 'lucide-react'
 import { useState } from 'react'
-import { Controller, useFormContext } from 'react-hook-form'
+import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import { Link } from 'react-router'
+import { CountChip, FramedCard } from '@/components/framed-card'
 import { ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Skeleton, Switch } from '@/components/ui/misc'
@@ -20,14 +20,10 @@ const TEACHER_REASON_OPTIONS = TEACHER_ATTENDANCE_STATUSES.filter((s) => s !== '
 export function TeacherRulesSection() {
   const { control } = useFormContext<SettingsFormValues>()
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Aturan Absensi Guru</CardTitle>
-        <CardDescription>
+    <FramedCard icon={<UserCheck />} title="Aturan Absensi Guru" bodyClassName="flex flex-col gap-3">
+        <p className="text-[13px] text-pretty text-muted-foreground">
           Pilih status kehadiran guru yang wajib disertai alasan saat dicatat oleh guru, piket, atau admin.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
         <Controller
           control={control}
           name="teacherReasonRequiredStatuses"
@@ -42,7 +38,7 @@ export function TeacherRulesSection() {
                 {TEACHER_REASON_OPTIONS.map((s) => (
                   <label
                     key={s}
-                    className="flex items-center gap-3 rounded-lg border p-3 text-sm has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-primary/5"
+                    className="flex cursor-pointer items-center gap-3 rounded-md border border-border/80 px-3 py-2.5 text-[13px] transition-colors hover:bg-accent/50 has-[[data-state=checked]]:border-foreground/30 has-[[data-state=checked]]:bg-muted/60"
                   >
                     <Checkbox
                       checked={field.value.includes(s)}
@@ -59,29 +55,28 @@ export function TeacherRulesSection() {
             )
           }}
         />
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Status Hadir tidak memerlukan alasan. Status Terlambat tetap mencatat jumlah menit keterlambatan secara otomatis.
         </p>
-      </CardContent>
-    </Card>
+    </FramedCard>
   )
 }
 
 export function DismissalSection() {
   const { control } = useFormContext<SettingsFormValues>()
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Kepulangan Siswa</CardTitle>
-        <CardDescription>Aturan pencatatan siswa pulang lebih awal dan izin keluar.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <FramedCard
+      icon={<DoorOpen />}
+      title="Kepulangan Siswa"
+      description="Aturan pencatatan siswa pulang lebih awal dan izin keluar."
+      bodyClassName="p-0"
+    >
         <Controller
           control={control}
           name="dismissalRequiresPickup"
           render={({ field }) => (
-            <label className="flex items-start justify-between gap-4 rounded-lg border p-4">
-              <span className="space-y-1">
+            <label className="flex cursor-pointer items-start justify-between gap-4 p-4">
+              <span className="space-y-0.5">
                 <span className="block text-sm font-medium">Nama penjemput/penerima wajib diisi</span>
                 <span className="block text-xs text-muted-foreground">
                   Berlaku untuk pulang lebih awal dan izin keluar. Pulang normal tidak memerlukan penjemput.
@@ -91,8 +86,7 @@ export function DismissalSection() {
             </label>
           )}
         />
-      </CardContent>
-    </Card>
+    </FramedCard>
   )
 }
 
@@ -103,17 +97,19 @@ export function DutyCategoriesSection() {
   } = useFormContext<SettingsFormValues>()
   const [draft, setDraft] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
+  const categoryCount = useWatch({ control, name: 'dutyNoteCategories' })?.length ?? 0
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Kategori Catatan Piket</CardTitle>
-        <CardDescription>
+    <FramedCard
+      icon={<Tags />}
+      title="Kategori Catatan Piket"
+      titleBadge={<CountChip>{categoryCount}</CountChip>}
+      bodyClassName="flex flex-col gap-3"
+    >
+        <p className="text-[13px] text-pretty text-muted-foreground">
           Pilihan kategori saat guru piket menulis catatan penting harian. Catatan lama tetap menyimpan kategorinya
           walau kategori dihapus.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
         <Controller
           control={control}
           name="dutyNoteCategories"
@@ -133,7 +129,7 @@ export function DutyCategoriesSection() {
             return (
               <div className="flex flex-col gap-3">
                 {field.value.length === 0 ? (
-                  <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  <p className="rounded-md border border-dashed border-border/90 p-4 text-center text-[13px] text-muted-foreground">
                     Belum ada kategori. Tambahkan minimal satu kategori.
                   </p>
                 ) : (
@@ -141,14 +137,14 @@ export function DutyCategoriesSection() {
                     {field.value.map((c) => (
                       <li
                         key={c}
-                        className="inline-flex items-center gap-1 rounded-full border bg-muted/50 py-1 pr-1 pl-3 text-sm"
+                        className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-muted/45 py-1 pr-1 pl-2.5 text-xs font-medium"
                       >
                         <span className="max-w-48 truncate">{c}</span>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon-sm"
-                          className="size-6 rounded-full"
+                          className="size-5 rounded-sm"
                           onClick={() => field.onChange(field.value.filter((x) => x !== c))}
                           aria-label={`Hapus kategori ${c}`}
                         >
@@ -190,8 +186,7 @@ export function DutyCategoriesSection() {
             )
           }}
         />
-      </CardContent>
-    </Card>
+    </FramedCard>
   )
 }
 
@@ -200,16 +195,23 @@ export function MasterInfoCard() {
   const shifts = useShifts()
   const { can } = useAuth()
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="size-4 text-muted-foreground" /> Shift, Jam Masuk &amp; Toleransi Keterlambatan
-        </CardTitle>
-        <CardDescription>
+    <FramedCard
+      icon={<Clock />}
+      title="Shift, Jam Masuk & Toleransi Keterlambatan"
+      headerRight={
+        can('master:write') ? (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/master">
+              Kelola di Data Master <ExternalLink />
+            </Link>
+          </Button>
+        ) : undefined
+      }
+      bodyClassName="flex flex-col gap-3"
+    >
+        <p className="text-[13px] text-muted-foreground">
           Diatur di Data Master karena terkait jadwal dan jam pelajaran. Ringkasan saat ini:
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+        </p>
         {shifts.isPending ? (
           <Skeleton className="h-16 w-full" />
         ) : shifts.isError ? (
@@ -219,7 +221,7 @@ export function MasterInfoCard() {
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">
             {shifts.data.map((s) => (
-              <li key={s.id} className="rounded-lg border p-3 text-sm">
+              <li key={s.id} className="rounded-md border border-border/80 p-3 text-[13px]">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{s.name}</span>
                   <ToneBadge tone={s.isActive ? 'success' : 'neutral'}>{s.isActive ? 'Aktif' : 'Nonaktif'}</ToneBadge>
@@ -231,14 +233,6 @@ export function MasterInfoCard() {
             ))}
           </ul>
         )}
-        {can('master:write') && (
-          <Button asChild variant="outline" size="sm" className="self-start">
-            <Link to="/master">
-              Kelola di Data Master <ExternalLink />
-            </Link>
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+    </FramedCard>
   )
 }

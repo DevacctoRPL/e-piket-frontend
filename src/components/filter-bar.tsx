@@ -1,10 +1,8 @@
-import { Search, X } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { X } from 'lucide-react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
-import { NativeSelect } from '@/components/form-field'
+import { SearchField } from '@/components/search-field'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
 /**
@@ -47,33 +45,66 @@ export function useFilters<T extends Record<string, string>>(defaults: T) {
   return { values, set, reset, isDirty }
 }
 
-export function FilterBar({ children, onReset, className }: { children: ReactNode; onReset?: () => void; className?: string }) {
+/**
+ * Toolbar filter ringkas (gaya referensi Nuvio): kontrol h-8 berderet tanpa kartu pembungkus.
+ * Label tiap filter tampil sebagai prefix di dalam kontrol sehingga tetap terbaca & dapat diakses.
+ */
+export function FilterBar({
+  children,
+  onReset,
+  className,
+}: {
+  children: ReactNode
+  onReset?: () => void
+  className?: string
+}) {
   return (
-    <div
-      role="search"
-      className={cn(
-        'no-print grid grid-cols-1 items-end gap-3 rounded-xl border bg-card p-3 shadow-xs sm:grid-cols-2 lg:flex lg:flex-wrap',
-        className,
-      )}
-    >
+    <div role="search" className={cn('no-print flex flex-wrap items-center gap-2', className)}>
       {children}
       {onReset && (
-        <Button variant="ghost" size="sm" onClick={onReset} className="justify-self-start lg:ml-auto">
-          <X /> Reset filter
+        <Button variant="ghost" onClick={onReset} className="text-muted-foreground">
+          <X /> Reset
         </Button>
       )}
     </div>
   )
 }
 
-export function FilterField({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+/**
+ * Bingkai kontrol berprefix: `[Label | kontrol]`. Dipakai FilterSelect/FilterDate, dan dapat membungkus
+ * kontrol kustom (mis. checkbox) agar tingginya sama dengan filter lain.
+ */
+export function FilterField({
+  label,
+  children,
+  className,
+  htmlFor,
+}: {
+  label: string
+  children: ReactNode
+  className?: string
+  htmlFor?: string
+}) {
   return (
-    <div className={cn('grid min-w-0 gap-1 lg:min-w-40', className)}>
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
+    <div
+      className={cn(
+        'flex h-8 max-w-full min-w-0 items-center rounded-md border border-input bg-card text-[13px] shadow-2xs transition-[box-shadow,border-color] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
+        className,
+      )}
+    >
+      <label
+        htmlFor={htmlFor}
+        className="flex h-full shrink-0 items-center border-r border-border/70 px-2.5 text-xs whitespace-nowrap text-muted-foreground"
+      >
+        {label}
+      </label>
+      <div className="flex h-full min-w-0 flex-1 items-center">{children}</div>
     </div>
   )
 }
+
+const BARE_CONTROL =
+  'h-full w-full min-w-0 cursor-pointer appearance-none border-0 bg-transparent text-[13px] font-medium text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50'
 
 export function FilterSelect({
   label,
@@ -91,16 +122,22 @@ export function FilterSelect({
   allLabel?: string
   className?: string
 }) {
+  const id = useId()
   return (
-    <FilterField label={label} className={className}>
-      <NativeSelect value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>
+    <FilterField label={label} className={className} htmlFor={id}>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn('native-select max-w-56 pr-8 pl-2.5', BARE_CONTROL)}
+      >
         {allLabel !== undefined && <option value="">{allLabel}</option>}
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
-      </NativeSelect>
+      </select>
     </FilterField>
   )
 }
@@ -111,16 +148,27 @@ export function FilterDate({
   onChange,
   min,
   max,
+  className,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   min?: string
   max?: string
+  className?: string
 }) {
+  const id = useId()
   return (
-    <FilterField label={label}>
-      <Input type="date" value={value} min={min} max={max} onChange={(e) => onChange(e.target.value)} aria-label={label} />
+    <FilterField label={label} className={className} htmlFor={id}>
+      <input
+        id={id}
+        type="date"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn('px-2.5 tabular-nums', BARE_CONTROL)}
+      />
     </FilterField>
   )
 }
@@ -152,18 +200,12 @@ export function SearchInput({
     return () => clearTimeout(t)
   }, [local, value, delay, onChange])
   return (
-    <FilterField label={label} className={className}>
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          type="search"
-          value={local}
-          onChange={(e) => setLocal(e.target.value)}
-          placeholder={placeholder}
-          aria-label={label}
-          className="pl-8"
-        />
-      </div>
-    </FilterField>
+    <SearchField
+      value={local}
+      onValueChange={setLocal}
+      placeholder={placeholder}
+      aria-label={label}
+      className={cn('w-full sm:w-56', className)}
+    />
   )
 }

@@ -1,16 +1,15 @@
-import { ArrowLeft, CalendarRange, UserSearch } from 'lucide-react'
+import { ArrowLeft, CalendarRange, ListChecks, Percent, UserSearch } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { DataTable, type ColumnDef } from '@/components/data-table'
 import { FilterBar, FilterDate, FilterSelect, useFilters } from '@/components/filter-bar'
-import { EmptyState, ErrorState, Page, PageHeader, TableSkeleton } from '@/components/page'
+import { CardsSkeleton, EmptyState, ErrorState, Page, PageHeader, StatCard, TableSkeleton } from '@/components/page'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/misc'
 import { useClasses, useLookupMaps } from '@/features/master-data/lookups'
 import { addDays, formatDate, formatDateShort, formatWallTime, todayISO } from '@/lib/date'
 import { ATTENDANCE_META, RECORD_STATUS_META } from '@/lib/enums'
-import { cn } from '@/lib/utils'
+import { formatNumber } from '@/lib/format'
 import type { AttendanceStatus } from '@/types/entities'
 import { useClassStudents, useStudentHistory } from '../queries'
 import type { StudentHistoryRecord, StudentHistorySummary } from '../types'
@@ -136,11 +135,7 @@ export function StudentHistoryPage() {
         />
       ) : historyQ.isPending ? (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 rounded-xl" />
-            ))}
-          </div>
+          <CardsSkeleton count={8} />
           <TableSkeleton rows={6} cols={4} />
         </>
       ) : historyQ.isError ? (
@@ -149,19 +144,21 @@ export function StudentHistoryPage() {
         <>
           <section className="space-y-3" aria-labelledby="history-student">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="history-student" className="text-lg font-semibold">
+              <h2 id="history-student" className="text-[15px] font-semibold tracking-tight">
                 {historyQ.data.student.name}{' '}
-                <span className="text-sm font-normal text-muted-foreground">
+                <span className="text-[13px] font-normal text-muted-foreground">
                   · NIS {historyQ.data.student.nis} · {historyQ.data.student.className}
                 </span>
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[13px] text-muted-foreground tabular-nums">
                 {formatDateShort(historyQ.data.dateFrom)} – {formatDateShort(historyQ.data.dateTo)}
               </p>
             </div>
             <HistorySummary summary={historyQ.data.summary} />
           </section>
           <DataTable
+            title="Catatan absensi"
+            icon={<ListChecks />}
             columns={columns}
             data={historyQ.data.records}
             getRowId={(r) => r.recordId}
@@ -180,25 +177,25 @@ export function StudentHistoryPage() {
   )
 }
 
+/** Ringkasan riwayat sebagai StatCard: angka netral; warna tone hanya pada ikon kecil "Kehadiran". */
 function HistorySummary({ summary }: { summary: StudentHistorySummary }) {
-  const rateTone = summary.presentRate >= 90 ? 'text-tone-success' : summary.presentRate >= 75 ? 'text-tone-warning' : 'text-tone-danger'
+  const rateTone = summary.presentRate >= 90 ? 'success' : summary.presentRate >= 75 ? 'warning' : 'danger'
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-      <div className="col-span-2 flex flex-col gap-1 rounded-xl border bg-card p-4 shadow-xs sm:col-span-1">
-        <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Kehadiran</dt>
-        <dd className={cn('text-2xl font-bold tabular-nums', summary.total ? rateTone : 'text-muted-foreground')}>
-          {summary.total ? `${summary.presentRate.toLocaleString('id-ID')}%` : '—'}
-        </dd>
-        <dd className="text-xs text-muted-foreground tabular-nums">dari {summary.total} sesi (hadir + terlambat)</dd>
-      </div>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <StatCard
+        label="Kehadiran"
+        icon={<Percent />}
+        tone={summary.total ? rateTone : 'neutral'}
+        value={summary.total ? `${summary.presentRate.toLocaleString('id-ID')}%` : '—'}
+        hint={`dari ${summary.total} sesi (hadir + terlambat)`}
+      />
       {SUMMARY_ORDER.map((s) => (
-        <div key={s} className="flex flex-col gap-1 rounded-xl border bg-card p-4 shadow-xs">
-          <dt className="text-xs font-semibold text-muted-foreground">
-            {ATTENDANCE_META[s].short} · {ATTENDANCE_META[s].label}
-          </dt>
-          <dd className="text-2xl font-bold tabular-nums">{summary[s]}</dd>
-        </div>
+        <StatCard
+          key={s}
+          label={`${ATTENDANCE_META[s].short} · ${ATTENDANCE_META[s].label}`}
+          value={formatNumber(summary[s])}
+        />
       ))}
-    </dl>
+    </div>
   )
 }

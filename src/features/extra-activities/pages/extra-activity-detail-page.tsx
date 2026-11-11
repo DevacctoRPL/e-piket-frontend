@@ -1,11 +1,12 @@
-import { ArrowLeft, CheckCircle2, Pencil, Printer, Trash2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Info, Pencil, Printer, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { FramedCard } from '@/components/framed-card'
 import { ErrorState, Page, PageHeader } from '@/components/page'
+import { RowActionsMenu } from '@/components/row-actions-menu'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/misc'
 import { useAuth } from '@/features/auth/auth-context'
 import { useLookupMaps } from '@/features/master-data/lookups'
@@ -125,35 +126,31 @@ function DetailView({ activity: a, shiftName, onReload }: { activity: ExtraActiv
                     <CheckCircle2 /> Tandai terlaksana
                   </Button>
                 )}
-                <Button variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirm('delete')}>
-                  <Trash2 /> Hapus
-                </Button>
+                <RowActionsMenu
+                  label={`Aksi lain untuk ${a.name}`}
+                  actions={[{ label: 'Hapus', icon: Trash2, destructive: true, onSelect: () => setConfirm('delete') }]}
+                />
               </>
             )}
           </>
         }
       />
 
-      <Card className="rounded-xl shadow-xs">
-        <CardHeader>
-          <CardTitle>Informasi kegiatan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-            <Info label="Pengampu">{a.instructorName}</Info>
-            <Info label="Kelas peserta">
-              <ClassChips names={a.classNames} />
-            </Info>
-            <Info label="Materi" wide>
-              {a.topic ?? <span className="text-muted-foreground">Belum diisi</span>}
-            </Info>
-            <Info label="Keterangan" wide>
-              {a.note ?? <span className="text-muted-foreground">—</span>}
-            </Info>
-            <Info label="Dibuat">{formatDateTime(a.createdAt)}</Info>
-          </dl>
-        </CardContent>
-      </Card>
+      <FramedCard title="Informasi kegiatan" icon={<Info />}>
+        <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+          <InfoItem label="Pengampu">{a.instructorName}</InfoItem>
+          <InfoItem label="Kelas peserta">
+            <ClassChips names={a.classNames} />
+          </InfoItem>
+          <InfoItem label="Materi" wide>
+            {a.topic ?? <span className="text-muted-foreground">Belum diisi</span>}
+          </InfoItem>
+          <InfoItem label="Keterangan" wide>
+            {a.note ?? <span className="text-muted-foreground">—</span>}
+          </InfoItem>
+          <InfoItem label="Dibuat">{formatDateTime(a.createdAt)}</InfoItem>
+        </dl>
+      </FramedCard>
 
       <ParticipantsPanel activity={a} canFill={canFill} canManage={canManage} onReload={onReload} />
 
@@ -186,11 +183,11 @@ function DetailView({ activity: a, shiftName, onReload }: { activity: ExtraActiv
   )
 }
 
-function Info({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
+function InfoItem({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? 'sm:col-span-2' : undefined}>
-      <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</dt>
-      <dd className="mt-1 text-sm break-words whitespace-pre-line">{children}</dd>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 text-sm break-words whitespace-pre-line">{children}</dd>
     </div>
   )
 }
@@ -209,10 +206,10 @@ function BackLink() {
 
 function DetailSkeleton() {
   return (
-    <Page className="max-w-5xl" >
+    <Page className="max-w-5xl">
       <div aria-busy="true" aria-label="Memuat kegiatan" className="space-y-5">
         <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-7 w-2/3" />
         <Skeleton className="h-48 rounded-xl" />
         <Skeleton className="h-64 rounded-xl" />
       </div>

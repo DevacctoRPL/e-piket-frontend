@@ -9,6 +9,7 @@
  * - Data FINAL hanya dapat dikoreksi dengan alasan dan tercatat di audit log (PRD §9.2, FR-AUD-01).
  */
 import { http, type HttpHandler } from 'msw'
+import { isAdminLike } from '@/lib/permissions'
 import { EXTRA_ACTIVITY_TYPE_META } from '@/lib/enums'
 import { ATTENDANCE_STATUSES, type AttendanceStatus, type ExtraActivity, type ID } from '@/types/entities'
 import { db, isDeleted, newId, persist, softDelete } from '../db'
@@ -57,7 +58,7 @@ function findActivity(id: unknown): ExtraActivity {
 /** ADMIN, koordinator kegiatan, atau guru pengampu. */
 function isOwner(user: AuthedUser, a: ExtraActivity) {
   return (
-    user.roles.includes('ADMIN') ||
+    isAdminLike(user) ||
     a.coordinatorUserId === user.id ||
     (user.teacherId !== null && a.instructorTeacherId === user.teacherId)
   )

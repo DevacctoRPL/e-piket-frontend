@@ -39,6 +39,8 @@ addEventListener('message', async function (event) {
 
   switch (event.data) {
     case 'KEEPALIVE_REQUEST': {
+      activeClientIds.add(clientId)
+
       sendToClient(client, {
         type: 'KEEPALIVE_RESPONSE',
       })
@@ -105,10 +107,11 @@ addEventListener('fetch', function (event) {
     return
   }
 
-  // Bypass all requests when there are no active clients.
-  // Prevents the self-unregistered worked from handling requests
-  // after it's been terminated (still remains active until the next reload).
-  if (activeClientIds.size === 0) {
+  // Bypass non-API requests when there are no active clients.
+  // For /api/ requests (which only fire after startMockApi() has mounted the client listener),
+  // allow recovery if the browser suspended the Service Worker while the tab was idle.
+  const isApiRequest = new URL(event.request.url).pathname.startsWith('/api/')
+  if (activeClientIds.size === 0 && !isApiRequest) {
     return
   }
 
@@ -194,6 +197,9 @@ async function resolveMainClient(event) {
   }
 
   if (client?.frameType === 'top-level') {
+    if (new URL(event.request.url).pathname.startsWith('/api/')) {
+      activeClientIds.add(client.id)
+    }
     return client
   }
 

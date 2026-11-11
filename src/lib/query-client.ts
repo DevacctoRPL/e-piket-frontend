@@ -16,8 +16,10 @@ export function createQueryClient() {
     queryCache: new QueryCache({
       onError: (error, query) => {
         // Query yang sudah punya data: tampilkan toast (data lama tetap terlihat).
+        // Gunakan id deterministik agar kegagalan beberapa background query bersamaan tidak menumpuk toast duplikat.
         if (query.state.data !== undefined && !(error instanceof ApiError && error.status === 401)) {
-          toast.error(getErrorMessage(error))
+          const message = getErrorMessage(error)
+          toast.error(message, { id: `query-error:${message}` })
         }
       },
     }),

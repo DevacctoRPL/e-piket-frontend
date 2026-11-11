@@ -11,14 +11,20 @@ import { cn } from '@/lib/utils'
 import type { AttendanceStatus } from '@/types/entities'
 import { MORE_STATUSES, QUICK_STATUSES } from '../roster-model'
 
-const SELECTED: Record<Tone, string> = {
-  success: 'border-tone-success bg-tone-success text-white',
-  info: 'border-tone-info bg-tone-info text-white',
-  purple: 'border-tone-purple bg-tone-purple text-white',
-  danger: 'border-tone-danger bg-tone-danger text-white',
-  warning: 'border-tone-warning bg-tone-warning text-white',
-  neutral: 'border-tone-neutral bg-tone-neutral text-white',
+/** Warna tone hanya pada huruf kode status terpilih; tombol tetap netral. */
+const CODE_TONE: Record<Tone, string> = {
+  success: 'text-tone-success',
+  info: 'text-tone-info',
+  purple: 'text-tone-purple',
+  danger: 'text-tone-danger',
+  warning: 'text-tone-warning',
+  neutral: 'text-foreground',
 }
+
+const BASE =
+  'flex items-center justify-center rounded-md border leading-none transition-[background-color,border-color,color] duration-100 outline-none select-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50'
+const IDLE = 'border-border/90 bg-card text-muted-foreground shadow-2xs hover:bg-accent hover:text-foreground'
+const SELECTED = 'border-foreground/40 bg-muted text-foreground'
 
 /**
  * Pemilih status cepat (H S I A T + lainnya). Huruf + label agar tidak bergantung warna (PRD §12).
@@ -76,14 +82,19 @@ export const StatusPicker = memo(function StatusPicker({
             onKeyDown={(e) => onKey(e, i)}
             onClick={() => onChange(s)}
             className={cn(
-              'flex min-h-11 min-w-11 flex-col items-center justify-center rounded-lg border bg-background px-2 leading-none transition-[background-color,border-color,color,transform] duration-100 outline-none select-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-50 sm:min-w-14',
-              selected ? SELECTED[meta.tone] : 'hover:bg-accent',
+              BASE,
+              // ponsel: target sentuh 44px (huruf di atas label); desktop: satu baris setinggi kontrol (h-8)
+              'min-h-11 min-w-11 flex-col gap-1 px-2 sm:min-h-8 sm:flex-row sm:gap-1.5 sm:px-2.5',
+              selected ? SELECTED : IDLE,
             )}
           >
-            <span className="text-base font-bold" aria-hidden>
+            <span
+              className={cn('text-sm font-semibold', selected ? CODE_TONE[meta.tone] : 'text-foreground/70')}
+              aria-hidden
+            >
               {meta.short}
             </span>
-            <span className={cn('mt-0.5 text-[10px] font-medium', !selected && 'text-muted-foreground')} aria-hidden>
+            <span className="text-[10px] font-medium sm:text-xs" aria-hidden>
               {meta.label}
             </span>
           </button>
@@ -96,10 +107,16 @@ export const StatusPicker = memo(function StatusPicker({
               type="button"
               aria-label={moreSelected && value ? `Status lain: ${ATTENDANCE_META[value].label}` : 'Status lainnya'}
               className={cn(
-                'flex min-h-11 items-center gap-1 rounded-lg border bg-background px-2.5 text-xs font-semibold outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50',
-                moreSelected && value ? SELECTED[ATTENDANCE_META[value].tone] : 'text-muted-foreground hover:bg-accent',
+                BASE,
+                'min-h-11 gap-1 px-2.5 text-xs font-medium sm:min-h-8',
+                moreSelected && value ? SELECTED : IDLE,
               )}
             >
+              {moreSelected && value && (
+                <span className={cn('font-semibold', CODE_TONE[ATTENDANCE_META[value].tone])} aria-hidden>
+                  {ATTENDANCE_META[value].short}
+                </span>
+              )}
               {moreSelected && value ? ATTENDANCE_META[value].label : 'Lainnya'}
               <ChevronDown className="size-3.5" />
             </button>
@@ -107,7 +124,7 @@ export const StatusPicker = memo(function StatusPicker({
           <DropdownMenuContent align="start">
             {more.map((s) => (
               <DropdownMenuItem key={s} onSelect={() => onChange(s)}>
-                <span className="w-6 font-bold">{ATTENDANCE_META[s].short}</span>
+                <span className="w-6 font-semibold text-muted-foreground">{ATTENDANCE_META[s].short}</span>
                 {ATTENDANCE_META[s].label}
               </DropdownMenuItem>
             ))}

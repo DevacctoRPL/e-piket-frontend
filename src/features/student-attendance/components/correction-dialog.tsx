@@ -120,7 +120,7 @@ export function CorrectionDialog({
         </DialogHeader>
         <form onSubmit={onSubmit} className="grid gap-4" noValidate>
           <FormField label="Status baru" required error={formState.errors.status?.message}>
-            <NativeSelect {...register('status')} className="h-11 sm:h-9">
+            <NativeSelect {...register('status')} className="h-11 sm:h-8">
               {allowed.map((s) => (
                 <option key={s} value={s}>
                   {ATTENDANCE_META[s].short} · {ATTENDANCE_META[s].label}
@@ -130,16 +130,16 @@ export function CorrectionDialog({
           </FormField>
           <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
             <FormField label="Alasan" required={needsReason} error={formState.errors.reason?.message}>
-              <Input {...register('reason')} maxLength={500} className="h-11 sm:h-9" />
+              <Input {...register('reason')} maxLength={500} className="h-11 sm:h-8" />
             </FormField>
             {status === 'LATE' && (
               <FormField label="Jam datang" error={formState.errors.arrivalTime?.message}>
-                <Input type="time" {...register('arrivalTime')} className="h-11 sm:h-9 sm:w-32" />
+                <Input type="time" {...register('arrivalTime')} className="h-11 sm:h-8 sm:w-32" />
               </FormField>
             )}
           </div>
           <FormField label="Catatan" error={formState.errors.note?.message}>
-            <Input {...register('note')} maxLength={500} className="h-11 sm:h-9" />
+            <Input {...register('note')} maxLength={500} className="h-11 sm:h-8" />
           </FormField>
           <FormField
             label="Alasan koreksi"

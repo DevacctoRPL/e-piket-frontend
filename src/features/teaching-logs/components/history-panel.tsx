@@ -1,4 +1,4 @@
-import { BadgeCheck, NotebookTabs } from 'lucide-react'
+import { BadgeCheck, History, NotebookTabs } from 'lucide-react'
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { DataTable, type ColumnDef } from '@/components/data-table'
@@ -138,23 +138,17 @@ export function HistoryPanel() {
   const exportFrom = params.dateFrom ?? addDays(exportTo, -13)
   const exportFilters = { ...params, dateFrom: exportFrom, dateTo: exportTo, page: undefined, pageSize: undefined }
 
-  return (
-    <div className="grid gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-semibold">Riwayat jurnal</h2>
-          <p className="text-sm text-muted-foreground">
-            {readAll ? 'Seluruh jurnal mengajar sesuai filter.' : 'Jurnal milik Anda dan kelas binaan Anda.'}
-          </p>
-        </div>
-        <ExportMenu
-          report="teaching-logs"
-          filters={exportFilters}
-          period={exportFrom === exportTo ? exportFrom : `${exportFrom}_${exportTo}`}
-          onPrint={() => window.print()}
-        />
-      </div>
+  const exportMenu = (
+    <ExportMenu
+      report="teaching-logs"
+      filters={exportFilters}
+      period={exportFrom === exportTo ? exportFrom : `${exportFrom}_${exportTo}`}
+      onPrint={() => window.print()}
+    />
+  )
 
+  return (
+    <div className="grid gap-3">
       <FilterBar onReset={filters.isDirty ? filters.reset : undefined}>
         <FilterDate label="Dari tanggal" value={v.dateFrom} max={v.dateTo || today} onChange={(x) => filters.set({ dateFrom: x })} />
         <FilterDate label="Sampai tanggal" value={v.dateTo} min={v.dateFrom} max={today} onChange={(x) => filters.set({ dateTo: x })} />
@@ -204,6 +198,9 @@ export function HistoryPanel() {
       ) : (
         <div className={query.isPlaceholderData ? 'opacity-60 transition-opacity' : undefined}>
           <DataTable
+            title="Riwayat jurnal"
+            icon={<History />}
+            toolbar={exportMenu}
             caption="Riwayat jurnal mengajar"
             columns={columns}
             data={query.data.data}
@@ -227,7 +224,7 @@ export function HistoryPanel() {
             }
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            JML bertanda <span className="text-tone-warning">*</span> telah dikoreksi dari jadwal (arahkan kursor untuk
+            {readAll ? 'Seluruh jurnal mengajar sesuai filter.' : 'Jurnal milik Anda dan kelas binaan Anda.'} JML bertanda <span className="text-tone-warning">*</span> telah dikoreksi dari jadwal (arahkan kursor untuk
             melihat alasan). Periode: {formatDate(v.dateFrom)} – {formatDate(v.dateTo)}.
           </p>
         </div>

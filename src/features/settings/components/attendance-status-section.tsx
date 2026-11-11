@@ -1,6 +1,7 @@
+import { ListChecks } from 'lucide-react'
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form'
+import { FramedCard } from '@/components/framed-card'
 import { ToneBadge } from '@/components/status-badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/misc'
@@ -17,19 +18,19 @@ export function AttendanceStatusSection() {
   const { fields } = useFieldArray({ control, name: 'attendanceStatuses', keyName: 'key' })
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Status Absensi Siswa</CardTitle>
-        <CardDescription>
+    <FramedCard icon={<ListChecks />} title="Status Absensi Siswa" bodyClassName="flex flex-col gap-3">
+        <p className="text-[13px] text-pretty text-muted-foreground">
           Atur label tampilan, kode singkat untuk rekap cetak/ekspor (mis. S/I/A), kewajiban alasan, dan status yang
           dapat dipilih. Status Hadir selalu aktif. Kode sistem tidak berubah sehingga data lama tetap konsisten.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div role="table" aria-label="Konfigurasi status absensi" className="flex flex-col gap-2 md:gap-0 md:rounded-xl md:border">
+        </p>
+        <div
+          role="table"
+          aria-label="Konfigurasi status absensi"
+          className="flex flex-col gap-2 md:-mx-4 md:-mb-4 md:gap-0 md:border-t md:border-border/70"
+        >
           <div
             role="row"
-            className="hidden grid-cols-[minmax(8rem,1fr)_minmax(10rem,1.4fr)_6rem_7rem_6rem] items-center gap-3 border-b bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase md:grid"
+            className="hidden grid-cols-[minmax(8rem,1fr)_minmax(10rem,1.4fr)_6rem_7rem_6rem] items-center gap-3 border-b border-border/70 bg-muted/55 px-4 py-2 text-xs font-medium text-muted-foreground md:grid"
           >
             <span role="columnheader">Status</span>
             <span role="columnheader">Label tampilan</span>
@@ -46,7 +47,7 @@ export function AttendanceStatusSection() {
                 role="row"
                 key={f.key}
                 className={cn(
-                  'grid grid-cols-2 gap-3 rounded-xl border p-3 md:grid-cols-[minmax(8rem,1fr)_minmax(10rem,1.4fr)_6rem_7rem_6rem] md:items-start md:rounded-none md:border-0 md:border-b md:last:border-b-0',
+                  'grid grid-cols-2 gap-3 rounded-md border border-border/80 p-3 md:grid-cols-[minmax(8rem,1fr)_minmax(10rem,1.4fr)_6rem_7rem_6rem] md:items-start md:rounded-none md:border-0 md:border-b md:border-border/60 md:px-4 md:last:border-b-0',
                 )}
               >
                 <div role="cell" className="col-span-2 flex items-center gap-2 md:col-span-1 md:pt-1.5">
@@ -84,7 +85,7 @@ export function AttendanceStatusSection() {
                     control={control}
                     name={`attendanceStatuses.${i}.requiresReason`}
                     render={({ field }) => (
-                      <label className="flex items-center gap-2 text-sm">
+                      <label className="flex items-center gap-2 text-[13px]">
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={(c) => field.onChange(c === true)}
@@ -102,7 +103,7 @@ export function AttendanceStatusSection() {
                     control={control}
                     name={`attendanceStatuses.${i}.active`}
                     render={({ field }) => (
-                      <label className="flex items-center gap-2 text-sm">
+                      <label className="flex items-center gap-2 text-[13px]">
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
@@ -122,7 +123,6 @@ export function AttendanceStatusSection() {
             )
           })}
         </div>
-      </CardContent>
-    </Card>
+    </FramedCard>
   )
 }

@@ -1,3 +1,18 @@
+import {
+  Ban,
+  CircleCheck,
+  KeyRound,
+  ShieldUser,
+  UserCog,
+  CircleDashed,
+  CircleX,
+  Clock3,
+  FilePen,
+  LockKeyhole,
+  LogOut,
+  Send,
+  type LucideIcon,
+} from 'lucide-react'
 import type {
   AttendanceStatus,
   AuditAction,
@@ -18,10 +33,13 @@ export interface EnumMeta {
   label: string
   short?: string
   tone: Tone
+  /** Ikon status (ikon + teks). Bila kosong, StatusBadge memakai ikon bawaan tone. */
+  icon?: LucideIcon
 }
 
 export const ROLE_META: Record<Role, EnumMeta> = {
-  ADMIN: { label: 'Admin/TU', tone: 'purple' },
+  SUPER_ADMIN: { label: 'Super Admin', tone: 'neutral', icon: ShieldUser },
+  ADMIN: { label: 'Admin/TU', tone: 'neutral' },
   PRINCIPAL: { label: 'Pimpinan', tone: 'info' },
   TEACHER: { label: 'Guru', tone: 'neutral' },
   DUTY_TEACHER: { label: 'Guru Piket', tone: 'success' },
@@ -70,17 +88,17 @@ export const TEACHER_ABSENT_STATUSES: TeacherAttendanceStatus[] = [
 ]
 
 export const RECORD_STATUS_META: Record<RecordStatus, EnumMeta> = {
-  DRAFT: { label: 'Draft', tone: 'neutral' },
-  SUBMITTED: { label: 'Dikirim', tone: 'info' },
-  FINAL: { label: 'Final', tone: 'success' },
-  REJECTED: { label: 'Ditolak', tone: 'danger' },
-  CANCELLED: { label: 'Dibatalkan', tone: 'neutral' },
+  DRAFT: { label: 'Draft', tone: 'neutral', icon: FilePen },
+  SUBMITTED: { label: 'Dikirim', tone: 'info', icon: Send },
+  FINAL: { label: 'Final', tone: 'success', icon: LockKeyhole },
+  REJECTED: { label: 'Ditolak', tone: 'danger', icon: CircleX },
+  CANCELLED: { label: 'Dibatalkan', tone: 'neutral', icon: Ban },
 }
 
 export const DISMISSAL_META: Record<DismissalType, EnumMeta> = {
-  NORMAL: { label: 'Pulang Normal', tone: 'success' },
-  EARLY_LEAVE: { label: 'Pulang Lebih Awal', tone: 'warning' },
-  TEMPORARY_EXIT: { label: 'Izin Keluar', tone: 'info' },
+  NORMAL: { label: 'Pulang Normal', tone: 'success', icon: CircleCheck },
+  EARLY_LEAVE: { label: 'Pulang Lebih Awal', tone: 'warning', icon: Clock3 },
+  TEMPORARY_EXIT: { label: 'Izin Keluar', tone: 'info', icon: LogOut },
 }
 
 export const TEACHING_PRESENCE_META: Record<TeachingPresence, EnumMeta> = {
@@ -105,17 +123,37 @@ export const AUDIT_ACTION_META: Record<AuditAction, EnumMeta> = {
   CORRECT: { label: 'Koreksi', tone: 'warning' },
   CANCEL: { label: 'Batal', tone: 'neutral' },
   LOGIN: { label: 'Masuk', tone: 'neutral' },
+  ROLE_CHANGE: { label: 'Ubah peran', tone: 'warning', icon: ShieldUser },
+  STATUS_CHANGE: { label: 'Ubah status akun', tone: 'info', icon: UserCog },
+  PASSWORD_RESET: { label: 'Reset sandi', tone: 'warning', icon: KeyRound },
 }
 
+/** Penjelasan singkat tiap peran (dipakai pada daftar centang peran di Kelola Pengguna). */
+export const ROLE_DESCRIPTION: Record<Role, string> = {
+  SUPER_ADMIN: 'Pemilik sistem: semua akses Admin/TU + kelola akun, peran, keamanan, dan data demo.',
+  ADMIN: 'Tata usaha: data master, pengaturan, koreksi data, laporan, dan audit.',
+  PRINCIPAL: 'Pimpinan: memantau seluruh data, laporan, audit, dan koreksi agenda/jurnal.',
+  TEACHER: 'Guru: absensi kelas yang diajar, jurnal mengajar, dan kehadiran pribadi.',
+  DUTY_TEACHER: 'Guru piket: agenda piket, kehadiran guru, jam kosong, dan kepulangan.',
+  HOMEROOM: 'Wali kelas: absensi & konfirmasi wali untuk kelas binaan.',
+  ACTIVITY_COORDINATOR: 'Koordinator: mengelola kegiatan tambahan dan presensi pesertanya.',
+}
+
+/** Status akun pengguna. */
+export const ACCOUNT_STATUS_META = {
+  ACTIVE: { label: 'Aktif', tone: 'success', icon: CircleCheck },
+  INACTIVE: { label: 'Nonaktif', tone: 'neutral', icon: Ban },
+} as const satisfies Record<'ACTIVE' | 'INACTIVE', EnumMeta>
+
 export const SUBSTITUTION_SLOT_META = {
-  UNHANDLED: { label: 'Belum Tertangani', tone: 'danger' },
-  HANDLED: { label: 'Tertangani', tone: 'success' },
+  UNHANDLED: { label: 'Belum Tertangani', tone: 'danger', icon: CircleDashed },
+  HANDLED: { label: 'Tertangani', tone: 'success', icon: CircleCheck },
 } as const satisfies Record<string, EnumMeta>
 
 /** Status penugasan guru pengganti (SubstitutionRecord.status). */
 export const SUBSTITUTION_RECORD_META: Record<SubstitutionRecord['status'], EnumMeta> = {
   ACTIVE: { label: 'Aktif', tone: 'success' },
-  CANCELLED: { label: 'Dibatalkan', tone: 'neutral' },
+  CANCELLED: { label: 'Dibatalkan', tone: 'neutral', icon: Ban },
 }
 
 /** Jenis konflik calon guru pengganti. */
@@ -127,7 +165,7 @@ export const SUBSTITUTION_CONFLICT_META: Record<SubstitutionConflict['type'], En
 
 export const EXTRA_ACTIVITY_TYPE_META = {
   COURSE: { label: 'Kursus', tone: 'info' },
-  EXTRA_HOURS: { label: 'Jam Tambahan', tone: 'purple' },
+  EXTRA_HOURS: { label: 'Jam Tambahan', tone: 'neutral' },
   OTHER: { label: 'Lainnya', tone: 'neutral' },
 } as const satisfies Record<string, EnumMeta>
 

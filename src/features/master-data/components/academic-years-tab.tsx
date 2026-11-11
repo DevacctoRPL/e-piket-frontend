@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { FormField } from '@/components/form-field'
+import { FramedCard } from '@/components/framed-card'
 import { EmptyState, QueryBoundary } from '@/components/page'
 import { ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
@@ -54,46 +55,50 @@ export function AcademicYearsTab() {
         {(data) => (
           <ul className="grid gap-3 lg:grid-cols-2">
             {data.map((y) => (
-              <li key={y.id} className="rounded-xl border bg-card p-4 shadow-xs">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-bold tabular-nums">{y.name}</h3>
-                      {y.isActive ? <ToneBadge tone="success">Aktif</ToneBadge> : <ToneBadge tone="neutral">Tidak aktif</ToneBadge>}
-                    </div>
-                    <p className="text-sm text-muted-foreground tabular-nums">
+              <li key={y.id} className="min-w-0">
+                <FramedCard
+                  headingLevel="h3"
+                  icon={<CalendarRange />}
+                  title={<span className="tabular-nums">{y.name}</span>}
+                  titleBadge={
+                    y.isActive ? <ToneBadge tone="success">Aktif</ToneBadge> : <ToneBadge tone="neutral">Tidak aktif</ToneBadge>
+                  }
+                  description={
+                    <span className="tabular-nums">
                       {formatDate(y.startDate)} – {formatDate(y.endDate)}
-                    </p>
-                  </div>
-                  <RowActions
-                    label={`tahun ajaran ${y.name}`}
-                    onEdit={() => crud.openEdit(y)}
-                    onDelete={y.isActive ? undefined : () => crud.askDelete(y)}
-                  />
-                </div>
-                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {y.semesters.map((s) => (
-                    <li key={s.id} className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold">Semester {s.name}</span>
-                        {s.isActive && <ToneBadge tone="success">Berjalan</ToneBadge>}
-                      </div>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {formatDate(s.startDate)} – {formatDate(s.endDate)}
-                      </span>
-                      {!s.isActive && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-fit"
-                          onClick={() => setToActivate({ year: y, semester: s })}
-                        >
-                          <CheckCircle2 /> Jadikan aktif
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                    </span>
+                  }
+                  headerRight={
+                    <RowActions
+                      label={`tahun ajaran ${y.name}`}
+                      onEdit={() => crud.openEdit(y)}
+                      onDelete={y.isActive ? undefined : () => crud.askDelete(y)}
+                    />
+                  }
+                  className="h-full"
+                  bodyClassName="p-0"
+                >
+                  <ul className="divide-y divide-border/60">
+                    {y.semesters.map((s) => (
+                      <li key={s.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
+                        <div className="grid min-w-0 gap-0.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium">Semester {s.name}</span>
+                            {s.isActive && <ToneBadge tone="success">Berjalan</ToneBadge>}
+                          </div>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {formatDate(s.startDate)} – {formatDate(s.endDate)}
+                          </span>
+                        </div>
+                        {!s.isActive && (
+                          <Button size="sm" variant="outline" onClick={() => setToActivate({ year: y, semester: s })}>
+                            <CheckCircle2 /> Jadikan aktif
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </FramedCard>
               </li>
             ))}
           </ul>
@@ -260,7 +265,7 @@ function AcademicYearDialog({ year, onClose }: { year: AcademicYear | null; onCl
           <Input type="date" {...register('endDate')} />
         </FormField>
       </div>
-      <fieldset className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
+      <fieldset className="grid gap-3 rounded-md border border-border/80 p-3 sm:grid-cols-2">
         <legend className="px-1 text-sm font-semibold">Semester Ganjil</legend>
         <FormField label="Mulai" required error={errors.sem1Start?.message}>
           <Input type="date" {...register('sem1Start')} />
@@ -269,7 +274,7 @@ function AcademicYearDialog({ year, onClose }: { year: AcademicYear | null; onCl
           <Input type="date" {...register('sem1End')} />
         </FormField>
       </fieldset>
-      <fieldset className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
+      <fieldset className="grid gap-3 rounded-md border border-border/80 p-3 sm:grid-cols-2">
         <legend className="px-1 text-sm font-semibold">Semester Genap</legend>
         <FormField label="Mulai" required error={errors.sem2Start?.message}>
           <Input type="date" {...register('sem2Start')} />

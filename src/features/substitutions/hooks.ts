@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { ADMIN_ROLES } from '@/lib/permissions'
 import { useAuth } from '@/features/auth/auth-context'
 import { usePeriods } from '@/features/master-data/lookups'
 import { formatWallTime } from '@/lib/date'
@@ -25,7 +26,7 @@ export function useSubstitutionAbilities() {
   return {
     canWrite,
     /** Override konflik jadwal hanya admin & guru piket (PRD §7.5.3 "override berizin"). */
-    canOverride: canWrite && is('ADMIN', 'DUTY_TEACHER'),
+    canOverride: canWrite && is(...ADMIN_ROLES, 'DUTY_TEACHER'),
     /** Guru pengganti boleh melengkapi kegiatan/catatan pada tugasnya sendiri (FR-SUB-03). */
     canEditRecord: (substituteTeacherId: string) =>
       canWrite || (!!user?.teacherId && user.teacherId === substituteTeacherId),

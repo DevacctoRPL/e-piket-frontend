@@ -1,5 +1,6 @@
-import { ArrowRight, BadgeCheck, CalendarX2, Clock, NotebookPen, Plus, Repeat2 } from 'lucide-react'
+import { ArrowRight, BadgeCheck, CalendarClock, CalendarX2, Clock, NotebookPen, Plus, Repeat2 } from 'lucide-react'
 import { Link } from 'react-router'
+import { CountChip, FramedCard } from '@/components/framed-card'
 import { EmptyState, ErrorState } from '@/components/page'
 import { StatusBadge, ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
@@ -43,50 +44,52 @@ export function TodaySchedule({ date }: { date: string }) {
   const pct = p.total ? Math.round((p.filled / p.total) * 100) : 0
 
   return (
-    <div className="grid gap-4">
-      <section
-        aria-label="Kemajuan pengisian jurnal"
-        className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs sm:flex-row sm:items-center"
-      >
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="font-semibold">
-              <span className="tabular-nums">{p.filled}</span> dari <span className="tabular-nums">{p.total}</span>{' '}
-              jurnal terisi
-            </p>
-            <p className="text-xs text-muted-foreground tabular-nums">{pct}%</p>
-          </div>
-          <div
-            className="h-2 overflow-hidden rounded-full bg-muted"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={p.total}
-            aria-valuenow={p.filled}
-            aria-label="Jurnal terisi"
-          >
-            <div
-              className="h-full rounded-full bg-primary transition-[width] duration-300"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {formatDateLong(date)}
-            {p.draft > 0 && ` · ${p.draft} masih draft, finalisasi setelah pembelajaran selesai`}
-          </p>
-        </div>
-        <Button asChild variant="ghost" size="sm" className="self-start sm:self-center">
+    <FramedCard
+      title="Jadwal mengajar"
+      icon={<CalendarClock />}
+      titleBadge={<CountChip>{p.total}</CountChip>}
+      headerRight={
+        <Button asChild variant="ghost" className="text-muted-foreground">
           <Link to={freeHref}>
             <Plus /> Di luar jadwal
           </Link>
         </Button>
+      }
+      bodyClassName="p-0"
+    >
+      <section aria-label="Kemajuan pengisian jurnal" className="space-y-2 border-b border-border/60 px-4 py-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-sm font-medium">
+            <span className="tabular-nums">{p.filled}</span> dari <span className="tabular-nums">{p.total}</span>{' '}
+            jurnal terisi
+          </p>
+          <p className="text-xs text-muted-foreground tabular-nums">{pct}%</p>
+        </div>
+        <div
+          className="h-1.5 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={p.total}
+          aria-valuenow={p.filled}
+          aria-label="Jurnal terisi"
+        >
+          <div
+            className="h-full rounded-full bg-foreground/80 transition-[width] duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {formatDateLong(date)}
+          {p.draft > 0 && ` · ${p.draft} masih draft, finalisasi setelah pembelajaran selesai`}
+        </p>
       </section>
 
-      <ol className="grid gap-2.5" aria-label="Jadwal mengajar">
+      <ol className="divide-y divide-border/60" aria-label="Jadwal mengajar">
         {slots.map((s) => (
           <SlotCard key={`${s.slot.id}-${s.substitutionRecordId ?? 'own'}`} item={s} date={date} />
         ))}
       </ol>
-    </div>
+    </FramedCard>
   )
 }
 
@@ -97,14 +100,14 @@ function SlotCard({ item, date }: { item: TodayTeachingSlot; date: string }) {
   return (
     <li
       className={cn(
-        'flex flex-col gap-3 rounded-xl border bg-card p-3.5 shadow-xs sm:flex-row sm:items-center sm:gap-4',
-        state === 'EMPTY' && 'border-l-4 border-l-tone-warning',
+        'flex flex-col gap-3 border-l-2 border-l-transparent px-4 py-3 sm:flex-row sm:items-center sm:gap-4',
+        state === 'EMPTY' && 'border-l-tone-warning',
       )}
     >
       <div className="flex shrink-0 items-center gap-3 sm:w-40">
-        <span className="flex size-11 flex-col items-center justify-center rounded-lg bg-accent text-accent-foreground">
-          <span className="text-[10px] leading-none font-medium uppercase">Jam</span>
-          <span className="text-sm leading-tight font-bold tabular-nums">
+        <span className="flex size-10 shrink-0 flex-col items-center justify-center rounded-md border border-border/80 bg-muted/45 text-foreground">
+          <span className="text-[10px] leading-none text-muted-foreground">Jam</span>
+          <span className="text-sm leading-tight font-semibold tabular-nums">
             {slot.periodStart === slot.periodEnd ? slot.periodStart : `${slot.periodStart}-${slot.periodEnd}`}
           </span>
         </span>
@@ -119,11 +122,11 @@ function SlotCard({ item, date }: { item: TodayTeachingSlot; date: string }) {
 
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <p className="font-semibold">{item.className}</p>
+          <p className="text-sm font-semibold">{item.className}</p>
           <span className="text-muted-foreground" aria-hidden>
             ·
           </span>
-          <p className="min-w-0 truncate">{item.subjectName}</p>
+          <p className="min-w-0 truncate text-sm">{item.subjectName}</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <StatusBadge meta={SLOT_LOG_META} value={state} />
@@ -148,7 +151,8 @@ function SlotCard({ item, date }: { item: TodayTeachingSlot; date: string }) {
 
       <Button
         asChild
-        variant={state === 'EMPTY' ? 'default' : 'outline'}
+        variant="outline"
+        size="sm"
         className="w-full sm:w-auto"
         aria-label={`${state === 'EMPTY' ? 'Isi jurnal' : state === 'DRAFT' ? 'Lanjutkan jurnal' : 'Lihat jurnal'} ${item.className} ${item.subjectName}`}
       >
@@ -174,10 +178,10 @@ function SlotCard({ item, date }: { item: TodayTeachingSlot; date: string }) {
 
 function TodaySkeleton() {
   return (
-    <div className="grid gap-3" aria-busy="true" aria-label="Memuat jadwal">
-      <Skeleton className="h-24 rounded-xl" />
+    <div className="grid gap-2" aria-busy="true" aria-label="Memuat jadwal">
+      <Skeleton className="h-20 rounded-xl" />
       {Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="h-20 rounded-xl" />
+        <Skeleton key={i} className="h-16 rounded-lg" />
       ))}
     </div>
   )

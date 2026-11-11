@@ -8,6 +8,7 @@
  * - Perubahan agenda FINAL memerlukan duty_agenda:correct + alasan → audit CORRECT.
  */
 import { http, type HttpHandler } from 'msw'
+import { isAdminLike } from '@/lib/permissions'
 import { dateOf, todayISO } from '@/lib/date'
 import { TEACHER_ABSENT_STATUSES } from '@/lib/enums'
 import type {
@@ -116,7 +117,7 @@ function findByDateShift(date: ISODate, shiftCode: ShiftCode) {
 
 /* ------------------------------------------------------------------ authorization */
 
-const isAdmin = (user: AuthedUser) => user.roles.includes('ADMIN')
+const isAdmin = (user: AuthedUser) => isAdminLike(user)
 
 /** Boleh membuat agenda: petugas piket yang ditugaskan pada tanggal/shift, atau admin. */
 function canCreate(user: AuthedUser, date: ISODate, shiftCode: ShiftCode) {

@@ -10,6 +10,7 @@
  *   PATCH /teacher-attendance/:id                → koreksi (versi, alasan wajib, audit CORRECT)
  */
 import { http, type HttpHandler } from 'msw'
+import { isAdminLike } from '@/lib/permissions'
 import { addDays, dateRange, todayISO } from '@/lib/date'
 import type {
   MyScheduleSlot,
@@ -141,7 +142,7 @@ function addTo(c: TeacherAttendanceCounts, a: TeacherAttendance) {
 }
 
 function sourceFor(user: AuthedUser): TeacherAttendance['source'] {
-  return user.roles.includes('ADMIN') ? 'ADMIN' : 'DUTY'
+  return isAdminLike(user) ? 'ADMIN' : 'DUTY'
 }
 
 export const teacherAttendanceHandlers: HttpHandler[] = [

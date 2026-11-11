@@ -1,7 +1,7 @@
-import { Check, Search } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { ErrorState } from '@/components/page'
-import { Input } from '@/components/ui/input'
+import { SearchField } from '@/components/search-field'
 import { Skeleton } from '@/components/ui/misc'
 import { cn } from '@/lib/utils'
 import type { ID } from '@/types/entities'
@@ -40,7 +40,7 @@ export function StudentPicker({
 
   if (!classId) {
     return (
-      <p className="rounded-lg border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed border-border/80 px-3 py-4 text-center text-sm text-muted-foreground">
         Pilih kelas terlebih dahulu untuk menampilkan daftar siswa.
       </p>
     )
@@ -48,24 +48,19 @@ export function StudentPicker({
 
   return (
     <div className="grid gap-2">
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          id={searchId}
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Cari nama atau NIS…"
-          aria-label="Cari siswa"
-          className="pl-8"
-          disabled={disabled}
-          autoComplete="off"
-        />
-      </div>
+      <SearchField
+        id={searchId}
+        value={q}
+        onValueChange={setQ}
+        placeholder="Cari nama atau NIS…"
+        aria-label="Cari siswa"
+        disabled={disabled}
+        autoComplete="off"
+      />
       {students.isPending ? (
         <div className="grid gap-1.5" aria-busy="true" aria-label="Memuat daftar siswa">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-11 rounded-lg" />
+            <Skeleton key={i} className="h-10 rounded-md" />
           ))}
         </div>
       ) : students.isError ? (
@@ -77,7 +72,7 @@ export function StudentPicker({
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
           className={cn(
-            'max-h-56 overflow-y-auto overscroll-contain rounded-lg border bg-background p-1',
+            'max-h-56 overflow-y-auto overscroll-contain rounded-lg border border-border/80 bg-card p-1',
             error && 'border-destructive',
           )}
         >
@@ -99,8 +94,8 @@ export function StudentPicker({
                   disabled={disabled}
                   onClick={() => onChange(s.id)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors duration-100 outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                    selected && 'bg-accent text-accent-foreground',
+                    'flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors duration-100 outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                    selected && 'bg-muted text-foreground',
                   )}
                 >
                   <span

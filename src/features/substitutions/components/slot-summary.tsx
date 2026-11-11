@@ -9,7 +9,7 @@ export function SlotSummary({ slot }: { slot: SubstitutionSlot }) {
   const timesOf = usePeriodTimes()
   const times = timesOf(slot.shiftCode, slot.periodStart, slot.periodEnd)
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-xl border bg-muted/40 p-3 text-sm">
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg border border-border/85 bg-muted/30 p-3 text-[13px]">
       <dt className="text-muted-foreground">Kelas</dt>
       <dd className="font-medium">{slot.className}</dd>
       <dt className="text-muted-foreground">Waktu</dt>

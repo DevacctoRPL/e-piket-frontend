@@ -1,4 +1,4 @@
-import { CalendarPlus, ChevronRight, Plus, Users } from 'lucide-react'
+import { CalendarDays, CalendarPlus, ChevronRight, Plus, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { DataTable, type ColumnDef } from '@/components/data-table'
@@ -229,6 +229,8 @@ export function ExtraActivitiesPage() {
       ) : (
         <div className={query.isPlaceholderData ? 'opacity-60 transition-opacity' : undefined}>
           <DataTable
+            title="Daftar kegiatan"
+            icon={<CalendarDays />}
             caption="Daftar kursus dan jam tambahan"
             columns={columns}
             data={query.data.data}
@@ -263,8 +265,8 @@ export function ExtraActivitiesPage() {
       )}
 
       {canWrite && (
-        <div className="sticky bottom-16 z-10 -mx-3 border-t bg-background/95 px-3 py-3 backdrop-blur sm:hidden">
-          <Button className="w-full" size="lg" onClick={() => setCreateOpen(true)}>
+        <div className="sticky bottom-16 z-10 -mx-3 border-t border-border/80 bg-background/95 px-3 py-2.5 backdrop-blur sm:hidden">
+          <Button className="w-full" onClick={() => setCreateOpen(true)}>
             <Plus /> Tambah kegiatan
           </Button>
         </div>

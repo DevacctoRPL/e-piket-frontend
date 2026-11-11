@@ -1,10 +1,10 @@
-import { StatusBadge } from '@/components/status-badge'
+import { MetaTag, StatusBadge } from '@/components/status-badge'
 import { EXTRA_ACTIVITY_TYPE_META } from '@/lib/enums'
 import { formatWallTime } from '@/lib/date'
 import type { ExtraActivity } from '@/types/entities'
 
 export function TypeBadge({ type }: { type: ExtraActivity['type'] }) {
-  return <StatusBadge meta={EXTRA_ACTIVITY_TYPE_META} value={type} />
+  return <MetaTag>{EXTRA_ACTIVITY_TYPE_META[type].label}</MetaTag>
 }
 
 /** Daftar kelas sebagai chip (satu agenda → beberapa kelas, FR-EXT-02). */
@@ -14,12 +14,12 @@ export function ClassChips({ names, max }: { names: string[]; max?: number }) {
   return (
     <ul className="flex flex-wrap gap-1" aria-label="Kelas peserta">
       {shown.map((n) => (
-        <li key={n} className="rounded-md border bg-muted/60 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap">
-          {n}
+        <li key={n}>
+          <MetaTag>{n}</MetaTag>
         </li>
       ))}
       {rest > 0 && (
-        <li className="rounded-md px-1 py-0.5 text-xs text-muted-foreground" title={names.slice(shown.length).join(', ')}>
+        <li className="px-1 py-px text-[11px] text-muted-foreground" title={names.slice(shown.length).join(', ')}>
           +{rest} lainnya
         </li>
       )}

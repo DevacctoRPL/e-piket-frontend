@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { MoreHorizontal, Pencil, Trash2, Undo2 } from 'lucide-react'
+import { AlertTriangle, Pencil, Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { FormField } from '@/components/form-field'
+import { RowActionsMenu } from '@/components/row-actions-menu'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,14 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/misc'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/features/auth/auth-context'
 import { useSettings } from '@/features/master-data/lookups'
@@ -196,9 +191,10 @@ export function CorrectDismissalDialog({
         </DialogHeader>
         <form id={`correct-${dismissal.id}`} noValidate onSubmit={(e) => void submit(e)} className="grid gap-4">
           {formError && (
-            <p role="alert" className="rounded-lg border border-tone-danger/30 bg-tone-danger-bg px-3 py-2 text-sm text-tone-danger">
-              {formError}
-            </p>
+            <Alert variant="destructive">
+              <AlertTriangle />
+              <AlertDescription>{formError}</AlertDescription>
+            </Alert>
           )}
           <DismissalDetailFields form={form} requiresPickup={requiresPickup} disabled={pending} idPrefix={`correct-${dismissal.id}`} />
           <FormField label="Alasan koreksi" required error={reasonError ?? undefined}>
@@ -239,22 +235,13 @@ export function DismissalRowActions({ dismissal }: { dismissal: StudentDismissal
   return (
     <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
       {isAwaitingReturn(dismissal) && <MarkReturnedButton dismissal={dismissal} />}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={`Aksi lain untuk catatan kepulangan`}>
-            <MoreHorizontal />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setCorrectOpen(true)}>
-            <Pencil /> Koreksi
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
-            <Trash2 /> Hapus
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <RowActionsMenu
+        label={`Aksi lain untuk catatan kepulangan ${dismissal.studentName}`}
+        actions={[
+          { label: 'Koreksi', icon: Pencil, onSelect: () => setCorrectOpen(true) },
+          { label: 'Hapus', icon: Trash2, destructive: true, separated: true, onSelect: () => setDeleteOpen(true) },
+        ]}
+      />
 
       <CorrectDismissalDialog dismissal={dismissal} open={correctOpen} onOpenChange={setCorrectOpen} />
       <ConfirmDialog

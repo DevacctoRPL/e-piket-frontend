@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   CalendarClock,
   CheckCheck,
+  CircleAlert,
   FilePenLine,
   Printer,
   RefreshCw,
@@ -15,7 +16,6 @@ import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { EmptyState, ErrorState, Page, PageHeader, TableSkeleton } from '@/components/page'
-import { StatCard } from '@/components/page'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -28,10 +28,12 @@ import { useIdempotencyKey } from '@/hooks/use-idempotent-mutation'
 import { ApiError } from '@/lib/api-client'
 import { formatDateLong, formatDateTime } from '@/lib/date'
 import { getErrorMessage } from '@/lib/error-mapping'
+import { ADMIN_ROLES } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 import type { DutyAgenda } from '@/types/entities'
 import { AbsentTeachersTable } from '../components/absent-teachers-table'
 import {
+  AgendaMetrics,
   AgendaSection,
   AgendaStatusBadge,
   CompletenessChecklist,
@@ -97,9 +99,9 @@ function DetailSkeleton() {
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-48" />
       </div>
-      <Skeleton className="h-32 rounded-xl" />
+      <Skeleton className="h-32 rounded-lg" />
       <TableSkeleton rows={4} cols={5} />
-      <Skeleton className="h-40 rounded-xl" />
+      <Skeleton className="h-40 rounded-lg" />
     </Page>
   )
 }
@@ -120,7 +122,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
 
   const isFinal = agenda.status === 'FINAL'
   const isOfficer = !!user?.teacherId && agenda.dutyTeacherIds.includes(user.teacherId)
-  const canFill = !isFinal && (is('ADMIN') || (can('duty_agenda:write') && isOfficer))
+  const canFill = !isFinal && (is(...ADMIN_ROLES) || (can('duty_agenda:write') && isOfficer))
   const canCorrect = isFinal && can('duty_agenda:correct')
   const editable = canFill || (canCorrect && correcting)
 
@@ -226,7 +228,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
         }
         description={formatDateLong(agenda.date)}
         actions={
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline">
             <Link to="cetak">
               <Printer /> Cetak
             </Link>
@@ -315,7 +317,10 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
                       ))}
                     </ul>
                   ) : (
-                    <span className="text-tone-danger">Belum ditetapkan</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <CircleAlert className="size-3.5 shrink-0 text-tone-danger" aria-hidden />
+                      Belum ditetapkan
+                    </span>
                   )}
                 </dd>
               </div>
@@ -329,22 +334,25 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
             title="Daftar guru yang harus hadir"
             description="Dihitung dari jadwal mengajar aktif dan absensi guru."
             actions={
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline">
                 <Link to={`/absensi-guru?date=${agenda.date}&shift=${encodeURIComponent(agenda.shiftCode)}`}>
                   <UserCheck /> Absensi Guru
                 </Link>
               </Button>
             }
           >
-            <div className="grid grid-cols-3 gap-3">
-              <StatCard label="Terjadwal" value={agenda.scheduledTeacherCount} />
-              <StatCard label="Hadir" value={agenda.presentTeacherCount} tone="success" />
-              <StatCard
-                label="Tidak hadir"
-                value={agenda.absentTeachers.length}
-                tone={agenda.absentTeachers.length > 0 ? 'danger' : 'neutral'}
-              />
-            </div>
+            <AgendaMetrics
+              label="Ringkasan kehadiran guru"
+              items={[
+                { label: 'Terjadwal', value: agenda.scheduledTeacherCount },
+                { label: 'Hadir', value: agenda.presentTeacherCount, tone: 'success' },
+                {
+                  label: 'Tidak hadir',
+                  value: agenda.absentTeachers.length,
+                  tone: agenda.absentTeachers.length > 0 ? 'danger' : undefined,
+                },
+              ]}
+            />
             {agenda.scheduledTeacherCount - agenda.presentTeacherCount - agenda.absentTeachers.length > 0 && (
               <p className="mt-3 text-xs text-muted-foreground tabular-nums">
                 {agenda.scheduledTeacherCount - agenda.presentTeacherCount - agenda.absentTeachers.length} guru belum
@@ -363,12 +371,12 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
             actions={
               !isFinal && (
                 <>
-                  <Button asChild variant="outline" size="sm">
+                  <Button asChild variant="outline">
                     <Link to={`/absensi-guru?date=${agenda.date}&shift=${encodeURIComponent(agenda.shiftCode)}`}>
                       Catat status guru
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" size="sm">
+                  <Button asChild variant="outline">
                     <Link to={`/jam-kosong?date=${agenda.date}&shift=${encodeURIComponent(agenda.shiftCode)}`}>
                       Tangani jam kosong
                     </Link>
@@ -381,7 +389,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
               <AbsentTeachersTable rows={agenda.absentTeachers} rowErrors={reasonRowErrors} />
             ) : (
               <div className="flex flex-col gap-3">
-                <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+                <p className="rounded-md border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
                   Tidak ada guru terjadwal yang tercatat tidak hadir.
                 </p>
                 <CheckRow
@@ -423,7 +431,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
             title="Penanggulangan jam kosong"
             actions={
               !isFinal && (
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline">
                   <Link to={`/jam-kosong?date=${agenda.date}&shift=${encodeURIComponent(agenda.shiftCode)}`}>
                     <CalendarClock /> Jam Kosong
                   </Link>
@@ -432,15 +440,18 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
             }
           >
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Jam terdampak" value={absentTotals.affected} />
-                <StatCard label="Digantikan" value={absentTotals.handled} tone="success" />
-                <StatCard
-                  label="Belum"
-                  value={absentTotals.unhandled}
-                  tone={absentTotals.unhandled > 0 ? 'warning' : 'neutral'}
-                />
-              </div>
+              <AgendaMetrics
+                label="Ringkasan jam kosong"
+                items={[
+                  { label: 'Jam terdampak', value: absentTotals.affected },
+                  { label: 'Digantikan', value: absentTotals.handled, tone: 'success' },
+                  {
+                    label: 'Belum',
+                    value: absentTotals.unhandled,
+                    tone: absentTotals.unhandled > 0 ? 'warning' : undefined,
+                  },
+                ]}
+              />
               <div className="grid gap-1.5">
                 <Label htmlFor="substitution-summary">Catatan penanggulangan</Label>
                 {editable ? (
@@ -474,7 +485,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
 
         <aside className="flex flex-col gap-3 lg:sticky lg:top-20">
           {!isFinal && <CompletenessChecklist items={checklist} />}
-          <div className="rounded-xl border bg-card p-4 text-xs text-muted-foreground shadow-xs">
+          <div className="rounded-lg border border-border/85 bg-card px-3.5 py-3 text-xs text-muted-foreground shadow-2xs">
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
               <dt>Dikirim</dt>
               <dd className="text-foreground">
@@ -493,7 +504,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
 
       {/* Bilah aksi: menempel di bawah (di atas navigasi bawah ponsel). */}
       {(canFill || (canCorrect && correcting)) && (
-        <div className="no-print sticky bottom-16 z-10 -mx-3 border-t bg-background/95 px-3 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:bottom-0">
+        <div className="no-print sticky bottom-16 z-10 -mx-3 border-t border-border/70 bg-background/95 px-3 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 md:bottom-0">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-end gap-2">
             {isDirty && <span className="mr-auto text-xs text-muted-foreground">Ada perubahan belum disimpan</span>}
             {canFill ? (
@@ -572,7 +583,7 @@ function AgendaEditor({ agenda, onReload }: { agenda: DutyAgenda; onReload: () =
           setDialog(null)
         }}
       >
-        <CompletenessChecklist items={checklist} className="shadow-none" />
+        <CompletenessChecklist items={checklist} />
       </ConfirmDialog>
 
       <ConfirmDialog
@@ -611,7 +622,7 @@ function CheckRow({
   onChange: (v: boolean) => void
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg bg-muted/40 px-3 py-2.5">
+    <div className="flex items-center gap-2.5 rounded-md border border-border/80 bg-muted/30 px-3 py-2">
       <Checkbox id={id} checked={checked} disabled={disabled} onCheckedChange={(v) => onChange(v === true)} />
       <Label htmlFor={id} className="font-normal">
         {label}
