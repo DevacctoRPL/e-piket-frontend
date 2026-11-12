@@ -66,14 +66,15 @@ export function needsTeacherLink(roles: readonly Role[]) {
 
 /**
  * Aturan 1 — pelaku mengubah akunnya sendiri: tidak boleh mencabut peran istimewa miliknya,
- * menonaktifkan diri, atau me-reset sandi sendiri (pakai ganti sandi di Profil).
+ * menonaktifkan diri, menghapus diri, atau me-reset sandi sendiri (pakai ganti sandi di Profil).
  */
 export function selfProtectionError(
   actorId: ID,
   target: Pick<AccountLike, 'id' | 'roles'>,
-  change: { roles?: readonly Role[]; status?: ActiveStatus; resetPassword?: boolean },
+  change: { roles?: readonly Role[]; status?: ActiveStatus; resetPassword?: boolean; delete?: boolean },
 ): string | null {
   if (actorId !== target.id) return null
+  if (change.delete) return 'Tidak dapat menghapus akun sendiri.'
   if (change.resetPassword) return 'Tidak dapat me-reset kata sandi akun sendiri. Gunakan Ganti kata sandi di Profil.'
   if (change.status === 'INACTIVE') return 'Tidak dapat menonaktifkan akun sendiri.'
   if (change.roles) {
@@ -89,14 +90,90 @@ export function selfProtectionError(
 export function wouldRemoveLastSuperAdmin(
   users: readonly Pick<AccountLike, 'id' | 'roles' | 'status'>[],
   targetId: ID,
-  next: { roles?: readonly Role[]; status?: ActiveStatus },
+  next: { roles?: readonly Role[]; status?: ActiveStatus; delete?: boolean },
 ): boolean {
   const isActiveSa = (u: Pick<AccountLike, 'roles' | 'status'>) => u.status === 'ACTIVE' && u.roles.includes('SUPER_ADMIN')
   const target = users.find((u) => u.id === targetId)
   if (!target || !isActiveSa(target)) return false
-  const after = { roles: next.roles ?? target.roles, status: next.status ?? target.status }
-  if (isActiveSa(after as Pick<AccountLike, 'roles' | 'status'>)) return false
+  if (!next.delete) {
+    const after = { roles: next.roles ?? target.roles, status: next.status ?? target.status }
+    if (isActiveSa(after as Pick<AccountLike, 'roles' | 'status'>)) return false
+  }
   return !users.some((u) => u.id !== targetId && isActiveSa(u))
+}
+
+/** Cek apakah menonaktifkan/menghapus sekumpulan akun sekaligus akan menghabiskan Super Admin aktif. */
+export function wouldRemoveLastSuperAdminBulk(
+  users: readonly Pick<AccountLike, 'id' | 'roles' | 'status'>[],
+  targetIds: ReadonlySet<ID>,
+  change: { status?: ActiveStatus; delete?: boolean },
+): boolean {
+  if (!change.delete && change.status !== 'INACTIVE') return false
+  const isActiveSa = (u: Pick<AccountLike, 'roles' | 'status'>) => u.status === 'ACTIVE' && u.roles.includes('SUPER_ADMIN')
+  const affectedSa = users.some((u) => targetIds.has(u.id) && isActiveSa(u))
+  if (!affectedSa) return false
+  return !users.some((u) => !targetIds.has(u.id) && isActiveSa(u))
+}
+
+const TITLE_STOPWORDS = new Set([
+  'drs',
+  'dra',
+  'ir',
+  'prof',
+  'h',
+  'hj',
+  'spd',
+  'mpd',
+  'skom',
+  'mkom',
+  'ssi',
+  'msi',
+  'st',
+  'mt',
+  'sag',
+  'mag',
+  'ssos',
+  'shum',
+  'ssn',
+  'gr',
+  'spdi',
+  'mpdi',
+  'se',
+  'mm',
+  'sh',
+])
+
+/** Buat username unik otomatis dari nama lengkap dan/atau NIP. */
+export function generateUniqueUsername(
+  name: string,
+  nip: string | null | undefined,
+  takenUsernames: ReadonlySet<string>,
+): string {
+  const beforeComma = name.split(',')[0] ?? name
+  const words = beforeComma
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 0 && !TITLE_STOPWORDS.has(w))
+
+  let base = words.slice(0, 2).join('.')
+  const cleanNip = (nip ?? '').replace(/[^0-9a-z]/gi, '').toLowerCase()
+  if (base.length < 3) {
+    base = cleanNip.length >= 3 ? `guru.${cleanNip.slice(-6)}` : `user.${cleanNip || 'baru'}`
+  }
+  base = base.slice(0, 26).replace(/^[._-]+|[._-]+$/g, '')
+  if (base.length < 3) base = 'pengguna'
+
+  if (!takenUsernames.has(base)) return base
+  if (cleanNip.length >= 4) {
+    const withNip = `${base.slice(0, 22)}.${cleanNip.slice(-4)}`
+    if (!takenUsernames.has(withNip)) return withNip
+  }
+  for (let i = 2; i < 1000; i++) {
+    const candidate = `${base.slice(0, 26)}.${i}`
+    if (!takenUsernames.has(candidate)) return candidate
+  }
+  return `${base.slice(0, 22)}.${Date.now().toString(36).slice(-4)}`
 }
 
 /**

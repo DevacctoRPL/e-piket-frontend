@@ -230,9 +230,15 @@ export interface Subject {
 export interface Teacher {
   id: ID
   nip: string
+  /** Kode guru pada matriks kehadiran sekolah (mis. '21', '14', 'A71'). */
+  code?: string | null
   name: string
   phone: string | null
   subjectIds: ID[]
+  /** Hari kehadiran terjadwal dalam sepekan (ISO weekday: 1 = Senin … 6 = Sabtu). */
+  attendanceDays?: number[]
+  /** Nomor urut baris per hari (1..6 → 1..N) pada matriks jadwal kehadiran guru. */
+  attendanceOrder?: Partial<Record<number, number>>
   status: ActiveStatus
   userId: ID | null
 }
@@ -450,11 +456,13 @@ export interface TeacherAttendance {
 
 /** Baris daftar guru terjadwal hari itu (GET /teacher-attendance?date&shiftCode). */
 export interface ScheduledTeacherRow {
-  teacher: Pick<Teacher, 'id' | 'nip' | 'name'>
+  teacher: Pick<Teacher, 'id' | 'nip' | 'name' | 'code'>
   /** Jumlah jam mengajar terjadwal hari itu. */
   scheduledPeriods: number
   slots: Pick<TimetableSlot, 'id' | 'classId' | 'subjectId' | 'periodStart' | 'periodEnd'>[]
   isDutyTeacher: boolean
+  /** true bila guru terdaftar wajib hadir pada hari tersebut di matriks Jadwal Kehadiran Guru. */
+  isAttendanceScheduled?: boolean
   attendance: TeacherAttendance | null
 }
 
@@ -828,6 +836,38 @@ export interface UserAccountInput {
   email?: string | null
   roles: Role[]
   teacherId?: ID | null
+}
+
+/** Input satu baris pada pembuatan akun massal (POST /users/bulk). */
+export interface BulkUserItemInput {
+  username?: string
+  name: string
+  email?: string | null
+  roles?: Role[]
+  teacherId?: ID | null
+  /** NIP guru untuk auto-link ke guru yang sudah ada atau auto-create guru baru. */
+  nip?: string | null
+  /** Nomor telepon opsional saat membuat/menautkan data guru. */
+  phone?: string | null
+  /** Kata sandi awal opsional; bila kosong dibuatkan sandi sementara otomatis. */
+  password?: string | null
+}
+
+export type BulkTeacherAction = 'LINKED_EXISTING' | 'CREATED_NEW' | 'NONE'
+
+export interface BulkCreatedUserResult {
+  user: UserAccount
+  temporaryPassword: string
+  teacherAction: BulkTeacherAction
+}
+
+export interface BulkUserCreateResponse {
+  created: BulkCreatedUserResult[]
+}
+
+export interface BulkUserActionResult {
+  affected: number
+  ids: ID[]
 }
 
 /** Kata sandi sementara — hanya dikirim sekali pada respons buat akun / reset. */

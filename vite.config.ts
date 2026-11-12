@@ -4,6 +4,21 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
+/**
+ * Mengurai daftar host yang diizinkan dari VITE_ALLOWED_HOSTS (mis. domain tunnel preview).
+ */
+function parseAllowedHosts(raw: string | undefined): string[] | true | undefined {
+  if (!raw) return undefined
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  if (trimmed === 'true') return true
+  const hosts = trimmed
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean)
+  return hosts.length > 0 ? hosts : undefined
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const useBackendProxy = env.VITE_ENABLE_MOCK_API === 'false'
@@ -15,6 +30,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      allowedHosts: parseAllowedHosts(env.VITE_ALLOWED_HOSTS),
       proxy: useBackendProxy
         ? {
             // Hanya aktifkan proxy ke backend Go lokal saat VITE_ENABLE_MOCK_API=false.

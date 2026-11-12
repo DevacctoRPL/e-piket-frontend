@@ -11,6 +11,7 @@ import { MetaTag, StatusBadge } from '@/components/status-badge'
 import { Input } from '@/components/ui/input'
 import type { Teacher } from '@/types/entities'
 import { useLookupMaps, useSubjects, useTeachers } from '../lookups'
+import { DAYS_MON_SAT } from '../presence-matrix-template'
 import { useMasterMutations } from '../queries'
 import { teacherSchema, type TeacherForm } from '../schemas'
 import {
@@ -43,7 +44,10 @@ export function TeachersTab() {
       (t) =>
         (!filters.values.tsubject || t.subjectIds.includes(filters.values.tsubject)) &&
         (!filters.values.tstatus || t.status === filters.values.tstatus) &&
-        (!q || t.name.toLowerCase().includes(q) || t.nip.includes(q)),
+        (!q ||
+          t.name.toLowerCase().includes(q) ||
+          t.nip.toLowerCase().includes(q) ||
+          (t.code ?? '').toLowerCase().includes(q)),
     )
   }, [teachers.data, filters.values.tsubject, filters.values.tstatus, filters.values.tq])
 
@@ -52,8 +56,38 @@ export function TeachersTab() {
 
   const columns = useMemo<ColumnDef<Teacher>[]>(
     () => [
+      {
+        accessorKey: 'code',
+        header: 'Kode',
+        cell: ({ row }) =>
+          row.original.code ? (
+            <span className="inline-flex min-w-8 items-center justify-center rounded border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-xs font-semibold tabular-nums">
+              {row.original.code}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
       { accessorKey: 'nip', header: 'NIP', cell: ({ getValue }) => <span className="font-mono text-xs tabular-nums">{getValue<string>()}</span> },
       { accessorKey: 'name', header: 'Nama', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
+      {
+        id: 'attendanceDays',
+        header: 'Hari Hadir',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const days = row.original.attendanceDays ?? []
+          if (days.length === 0) return <span className="text-muted-foreground">—</span>
+          return (
+            <div className="flex flex-wrap items-center gap-1">
+              {DAYS_MON_SAT.filter((d) => days.includes(d.day)).map((d) => (
+                <MetaTag key={d.day} className="font-mono text-[11px]">
+                  {d.short}
+                </MetaTag>
+              ))}
+            </div>
+          )
+        },
+      },
       {
         id: 'subjects',
         header: 'Mata Pelajaran',
@@ -168,7 +202,7 @@ export function TeachersTab() {
   )
 }
 
-const FIELDS = ['nip', 'name', 'phone', 'subjectIds', 'status'] as const
+const FIELDS = ['nip', 'code', 'name', 'phone', 'subjectIds', 'attendanceDays', 'status'] as const
 
 function TeacherDialog({ teacher, onClose }: { teacher: Teacher | null; onClose: () => void }) {
   const { create, update } = useMasterMutations('teachers')
@@ -179,9 +213,11 @@ function TeacherDialog({ teacher, onClose }: { teacher: Teacher | null; onClose:
     resolver: zodResolver(teacherSchema),
     defaultValues: {
       nip: teacher?.nip ?? '',
+      code: teacher?.code ?? '',
       name: teacher?.name ?? '',
       phone: teacher?.phone ?? '',
       subjectIds: teacher?.subjectIds ?? [],
+      attendanceDays: teacher?.attendanceDays ?? [1, 2, 3, 4, 5],
       status: teacher?.status ?? 'ACTIVE',
     },
   })
@@ -192,9 +228,11 @@ function TeacherDialog({ teacher, onClose }: { teacher: Teacher | null; onClose:
     setFormError(null)
     const body = {
       nip: v.nip.trim(),
+      code: v.code.trim() ? v.code.trim().toUpperCase() : null,
       name: v.name.trim(),
       phone: v.phone.trim() || null,
       subjectIds: v.subjectIds,
+      attendanceDays: v.attendanceDays,
       status: v.status,
     }
     try {
@@ -218,7 +256,10 @@ function TeacherDialog({ teacher, onClose }: { teacher: Teacher | null; onClose:
       formError={formError}
       wide
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <FormField label="Kode Guru" error={errors.code?.message} hint="Mis. 21, 14, A71">
+          <Input {...register('code')} autoComplete="off" className="font-mono uppercase" maxLength={16} />
+        </FormField>
         <FormField label="NIP / nomor pegawai" required error={errors.nip?.message}>
           <Input {...register('nip')} autoComplete="off" inputMode="numeric" className="font-mono" maxLength={30} />
         </FormField>
@@ -237,6 +278,20 @@ function TeacherDialog({ teacher, onClose }: { teacher: Teacher | null; onClose:
           </NativeSelect>
         </FormField>
       </div>
+      <Controller
+        control={control}
+        name="attendanceDays"
+        render={({ field }) => (
+          <MultiCheckList
+            label="Hari kehadiran terjadwal (Senin–Sabtu)"
+            options={DAYS_MON_SAT.map((d) => ({ value: String(d.day), label: d.label, hint: d.short }))}
+            value={field.value.map(String)}
+            onChange={(vals) => field.onChange(vals.map(Number).sort((a, b) => a - b))}
+            error={errors.attendanceDays?.message}
+            emptyText="Pilih hari kehadiran guru."
+          />
+        )}
+      />
       <Controller
         control={control}
         name="subjectIds"

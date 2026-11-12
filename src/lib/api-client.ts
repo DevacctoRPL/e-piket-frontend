@@ -138,7 +138,12 @@ function isBodyInit(body: unknown): body is BodyInit {
 }
 
 async function doFetch(path: string, options: ApiFetchOptions): Promise<Response> {
-  const { body, query, idempotencyKey, headers: initHeaders, ...init } = options
+  const { body, query, idempotencyKey, headers: initHeaders, signal: rawSignal, ...init } = options
+  if (rawSignal?.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+  // Di Vitest (jsdom + Node 26), AbortSignal milik jsdom ditolak oleh undici RequestInit.
+  const signal = import.meta.env.MODE === 'test' ? undefined : rawSignal
   const headers = new Headers(initHeaders)
   headers.set('Accept', 'application/json')
   const token = authToken.get()
@@ -161,6 +166,7 @@ async function doFetch(path: string, options: ApiFetchOptions): Promise<Response
       ...init,
       headers,
       body: requestBody,
+      ...(signal ? { signal } : {}),
       credentials: 'include',
     })
   } catch (err) {

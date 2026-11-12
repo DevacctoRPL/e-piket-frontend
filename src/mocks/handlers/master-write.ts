@@ -445,6 +445,16 @@ function validateTeacher(input: Record<string, unknown>, selfId?: ID): Omit<Teac
   const nip = requireText(fe, input, 'nip', 30)
   if (nip && !/^[A-Za-z0-9.-]+$/.test(nip)) fe.add('nip', 'invalid')
   if (nip && alive('teachers', d.teachers).some((t) => t.id !== selfId && t.nip === nip)) fe.add('nip', 'duplicate')
+  const rawCode = optionalText(input, 'code')
+  if (rawCode && rawCode.length > 16) fe.add('code', 'too_long')
+  const code = rawCode ? rawCode.toUpperCase() : null
+  if (code && !/^[A-Z0-9.-]+$/.test(code)) fe.add('code', 'Kode guru hanya huruf, angka, titik, atau tanda hubung.')
+  if (
+    code &&
+    alive('teachers', d.teachers).some((t) => t.id !== selfId && (t.code ?? '').toUpperCase() === code)
+  ) {
+    fe.add('code', 'duplicate')
+  }
   const name = requireText(fe, input, 'name', 120)
   const phone = normalizePhone(input.phone)
   if (phone && !PHONE_RE.test(phone)) fe.add('phone', 'Nomor telepon tidak valid (8–15 digit).')
@@ -452,15 +462,169 @@ function validateTeacher(input: Record<string, unknown>, selfId?: ID): Omit<Teac
   const subjectIds = [...new Set(rawSubjects.filter(isStr))]
   const known = new Set(alive('subjects', d.subjects).map((s) => s.id))
   if (subjectIds.some((id) => !known.has(id))) fe.add('subjectIds', 'Mata pelajaran tidak ditemukan.')
+  const rawDays = Array.isArray(input.attendanceDays) ? input.attendanceDays : []
+  const attendanceDays = [...new Set(rawDays.filter((x): x is number => isInt(x) && x >= 1 && x <= 6))].sort(
+    (a, b) => a - b,
+  )
+  const rawOrder = asRecord(input.attendanceOrder)
+  const attendanceOrder: Partial<Record<number, number>> = {}
+  for (let day = 1; day <= 6; day++) {
+    const val = rawOrder[String(day)]
+    if (isInt(val) && val >= 1 && val <= 500) {
+      attendanceOrder[day] = val
+    }
+  }
   const status = asStatus(input.status ?? 'ACTIVE')
   if (!status) fe.add('status', 'invalid')
   fe.throwIfAny()
-  return { nip, name, phone, subjectIds, status: status ?? 'ACTIVE' }
+  return { nip, code, name, phone, subjectIds, attendanceDays, attendanceOrder, status: status ?? 'ACTIVE' }
 }
 
-const TEACHER_AUDIT: (keyof Teacher)[] = ['nip', 'name', 'subjectIds', 'status']
+const TEACHER_AUDIT: (keyof Teacher)[] = ['nip', 'code', 'name', 'subjectIds', 'attendanceDays', 'status']
+
+function buildUniqueUsernameFromTeacherName(name: string, existingUsernames: Set<string>): string {
+  const withoutTitle = (name.split(',')[0] ?? name)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim()
+  const parts = withoutTitle.split(/\s+/).filter((p) => p.length > 1)
+  const base = parts.slice(0, 2).join('.') || 'guru'
+  let candidate = base.slice(0, 24)
+  let seq = 2
+  while (existingUsernames.has(candidate)) {
+    candidate = `${base.slice(0, 20)}.${seq}`
+    seq += 1
+  }
+  existingUsernames.add(candidate)
+  return candidate
+}
 
 const teacherHandlers: HttpHandler[] = [
+  http.post(apiPath('/teachers/presence-matrix'), async ({ request }) => {
+    await latency()
+    const user = writer(request)
+    return withIdempotency(request, async () => {
+      const payload = await body(request)
+      const rawItems = Array.isArray(payload.items) ? payload.items : []
+      if (rawItems.length === 0) {
+        return errors.validation({ items: 'Daftar matriks kehadiran guru tidak boleh kosong.' })
+      }
+      const replaceSchedule = payload.replaceSchedule !== false
+      const createAccounts = payload.createAccounts === true
+      const d = db()
+      const aliveTeachers = alive('teachers', d.teachers)
+
+      if (replaceSchedule) {
+        for (const t of aliveTeachers) {
+          t.attendanceDays = []
+          t.attendanceOrder = {}
+        }
+      }
+
+      const existingUsernames = new Set(d.users.map((u) => u.username.toLowerCase()))
+      const existingNips = new Set(aliveTeachers.map((t) => t.nip.toUpperCase()))
+      let updatedCount = 0
+      let createdCount = 0
+      let accountsCreatedCount = 0
+
+      for (const rawItem of rawItems) {
+        const item = asRecord(rawItem)
+        const name = trimmed(item.name)
+        const code = trimmed(item.code).toUpperCase()
+        if (!name) continue
+        const rawDays = Array.isArray(item.attendanceDays) ? item.attendanceDays : []
+        const attendanceDays = [...new Set(rawDays.filter((x): x is number => isInt(x) && x >= 1 && x <= 6))].sort(
+          (a, b) => a - b,
+        )
+        const rawOrder = asRecord(item.attendanceOrder)
+        const attendanceOrder: Partial<Record<number, number>> = {}
+        for (let day = 1; day <= 6; day++) {
+          const val = rawOrder[String(day)]
+          if (isInt(val) && val >= 1 && val <= 500) {
+            attendanceOrder[day] = val
+          }
+        }
+
+        const normName = (name.split(',')[0] ?? name).trim().toLowerCase()
+        let teacher = alive('teachers', d.teachers).find(
+          (t) =>
+            (code && (t.code ?? '').toUpperCase() === code) ||
+            (code && t.nip.toUpperCase() === code) ||
+            (t.name.split(',')[0] ?? t.name).trim().toLowerCase() === normName,
+        )
+
+        if (teacher) {
+          if (code) teacher.code = code
+          if (name.length >= teacher.name.length) teacher.name = name
+          teacher.attendanceDays = attendanceDays
+          teacher.attendanceOrder = attendanceOrder
+          updatedCount += 1
+        } else {
+          let nip = trimmed(item.nip) || (code ? `KODE-${code}` : `GURU-${d.teachers.length + 1}`)
+          let suffix = 2
+          while (existingNips.has(nip.toUpperCase())) {
+            nip = `${code || 'GURU'}-${suffix}`
+            suffix += 1
+          }
+          existingNips.add(nip.toUpperCase())
+          teacher = {
+            id: newId('tch'),
+            nip,
+            code: code || null,
+            name,
+            phone: null,
+            subjectIds: [],
+            attendanceDays,
+            attendanceOrder,
+            status: 'ACTIVE',
+            userId: null,
+          }
+          d.teachers.push(teacher)
+          createdCount += 1
+        }
+
+        if (createAccounts && !teacher.userId && teacher.status === 'ACTIVE') {
+          const username = buildUniqueUsernameFromTeacherName(teacher.name, existingUsernames)
+          const nowIso = new Date().toISOString()
+          const newUser = {
+            id: newId('usr'),
+            username,
+            password: 'Guru12345',
+            name: teacher.name,
+            email: null,
+            roles: ['TEACHER' as const],
+            teacherId: teacher.id,
+            status: 'ACTIVE' as const,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            lastLoginAt: null,
+            mustChangePassword: true,
+            version: 1,
+          }
+          d.users.push(newUser)
+          teacher.userId = newUser.id
+          accountsCreatedCount += 1
+        }
+      }
+
+      persist()
+      audit({
+        user,
+        action: 'UPDATE',
+        entity: 'TeacherPresenceMatrix',
+        entityId: 'matrix_mon_sat',
+        summary: `Impor matriks kehadiran guru (${updatedCount} diperbarui, ${createdCount} guru baru, ${accountsCreatedCount} akun dibuat)`,
+        after: { updatedCount, createdCount, accountsCreatedCount, totalItems: rawItems.length },
+      })
+      return ok({
+        updatedCount,
+        createdCount,
+        accountsCreatedCount,
+        totalScheduledTeachers: rawItems.length,
+      })
+    })
+  }),
+
   http.post(apiPath('/teachers'), async ({ request }) => {
     await latency()
     const user = writer(request)

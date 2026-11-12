@@ -5,13 +5,22 @@
 import { api } from '@/lib/api-client'
 import type { DataResponse, ListResponse } from '@/types/api'
 import type {
+  BulkUserActionResult,
+  BulkUserCreateResponse,
   ID,
   TemporaryPasswordResult,
   UserAccount,
   UserAccountDetail,
   UserAccountInput,
 } from '@/types/entities'
-import type { UserAccountPatch, UserListParams, UserStatusInput } from './types'
+import type {
+  BulkUserCreateInput,
+  BulkUserDeleteInput,
+  BulkUserStatusInput,
+  UserAccountPatch,
+  UserListParams,
+  UserStatusInput,
+} from './types'
 
 const unwrap = <T,>(p: Promise<DataResponse<T>>) => p.then((r) => r.data)
 const path = (id: ID) => `/users/${encodeURIComponent(id)}`
@@ -27,9 +36,21 @@ export const usersApi = {
         idempotencyKey: opts.idempotencyKey,
       }),
     ),
+  createBulk: (body: BulkUserCreateInput, opts: { idempotencyKey?: string } = {}) =>
+    unwrap(
+      api.post<DataResponse<BulkUserCreateResponse>>('/users/bulk', body, {
+        idempotencyKey: opts.idempotencyKey,
+      }),
+    ),
   update: (id: ID, body: UserAccountPatch) => unwrap(api.patch<DataResponse<UserAccount>>(path(id), body)),
+  remove: (id: ID, body?: { reason?: string }) =>
+    unwrap(api.delete<DataResponse<{ id: ID }>>(path(id), body ? { body } : undefined)),
   setStatus: (id: ID, body: UserStatusInput) =>
     unwrap(api.post<DataResponse<UserAccount>>(`${path(id)}/status`, body)),
+  bulkStatus: (body: BulkUserStatusInput) =>
+    unwrap(api.post<DataResponse<BulkUserActionResult>>('/users/bulk-status', body)),
+  bulkDelete: (body: BulkUserDeleteInput) =>
+    unwrap(api.post<DataResponse<BulkUserActionResult>>('/users/bulk-delete', body)),
   resetPassword: (id: ID, body: { reason?: string }) =>
     unwrap(api.post<DataResponse<TemporaryPasswordResult>>(`${path(id)}/reset-password`, body)),
 }

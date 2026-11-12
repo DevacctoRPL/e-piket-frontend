@@ -33,7 +33,8 @@ const FILTERS: { key: ScheduledFilter; label: string }[] = [
   { key: 'notCheckedIn', label: 'Belum check-in' },
 ]
 
-const DESCRIPTION = 'Hanya guru yang memiliki jadwal mengajar atau tugas piket pada tanggal ini.'
+const DESCRIPTION =
+  'Guru yang memiliki jadwal kehadiran mingguan, jam mengajar di kelas, atau tugas piket pada tanggal ini.'
 
 /** Daftar "Guru Terjadwal" (FR-TCH-02..04, §7.3). */
 export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCode: ShiftCode | '' }) {
@@ -52,7 +53,11 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
   const { classById } = lookups
   const slotLabel = useCallback(
     (r: ScheduledTeacherRow) => {
-      if (r.slots.length === 0) return r.isDutyTeacher ? 'Tugas piket' : '—'
+      if (r.slots.length === 0) {
+        if (r.isDutyTeacher) return 'Tugas piket'
+        if (r.isAttendanceScheduled) return 'Jadwal hadir mingguan'
+        return '—'
+      }
       return r.slots
         .map((s) => `${classById.get(s.classId)?.name ?? '…'} (jam ${s.periodStart}–${s.periodEnd})`)
         .join(', ')
@@ -69,8 +74,13 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
         cell: ({ row: { original: r } }) => (
           <div className="min-w-0">
             <p className="font-medium">{r.teacher.name}</p>
-            <p className="flex items-center gap-2 text-xs text-muted-foreground">
-              NIP {r.teacher.nip}
+            <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {r.teacher.code && (
+                <span className="rounded border border-border bg-muted/40 px-1.5 py-0.2 font-mono text-[11px] font-semibold text-foreground tabular-nums">
+                  Kode {r.teacher.code}
+                </span>
+              )}
+              <span>NIP {r.teacher.nip}</span>
               {r.isDutyTeacher && (
                 <ToneBadge tone="success" icon={ShieldCheck}>
                   Piket
@@ -228,7 +238,7 @@ export function ScheduledTeachers({ date, shiftCode }: { date: ISODate; shiftCod
             data={rows}
             getRowId={(r) => r.teacher.id}
             caption="Daftar guru terjadwal"
-            pageSize={25}
+            pageSize={50}
             emptyState={
               <EmptyState
                 title="Tidak ada guru pada kategori ini"

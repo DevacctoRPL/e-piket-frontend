@@ -11,7 +11,14 @@ import { auditKeys } from '@/features/audit/queries'
 import { masterKeys } from '@/features/master-data/lookups'
 import type { ID, UserAccountInput } from '@/types/entities'
 import { usersApi } from './api'
-import type { UserAccountPatch, UserListParams, UserStatusInput } from './types'
+import type {
+  BulkUserCreateInput,
+  BulkUserDeleteInput,
+  BulkUserStatusInput,
+  UserAccountPatch,
+  UserListParams,
+  UserStatusInput,
+} from './types'
 
 export const usersKeys = {
   all: ['users'] as const,
@@ -55,17 +62,34 @@ export function useUserMutations() {
       usersApi.create(vars.body, { idempotencyKey: vars.idempotencyKey }),
     onSuccess: () => done(),
   })
+  const createBulk = useMutation({
+    mutationFn: (vars: { body: BulkUserCreateInput; idempotencyKey?: string }) =>
+      usersApi.createBulk(vars.body, { idempotencyKey: vars.idempotencyKey }),
+    onSuccess: () => done(),
+  })
   const update = useMutation({
     mutationFn: (vars: { id: ID; body: UserAccountPatch }) => usersApi.update(vars.id, vars.body),
     onSuccess: (_d, vars) => done(vars.id),
+  })
+  const remove = useMutation({
+    mutationFn: (vars: { id: ID; reason?: string }) => usersApi.remove(vars.id, vars.reason ? { reason: vars.reason } : undefined),
+    onSuccess: () => done(),
   })
   const setStatus = useMutation({
     mutationFn: (vars: { id: ID; body: UserStatusInput }) => usersApi.setStatus(vars.id, vars.body),
     onSuccess: (_d, vars) => done(vars.id),
   })
+  const bulkStatus = useMutation({
+    mutationFn: (vars: BulkUserStatusInput) => usersApi.bulkStatus(vars),
+    onSuccess: () => done(),
+  })
+  const bulkDelete = useMutation({
+    mutationFn: (vars: BulkUserDeleteInput) => usersApi.bulkDelete(vars),
+    onSuccess: () => done(),
+  })
   const resetPassword = useMutation({
     mutationFn: (vars: { id: ID; reason?: string }) => usersApi.resetPassword(vars.id, { reason: vars.reason }),
     onSuccess: (_d, vars) => done(vars.id),
   })
-  return { create, update, setStatus, resetPassword }
+  return { create, createBulk, update, remove, setStatus, bulkStatus, bulkDelete, resetPassword }
 }

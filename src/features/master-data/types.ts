@@ -40,6 +40,27 @@ export type AcademicYearPatch = Partial<AcademicYearInput> & {
 export type ClassInput = Omit<ClassRoom, 'id' | 'studentCount'>
 export type StudentInput = Omit<Student, 'id'>
 export type TeacherInput = Omit<Teacher, 'id' | 'userId'>
+
+export interface PresenceMatrixImportItem {
+  code: string
+  name: string
+  nip?: string
+  attendanceDays: number[]
+  attendanceOrder?: Partial<Record<number, number>>
+}
+
+export interface PresenceMatrixImportInput {
+  items: PresenceMatrixImportItem[]
+  replaceSchedule?: boolean
+  createAccounts?: boolean
+}
+
+export interface PresenceMatrixImportResult {
+  updatedCount: number
+  createdCount: number
+  accountsCreatedCount: number
+  totalScheduledTeachers: number
+}
 export type SubjectInput = Omit<Subject, 'id'>
 export type ShiftInput = Omit<Shift, 'id'>
 export type PeriodInput = Omit<Period, 'id' | 'durationMinutes'>

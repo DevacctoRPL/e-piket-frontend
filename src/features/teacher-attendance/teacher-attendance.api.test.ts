@@ -115,13 +115,13 @@ describe('daftar guru terjadwal (FR-TCH-04)', () => {
     expect(e.status).toBe(403)
   })
 
-  it('hanya menampilkan guru yang punya jadwal atau tugas piket; guru absen seed terlihat', async () => {
+  it('hanya menampilkan guru yang punya jadwal, tugas piket, atau jadwal kehadiran; guru absen seed terlihat', async () => {
     await loginAs('piket')
     const today = todayISO()
     const rows = await scheduled(today)
     const slots = await api.get<DataResponse<TimetableSlot[]>>('/timetables', { date: today }).then((r) => r.data)
     const withSlots = new Set(slots.map((s) => s.teacherId))
-    for (const r of rows) expect(withSlots.has(r.teacher.id) || r.isDutyTeacher).toBe(true)
+    for (const r of rows) expect(withSlots.has(r.teacher.id) || r.isDutyTeacher || r.isAttendanceScheduled).toBe(true)
     const sick = rows.find((r) => r.teacher.id === 'tch_4')
     expect(sick?.attendance?.status).toBe('SICK')
     expect(sick?.attendance?.affectedPeriods).toBe(sick?.scheduledPeriods)

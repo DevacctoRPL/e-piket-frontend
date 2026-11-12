@@ -1,4 +1,16 @@
-import { Ban, CircleCheck, History, KeyRound, Pencil, SearchX, UserPlus, UsersRound } from 'lucide-react'
+import {
+  Ban,
+  CircleCheck,
+  History,
+  KeyRound,
+  Pencil,
+  SearchX,
+  Trash2,
+  Upload,
+  UserPlus,
+  UsersRound,
+  X,
+} from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { Avatar } from '@/components/avatar'
 import { DataTable, type ColumnDef } from '@/components/data-table'
@@ -8,16 +20,19 @@ import { RowActionsMenu, type RowAction } from '@/components/row-actions-menu'
 import { SegmentedControl } from '@/components/segmented-control'
 import { MetaTag, StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useAuth, useCurrentUser } from '@/features/auth/auth-context'
 import { MobileCard } from '@/features/master-data/components/crud-kit'
 import { formatDateTime } from '@/lib/date'
 import { ACCOUNT_STATUS_META, enumOptions, ROLE_META } from '@/lib/enums'
-import { ROLES, type ActiveStatus, type Role, type UserAccount } from '@/types/entities'
+import { ROLES, type ActiveStatus, type ID, type Role, type UserAccount } from '@/types/entities'
 import { ResetPasswordDialog } from '../components/reset-password-dialog'
 import { TemporaryPasswordDialog, type TemporaryPasswordInfo } from '../components/temporary-password-dialog'
+import { UserBulkDialog } from '../components/user-bulk-dialog'
+import { type DeleteTarget, UserDeleteDialog } from '../components/user-delete-dialog'
 import { auditHrefForActor, UserDetailSheet } from '../components/user-detail-sheet'
 import { UserFormDialog } from '../components/user-form-dialog'
-import { UserStatusDialog } from '../components/user-status-dialog'
+import { type BulkStatusTarget, UserStatusDialog } from '../components/user-status-dialog'
 import { useUserMutations, useUsers } from '../queries'
 import type { UserListParams } from '../types'
 
@@ -61,10 +76,14 @@ export function UsersPage() {
   const mutations = useUserMutations()
 
   const [form, setForm] = useState<FormState>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [detail, setDetail] = useState<UserAccount | null>(null)
   const [toReset, setToReset] = useState<UserAccount | null>(null)
   const [toToggle, setToToggle] = useState<UserAccount | null>(null)
+  const [bulkStatusTarget, setBulkStatusTarget] = useState<BulkStatusTarget>(null)
+  const [toDelete, setToDelete] = useState<DeleteTarget>(null)
   const [tempPassword, setTempPassword] = useState<TemporaryPasswordInfo | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<ID>>(() => new Set())
 
   const { create: createMutation, resetPassword: resetMutation } = mutations
   /** Buang kata sandi sementara dari state & hasil mutasi agar tidak tertinggal setelah dialog ditutup. */
@@ -75,6 +94,43 @@ export function UsersPage() {
   }, [createMutation, resetMutation])
 
   const onSearch = useCallback((q: string) => setFilter({ q }), [setFilter])
+
+  const pageRows = useMemo(() => users.data?.data ?? [], [users.data])
+  const selectableRows = useMemo(() => pageRows.filter((u) => u.id !== me.id), [pageRows, me.id])
+  const selectedAccounts = useMemo(
+    () => pageRows.filter((u) => selectedIds.has(u.id) && u.id !== me.id),
+    [pageRows, selectedIds, me.id],
+  )
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
+
+  const toggleSelectOne = useCallback((id: ID, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }, [])
+
+  const toggleSelectAllPage = useCallback(
+    (checked: boolean) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const r of selectableRows) {
+          if (checked) next.add(r.id)
+          else next.delete(r.id)
+        }
+        return next
+      })
+    },
+    [selectableRows],
+  )
+
+  const allPageSelected =
+    selectableRows.length > 0 && selectableRows.every((r) => selectedIds.has(r.id))
+  const somePageSelected =
+    !allPageSelected && selectableRows.some((r) => selectedIds.has(r.id))
 
   const actionsFor = useCallback(
     (u: UserAccount): RowAction[] => {
@@ -107,13 +163,53 @@ export function UsersPage() {
               separated: true,
               hidden: !canWrite,
             },
+        {
+          label: self ? 'Hapus akun (akun sendiri)' : 'Hapus akun',
+          icon: Trash2,
+          onSelect: () => setToDelete({ kind: 'single', account: u }),
+          destructive: true,
+          disabled: self,
+          hidden: !canWrite,
+        },
       ]
     },
     [me.id, canWrite],
   )
 
-  const columns = useMemo<ColumnDef<UserAccount, unknown>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<UserAccount, unknown>[]>(() => {
+    const cols: ColumnDef<UserAccount, unknown>[] = []
+    if (canWrite) {
+      cols.push({
+        id: 'select',
+        enableSorting: false,
+        meta: { headerClassName: 'w-10', className: 'w-10', hideOnMobile: true },
+        header: () => (
+          <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+            <Checkbox
+              aria-label="Pilih semua akun di halaman ini"
+              checked={allPageSelected ? true : somePageSelected ? 'indeterminate' : false}
+              onCheckedChange={(v) => toggleSelectAllPage(v === true)}
+              disabled={selectableRows.length === 0}
+            />
+          </div>
+        ),
+        cell: ({ row }) => {
+          const self = row.original.id === me.id
+          return (
+            <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+              <Checkbox
+                aria-label={`Pilih akun ${row.original.name}`}
+                checked={selectedIds.has(row.original.id)}
+                onCheckedChange={(v) => toggleSelectOne(row.original.id, v === true)}
+                disabled={self}
+              />
+            </div>
+          )
+        },
+      })
+    }
+
+    cols.push(
       {
         id: 'user',
         header: 'Pengguna',
@@ -172,23 +268,38 @@ export function UsersPage() {
           </div>
         ),
       },
-    ],
-    [me.id, actionsFor],
-  )
+    )
+    return cols
+  }, [
+    canWrite,
+    allPageSelected,
+    somePageSelected,
+    selectableRows.length,
+    toggleSelectAllPage,
+    me.id,
+    selectedIds,
+    toggleSelectOne,
+    actionsFor,
+  ])
 
   const statusSegment: StatusSegment = isStatus(values.status) ? values.status : 'ALL'
-  const addButton = canWrite && (
-    <Button onClick={() => setForm({ mode: 'create' })}>
-      <UserPlus /> Tambah Akun
-    </Button>
+  const headerActions = canWrite && (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="outline" onClick={() => setBulkOpen(true)}>
+        <Upload /> Tambah Massal
+      </Button>
+      <Button onClick={() => setForm({ mode: 'create' })}>
+        <UserPlus /> Tambah Akun
+      </Button>
+    </div>
   )
 
   return (
     <Page>
       <PageHeader
         title="Kelola Pengguna"
-        description="Akun, peran, dan tautan data guru seluruh pengguna sekolah. Akun tidak dihapus — nonaktifkan bila tidak dipakai."
-        actions={addButton}
+        description="Akun, peran, dan tautan data guru seluruh pengguna sekolah. Gunakan Tambah Massal (template CSV) untuk membuat banyak akun sekaligus, atau Tambah Akun untuk guru baru."
+        actions={headerActions}
       />
 
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -219,6 +330,47 @@ export function UsersPage() {
           />
         </FilterBar>
       </div>
+
+      {canWrite && selectedAccounts.length > 0 && (
+        <div
+          role="region"
+          aria-label="Aksi massal pengguna"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3.5 py-2 text-xs"
+        >
+          <span className="font-medium text-foreground">
+            {selectedAccounts.length} akun dipilih
+          </span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkStatusTarget({ accounts: selectedAccounts, status: 'ACTIVE' })}
+            >
+              <CircleCheck className="size-3.5" /> Aktifkan
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkStatusTarget({ accounts: selectedAccounts, status: 'INACTIVE' })}
+            >
+              <Ban className="size-3.5" /> Nonaktifkan
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => setToDelete({ kind: 'bulk', accounts: selectedAccounts })}
+            >
+              <Trash2 className="size-3.5" /> Hapus ({selectedAccounts.length})
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
+              <X className="size-3.5" /> Batal pilih
+            </Button>
+          </div>
+        </div>
+      )}
 
       {users.isPending ? (
         <TableSkeleton rows={8} cols={6} />
@@ -276,7 +428,7 @@ export function UsersPage() {
                   icon={<UsersRound className="size-5" />}
                   title="Belum ada akun"
                   description="Buat akun agar guru dan staf dapat masuk ke E-Piket."
-                  action={addButton || undefined}
+                  action={headerActions || undefined}
                 />
               )
             }
@@ -301,6 +453,9 @@ export function UsersPage() {
           }}
         />
       )}
+      {bulkOpen && (
+        <UserBulkDialog open={bulkOpen} mutations={mutations} onClose={() => setBulkOpen(false)} />
+      )}
       <ResetPasswordDialog
         account={toReset}
         mutations={mutations}
@@ -310,7 +465,24 @@ export function UsersPage() {
           setTempPassword(info)
         }}
       />
-      <UserStatusDialog account={toToggle} mutations={mutations} onOpenChange={(o) => !o && setToToggle(null)} />
+      <UserStatusDialog
+        account={toToggle}
+        bulkTarget={bulkStatusTarget}
+        mutations={mutations}
+        onOpenChange={(o) => {
+          if (!o) {
+            setToToggle(null)
+            setBulkStatusTarget(null)
+          }
+        }}
+        onCompleted={clearSelection}
+      />
+      <UserDeleteDialog
+        target={toDelete}
+        mutations={mutations}
+        onOpenChange={(o) => !o && setToDelete(null)}
+        onCompleted={clearSelection}
+      />
       <TemporaryPasswordDialog info={tempPassword} onClose={closeTempPassword} />
       <UserDetailSheet account={detail} onClose={() => setDetail(null)} />
     </Page>

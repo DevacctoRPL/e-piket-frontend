@@ -1,5 +1,14 @@
 # Analysis Report - E-Piket Frontend
 
+## [DONE] Implementasi CRUD Lengkap & Tambah Akun Massal (Upload Template CSV) pada Kelola Pengguna
+- **Status:** Completed (`[DONE]`)
+- **Feature:** Penambahan fitur pembuatan akun massal berbasis template CSV/TSV (`UserBulkDialog`) dengan *auto-link* dan *auto-create* Data Master Guru berdasarkan NIP, unduhan kredensial kata sandi sementara sekali pakai, penghapusan akun satuan (`DELETE /users/:id`), serta pemilihan banyak baris dengan *checkbox* untuk aksi massal (`Aktifkan`, `Nonaktifkan`, `Hapus`), sambil tetap mempertahankan fitur Tambah Akun satuan (`UserFormDialog`).
+- **Technical Implementation:**
+  1. Menambahkan kontrak tipe `BulkUserItemInput`, `BulkCreatedUserResult`, `BulkUserCreateResponse`, dan `BulkUserActionResult` pada `src/types/entities.ts` serta `src/features/users/types.ts`.
+  2. Membangun modul utilitas `src/features/users/bulk-template.ts` untuk pembuatan template CSV kosong, template terisi daftar guru aktif yang belum memiliki akun, parser multi-delimiter (`,`, `;` Excel Indonesia, `\t`), generator username unik otomatis dari nama/NIP, pemetaan fleksibel nama peran Bahasa Indonesia, serta validasi pratinjau baris demi baris.
+  3. Memperluas `src/mocks/handlers/users.ts` dan `src/mocks/handlers/users-rules.ts` dengan endpoint `POST /api/v1/users/bulk` (idempoten, otomatis menautkan guru berdasarkan NIP atau membuat entitas `Teacher` baru bila NIP belum terdaftar), `DELETE /api/v1/users/:id`, `POST /api/v1/users/bulk-status`, dan `POST /api/v1/users/bulk-delete` lengkap dengan proteksi `SELF_PROTECTED` & `LAST_SUPER_ADMIN`, pelepasan tautan `Teacher.userId`, pencabutan sesi, dan pencatatan *audit log* tanpa membocorkan kata sandi.
+  4. Membuat komponen `UserBulkDialog` (`src/features/users/components/user-bulk-dialog.tsx`), `UserDeleteDialog` (`src/features/users/components/user-delete-dialog.tsx`), dan memperbarui `UserStatusDialog` serta `UsersPage` (`src/features/users/pages/users-page.tsx`).
+
 ## [DONE] Refinemen Sistem UI Badge/Tag Anti-Slop & Hierarki Informasi Dashboard
 - **Status:** Completed (`[DONE]`)
 - **Feature:** Standarisasi komponen `StatusBadge`, `ToneBadge`, dan `MetaTag`, perbaikan tampilan peran pengguna (*User Roles*), indikator piket pada `TodayCard`, sinyal urgensi & penunjuk navigasi pada `KpiCard` (`DashboardPage` & `SuperAdminDashboard`), serta ketahanan *Mock Service Worker* (MSW) terhadap kondisi *idle tab*.

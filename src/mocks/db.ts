@@ -53,7 +53,7 @@ export type StoredSession = Omit<StudentAttendanceSession, 'summary'>
  * Naikkan setiap kali bentuk data/seed berubah. Data localStorage dengan versi lain otomatis di-seed ulang
  * agar handler baru tidak membaca data lama yang strukturnya tidak cocok (penyebab 500 di dashboard).
  */
-export const MOCK_SCHEMA_VERSION = 5
+export const MOCK_SCHEMA_VERSION = 6
 
 export interface MockDb {
   schemaVersion?: number

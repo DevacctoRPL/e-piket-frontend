@@ -1,4 +1,4 @@
-import type { ActiveStatus, Role, UserAccountInput } from '@/types/entities'
+import type { ActiveStatus, BulkUserItemInput, ID, Role, UserAccountInput } from '@/types/entities'
 
 /** Parameter daftar akun (GET /users). */
 export interface UserListParams {
@@ -20,3 +20,19 @@ export interface UserStatusInput {
   reason?: string
   version: number
 }
+
+export interface BulkUserCreateInput {
+  items: BulkUserItemInput[]
+}
+
+export interface BulkUserStatusInput {
+  ids: ID[]
+  status: ActiveStatus
+  reason?: string
+}
+
+export interface BulkUserDeleteInput {
+  ids: ID[]
+  reason?: string
+}
+

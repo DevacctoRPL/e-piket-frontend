@@ -5,6 +5,8 @@ import { loginAs } from '@/test/utils'
 import type { DataResponse, ListResponse } from '@/types/api'
 import type {
   AuditLog,
+  BulkUserActionResult,
+  BulkUserCreateResponse,
   CurrentUser,
   LoginResponse,
   TemporaryPasswordResult,
@@ -458,5 +460,114 @@ describe('users-rules (fungsi murni)', () => {
     const seen = new Set(Array.from({ length: 50 }, generateTemporaryPassword))
     for (const pw of seen) expect(pw).toMatch(TEMP_PASSWORD_RE)
     expect(seen.size).toBeGreaterThan(45)
+  })
+})
+
+describe('POST /users/bulk — tambah akun massal & auto-link/auto-create guru', () => {
+  it('menautkan guru yang sudah ada berdasarkan NIP & membuat guru baru otomatis bila NIP belum ada', async () => {
+    await loginAs('superadmin')
+    const unlinkedTeacher = db().teachers.find((t) => t.status === 'ACTIVE' && !t.userId)!
+    expect(unlinkedTeacher).toBeDefined()
+
+    const payload = {
+      items: [
+        {
+          username: 'guru.tertaut',
+          name: unlinkedTeacher.name,
+          nip: unlinkedTeacher.nip,
+          roles: ['TEACHER'],
+        },
+        {
+          // username dikosongkan -> dibuat otomatis
+          name: 'Drs. Wahyu Pratama, M.Pd.',
+          nip: '199408192020121009',
+          roles: ['TEACHER', 'DUTY_TEACHER'],
+          phone: '081298765432',
+        },
+        {
+          username: 'staf.tu.massal',
+          name: 'Nadia Putri (TU)',
+          roles: ['ADMIN'],
+        },
+      ],
+    }
+
+    const res = await api.post<DataResponse<BulkUserCreateResponse>>('/users/bulk', payload, {
+      idempotencyKey: 'bulk-create-test-1',
+    })
+    expect(res.data.created).toHaveLength(3)
+
+    const [first, second, third] = res.data.created
+    expect(first!.teacherAction).toBe('LINKED_EXISTING')
+    expect(first!.user.teacherId).toBe(unlinkedTeacher.id)
+    expect(db().teachers.find((t) => t.id === unlinkedTeacher.id)?.userId).toBe(first!.user.id)
+
+    expect(second!.teacherAction).toBe('CREATED_NEW')
+    expect(second!.user.username).toBe('wahyu.pratama')
+    expect(second!.user.teacherId).toBeTruthy()
+    const createdTeacher = db().teachers.find((t) => t.id === second!.user.teacherId)
+    expect(createdTeacher).toMatchObject({
+      nip: '199408192020121009',
+      name: 'Drs. Wahyu Pratama, M.Pd.',
+      phone: '081298765432',
+      status: 'ACTIVE',
+      userId: second!.user.id,
+    })
+
+    expect(third!.teacherAction).toBe('NONE')
+    expect(third!.user.teacherId).toBeNull()
+
+    // Kata sandi sementara valid dan tidak pernah bocor ke audit log
+    for (const c of res.data.created) {
+      expect(c.temporaryPassword).toMatch(TEMP_PASSWORD_RE)
+      expect(JSON.stringify(db().auditLogs)).not.toContain(c.temporaryPassword)
+    }
+  })
+})
+
+describe('DELETE /users/:id, POST /users/bulk-status, POST /users/bulk-delete', () => {
+  it('DELETE /users/:id melepas tautan guru, mencabut sesi, dan menolak hapus diri sendiri', async () => {
+    await loginAs('superadmin')
+    expect((await errorOf(api.delete('/users/usr_superadmin'))).code).toBe('SELF_PROTECTED')
+
+    const guru = db().users.find((u) => u.id === 'usr_guru')!
+    const linkedTeacherId = guru.teacherId!
+    expect(linkedTeacherId).toBeTruthy()
+
+    await api.delete<DataResponse<{ id: string }>>('/users/usr_guru')
+    expect(db().users.find((u) => u.id === 'usr_guru')).toBeUndefined()
+    expect(db().teachers.find((t) => t.id === linkedTeacherId)?.userId).toBeNull()
+    expect(latestAudit('usr_guru')?.action).toBe('DELETE')
+  })
+
+  it('bulk-status & bulk-delete mengelola beberapa akun sekaligus dan melindungi akun sendiri', async () => {
+    await loginAs('superadmin')
+    expect(
+      (
+        await errorOf(
+          api.post('/users/bulk-status', {
+            ids: ['usr_superadmin', 'usr_kepsek'],
+            status: 'INACTIVE',
+            reason: 'Uji',
+          }),
+        )
+      ).code,
+    ).toBe('SELF_PROTECTED')
+
+    const statusRes = await api.post<DataResponse<BulkUserActionResult>>('/users/bulk-status', {
+      ids: ['usr_kepsek', 'usr_admin'],
+      status: 'INACTIVE',
+      reason: 'Reorganisasi',
+    })
+    expect(statusRes.data.affected).toBe(2)
+    expect(db().users.find((u) => u.id === 'usr_kepsek')?.status).toBe('INACTIVE')
+
+    const delRes = await api.post<DataResponse<BulkUserActionResult>>('/users/bulk-delete', {
+      ids: ['usr_kepsek', 'usr_tu_lama'],
+      reason: 'Pembersihan akun',
+    })
+    expect(delRes.data.affected).toBe(2)
+    expect(db().users.find((u) => u.id === 'usr_kepsek')).toBeUndefined()
+    expect(db().users.find((u) => u.id === 'usr_tu_lama')).toBeUndefined()
   })
 })

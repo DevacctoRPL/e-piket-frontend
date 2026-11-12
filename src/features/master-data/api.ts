@@ -22,6 +22,8 @@ import type {
   ClassInput,
   DutyAssignmentInput,
   PeriodInput,
+  PresenceMatrixImportInput,
+  PresenceMatrixImportResult,
   ShiftInput,
   StudentInput,
   SubjectInput,
@@ -68,7 +70,15 @@ export const masterApi = {
     list: (params: StudentListParams, signal?: AbortSignal) =>
       api.get<ListResponse<Student>>('/students', { ...params }, { signal }),
   },
-  teachers: resource<Teacher, TeacherInput>('/teachers'),
+  teachers: {
+    ...resource<Teacher, TeacherInput>('/teachers'),
+    importPresenceMatrix: (body: PresenceMatrixImportInput, opts: Opts = {}) =>
+      unwrap(
+        api.post<DataResponse<PresenceMatrixImportResult>>('/teachers/presence-matrix', body, {
+          idempotencyKey: opts.idempotencyKey,
+        }),
+      ),
+  },
   subjects: resource<Subject, SubjectInput>('/subjects'),
   shifts: resource<Shift, ShiftInput>('/shifts'),
   periods: resource<Period, PeriodInput>('/periods'),

@@ -88,9 +88,15 @@ export const teacherSchema = z.object({
   nip: req('NIP/nomor pegawai')
     .max(30, 'Maksimal 30 karakter.')
     .regex(/^[A-Za-z0-9.-]+$/, 'Hanya huruf, angka, titik, atau tanda hubung.'),
+  code: z
+    .string()
+    .trim()
+    .max(16, 'Maksimal 16 karakter.')
+    .refine((v) => v === '' || /^[A-Za-z0-9.-]+$/.test(v), 'Kode hanya huruf, angka, titik, atau tanda hubung.'),
   name: req('Nama guru').max(120, 'Maksimal 120 karakter.'),
   phone,
   subjectIds: z.array(z.string()),
+  attendanceDays: z.array(z.number().int().min(1).max(6)),
   status: z.enum(['ACTIVE', 'INACTIVE']),
 })
 export type TeacherForm = z.infer<typeof teacherSchema>

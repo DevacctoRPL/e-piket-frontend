@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  CalendarCheck2,
   CalendarClock,
   CalendarRange,
   Clock,
@@ -21,6 +22,7 @@ import { PeriodsTab } from '../components/periods-tab'
 import { ShiftsTab } from '../components/shifts-tab'
 import { StudentsTab } from '../components/students-tab'
 import { SubjectsTab } from '../components/subjects-tab'
+import { TeacherPresenceTab } from '../components/teacher-presence-tab'
 import { TeachersTab } from '../components/teachers-tab'
 import { TimetableTab } from '../components/timetable-tab'
 
@@ -29,6 +31,7 @@ const TABS: { value: string; label: string; icon: ReactNode; Component: Componen
   { value: 'kelas', label: 'Kelas', icon: <School />, Component: ClassesTab },
   { value: 'siswa', label: 'Siswa', icon: <Users />, Component: StudentsTab },
   { value: 'guru', label: 'Guru', icon: <GraduationCap />, Component: TeachersTab },
+  { value: 'kehadiran-guru', label: 'Kehadiran Guru', icon: <CalendarCheck2 />, Component: TeacherPresenceTab },
   { value: 'mapel', label: 'Mata Pelajaran', icon: <BookOpen />, Component: SubjectsTab },
   { value: 'shift', label: 'Shift', icon: <Clock />, Component: ShiftsTab },
   { value: 'periode', label: 'Periode Jam', icon: <Timer />, Component: PeriodsTab },

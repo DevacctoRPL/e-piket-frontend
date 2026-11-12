@@ -36,6 +36,7 @@ import type {
   TimetableSlot,
 } from '@/types/entities'
 import { MOCK_SCHEMA_VERSION, type MockDb, type MockUser, type StoredSession } from './db'
+import { extractSmkPelitaNusantaraTeachers } from './smk-pelita-nusantara-schedule'
 
 function mulberry32(seed: number) {
   let a = seed
@@ -51,12 +52,6 @@ function mulberry32(seed: number) {
 const FIRST_M = ['Ahmad', 'Budi', 'Dimas', 'Fajar', 'Galih', 'Hendra', 'Irfan', 'Joko', 'Kevin', 'Lutfi', 'Rizky', 'Satria', 'Taufik', 'Wahyu', 'Yoga', 'Arif', 'Bayu', 'Dani', 'Eko', 'Gilang']
 const FIRST_F = ['Ayu', 'Bunga', 'Citra', 'Dewi', 'Elsa', 'Fitri', 'Gita', 'Hana', 'Indah', 'Jihan', 'Kirana', 'Laras', 'Maya', 'Nadia', 'Putri', 'Rani', 'Salsa', 'Tiara', 'Wulan', 'Zahra']
 const LAST = ['Pratama', 'Saputra', 'Wijaya', 'Hidayat', 'Nugroho', 'Lestari', 'Rahmawati', 'Kusuma', 'Santoso', 'Permata', 'Maulana', 'Ramadhan', 'Anggraini', 'Setiawan', 'Purnama', 'Utami', 'Firmansyah', 'Handayani', 'Syahputra', 'Wulandari']
-const TEACHER_NAMES = [
-  'Sri Wahyuni, S.Pd.', 'Agus Salim, S.Kom.', 'Rina Marlina, S.Pd.', 'Bambang Susilo, M.Pd.',
-  'Dwi Astuti, S.Pd.', 'Heru Kurniawan, S.T.', 'Nur Aini, S.Pd.', 'Yusuf Hakim, S.Kom.',
-  'Endang Sulastri, S.Pd.', 'Teguh Prasetyo, S.Pd.', 'Lilis Suryani, S.E.', 'Andi Firmansyah, S.Pd.',
-  'Ratna Sari, S.Pd.', 'Dedi Kurnia, S.Kom.', 'Siti Fatimah, S.Ag.', 'Wawan Setiadi, S.Or.',
-]
 const SUBJECTS: [string, string][] = [
   ['MTK', 'Matematika'], ['BIN', 'Bahasa Indonesia'], ['BIG', 'Bahasa Inggris'], ['PKN', 'Pendidikan Pancasila'],
   ['PAI', 'Pendidikan Agama'], ['PJOK', 'PJOK'], ['INF', 'Informatika'], ['PRD', 'Produktif Kejuruan'],
@@ -123,15 +118,23 @@ export function seed(): MockDb {
 
   const subjects: Subject[] = SUBJECTS.map(([code, name], i) => ({ id: `sub_${i + 1}`, code, name }))
 
-  const teachers: Teacher[] = TEACHER_NAMES.map((name, i) => ({
-    id: `tch_${i + 1}`,
-    nip: `19${70 + (i % 25)}${pad((i % 12) + 1)}${pad((i % 27) + 1)}20${pad(10 + i)}0${(i % 2) + 1}${pad(i + 1, 3)}`,
-    name,
-    phone: `0812${pad(Math.floor(rand() * 1e8), 8)}`,
-    subjectIds: [`sub_${(i % 10) + 1}`, `sub_${((i + 3) % 10) + 1}`],
-    status: 'ACTIVE',
-    userId: null,
-  }))
+  const extractedTeachers = extractSmkPelitaNusantaraTeachers()
+  const extraTeacherRand = mulberry32(20261027)
+  const teachers: Teacher[] = extractedTeachers.map((entry, i) => {
+    const phoneDigits = i < 16 ? Math.floor(rand() * 1e8) : Math.floor(extraTeacherRand() * 1e8)
+    return {
+      id: `tch_${i + 1}`,
+      nip: `19${70 + (i % 25)}${pad((i % 12) + 1)}${pad((i % 27) + 1)}20${pad(10 + (i % 15))}0${(i % 2) + 1}${pad(i + 1, 3)}`,
+      code: entry.code,
+      name: entry.name,
+      phone: `0812${pad(phoneDigits, 8)}`,
+      subjectIds: [`sub_${(i % 10) + 1}`, `sub_${((i + 3) % 10) + 1}`],
+      attendanceDays: entry.attendanceDays,
+      attendanceOrder: entry.attendanceOrder,
+      status: 'ACTIVE',
+      userId: null,
+    }
+  })
 
   const classDefs: [string, number, string, string][] = [
     ['X TKJ 1', 10, 'Teknik Komputer dan Jaringan', 'MORNING'],

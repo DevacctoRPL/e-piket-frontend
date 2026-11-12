@@ -11,7 +11,7 @@
  */
 import { http, type HttpHandler } from 'msw'
 import { isAdminLike } from '@/lib/permissions'
-import { addDays, dateRange, todayISO } from '@/lib/date'
+import { addDays, dateRange, isoDayOfWeek, todayISO } from '@/lib/date'
 import type {
   MyScheduleSlot,
   MyTeacherAttendanceDay,
@@ -332,7 +332,19 @@ export const teacherAttendanceHandlers: HttpHandler[] = [
     const slots = slotsOn(date, { shiftCode })
     const shiftCodes = shiftCode ? [shiftCode] : db().shifts.filter((s) => !isDeleted('shifts', s.id)).map((s) => s.code)
     const duty = new Set(shiftCodes.flatMap((sc) => dutyTeacherIds(date, sc)))
-    const ids = new Set<ID>([...slots.map((s) => s.teacherId), ...duty])
+    const dow = isoDayOfWeek(date)
+    const presenceScheduled = new Set(
+      db()
+        .teachers.filter(
+          (t) =>
+            !isDeleted('teachers', t.id) &&
+            t.status === 'ACTIVE' &&
+            (t.attendanceDays ?? []).includes(dow) &&
+            (!shiftCode || shiftCodeForTeacher(t.id, date) === shiftCode),
+        )
+        .map((t) => t.id),
+    )
+    const ids = new Set<ID>([...slots.map((s) => s.teacherId), ...duty, ...presenceScheduled])
 
     const rows: ScheduledTeacherRow[] = []
     for (const id of ids) {
@@ -342,7 +354,7 @@ export const teacherAttendanceHandlers: HttpHandler[] = [
       const attendance = findOn(id, date) ?? null
       // Bila memfilter shift: guru yang tercatat di shift lain tetap tampil bila terjadwal di shift ini.
       rows.push({
-        teacher: { id: t.id, nip: t.nip, name: t.name },
+        teacher: { id: t.id, nip: t.nip, name: t.name, code: t.code ?? null },
         scheduledPeriods: own.reduce((n, s) => n + s.periodCount, 0),
         slots: own.map((s) => ({
           id: s.id,
@@ -352,10 +364,16 @@ export const teacherAttendanceHandlers: HttpHandler[] = [
           periodEnd: s.periodEnd,
         })),
         isDutyTeacher: duty.has(id),
+        isAttendanceScheduled: (t.attendanceDays ?? []).includes(dow),
         attendance,
       })
     }
-    rows.sort((a, b) => a.teacher.name.localeCompare(b.teacher.name, 'id'))
+    rows.sort((a, b) => {
+      const aHasClassOrDuty = a.scheduledPeriods > 0 || a.isDutyTeacher ? 1 : 0
+      const bHasClassOrDuty = b.scheduledPeriods > 0 || b.isDutyTeacher ? 1 : 0
+      if (aHasClassOrDuty !== bHasClassOrDuty) return bHasClassOrDuty - aHasClassOrDuty
+      return a.teacher.name.localeCompare(b.teacher.name, 'id')
+    })
     return ok(rows)
   }),
 
