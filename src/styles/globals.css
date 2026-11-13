@@ -132,10 +132,7 @@
     @apply bg-background text-foreground font-sans antialiased;
     -webkit-tap-highlight-color: transparent;
   }
-  /*
-   * Scrollbar disembunyikan di seluruh aplikasi agar tampilan bersih — area tetap bisa digulir
-   * (roda mouse, touchpad, sentuh, keyboard). Hanya batang & tombol panahnya yang tidak digambar.
-   */
+  /* Scroll tetap aktif; scrollbar dan tombol panahnya hanya disembunyikan secara visual. */
   *,
   *::before,
   *::after {
@@ -150,6 +147,10 @@
   }
   .no-scrollbar {
     scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
   button,
   [role='button'] {

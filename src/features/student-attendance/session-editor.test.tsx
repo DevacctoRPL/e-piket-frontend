@@ -57,6 +57,19 @@ describe('SessionEditorPage', () => {
     expect(saved.find((r) => r.status === 'SICK')?.reason).toBe('Demam')
   }, 30_000)
 
+  it('wali kelas cannot manually mark Hadir and only sees non-present statuses', async () => {
+    await loginAs('walikelas')
+    const session = await studentAttendanceApi.openSession({ date: todayISO(), shiftCode: 'MORNING', classId: 'cls_1' })
+    renderWithProviders(<SessionEditorPage />, {
+      route: `/absensi-siswa/sesi/${session.id}`,
+      path: '/absensi-siswa/sesi/:id',
+    })
+    const list = await screen.findByRole('list', { name: 'Daftar siswa' }, { timeout: 8000 })
+    expect(screen.queryByRole('button', { name: /tandai semua hadir/i })).not.toBeInTheDocument()
+    expect(within(list).queryByRole('radio', { name: 'Hadir' })).not.toBeInTheDocument()
+    expect(within(list).getAllByRole('radio', { name: 'Sakit' }).length).toBeGreaterThan(0)
+  }, 20_000)
+
   it('shows FINAL sessions read-only for roles without correction rights', async () => {
     await loginAs('piket')
     const final = db().studentSessions.find((s) => s.date === todayISO() && s.status === 'FINAL')!

@@ -9,7 +9,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table'
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { CountChip, FramedCard } from '@/components/framed-card'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -41,6 +41,8 @@ export function DataTable<T>({
   data,
   getRowId,
   renderMobileCard,
+  mobileCardInteractive = false,
+  mobileCardLabel,
   emptyState,
   pageSize = 20,
   serverPagination,
@@ -65,6 +67,9 @@ export function DataTable<T>({
   data: T[]
   getRowId?: (row: T, index: number) => string
   renderMobileCard?: (row: T) => ReactNode
+  /** Tandai custom mobile card sebagai aktivator utama bila ia merender button/link pembungkus. */
+  mobileCardInteractive?: boolean
+  mobileCardLabel?: (row: T) => string
   emptyState?: ReactNode
   pageSize?: number
   serverPagination?: { meta: PaginationMeta; onPageChange: (page: number) => void }
@@ -92,6 +97,19 @@ export function DataTable<T>({
 
   const rows = table.getRowModel().rows
   const page = serverPagination ? serverPagination.meta.page : pagination.pageIndex + 1
+  const isInteractiveTarget = (target: EventTarget | null) =>
+    target instanceof Element &&
+    Boolean(target.closest('a,button,input,select,textarea,[role="button"],[role="link"]'))
+  const activateRow = (row: T) => {
+    onRowClick?.(row)
+  }
+  const handleRowKeyDown = (event: KeyboardEvent, row: T) => {
+    if (event.defaultPrevented || isInteractiveTarget(event.target)) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      activateRow(row)
+    }
+  }
   const totalPages = serverPagination ? serverPagination.meta.totalPages : table.getPageCount() || 1
   const totalItems = serverPagination ? serverPagination.meta.totalItems : data.length
   const goTo = (p: number) =>
@@ -159,8 +177,15 @@ export function DataTable<T>({
             {rows.map((row) => (
               <TableRow
                 key={row.id}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                className={cn(onRowClick && 'cursor-pointer', rowClassName?.(row.original))}
+                onClick={onRowClick ? (event) => {
+                  if (!isInteractiveTarget(event.target)) activateRow(row.original)
+                } : undefined}
+                onKeyDown={onRowClick ? (event) => handleRowKeyDown(event, row.original) : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                className={cn(
+                  onRowClick && 'cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50',
+                  rowClassName?.(row.original),
+                )}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
@@ -180,11 +205,17 @@ export function DataTable<T>({
           <li
             key={row.id}
             className={cn(
-              'rounded-lg border border-border/85 bg-card p-3 shadow-2xs',
-              onRowClick && 'cursor-pointer active:bg-muted/40',
+              'rounded-lg border border-border/85 bg-card p-3 shadow-2xs outline-none',
+              onRowClick && 'cursor-pointer active:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50',
               rowClassName?.(row.original),
             )}
-            onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+            onClick={onRowClick ? (event) => {
+              if (mobileCardInteractive || !isInteractiveTarget(event.target)) activateRow(row.original)
+            } : undefined}
+            onKeyDown={onRowClick && !mobileCardInteractive && !renderMobileCard ? (event) => handleRowKeyDown(event, row.original) : undefined}
+            tabIndex={onRowClick && !mobileCardInteractive && !renderMobileCard ? 0 : undefined}
+            role={onRowClick && !mobileCardInteractive && !renderMobileCard ? 'button' : undefined}
+            aria-label={onRowClick && !mobileCardInteractive && !renderMobileCard ? mobileCardLabel?.(row.original) : undefined}
           >
             {renderMobileCard ? (
               renderMobileCard(row.original)

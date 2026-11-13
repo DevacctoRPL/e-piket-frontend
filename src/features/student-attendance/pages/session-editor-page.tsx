@@ -50,6 +50,7 @@ import {
   liveSummary,
   loadDraft,
   markAllPresent,
+  HOMEROOM_NON_PRESENT_STATUSES,
   pruneEdits,
   reasonRequiredFrom,
   saveDraft,
@@ -119,7 +120,7 @@ function SessionEditor({
   rows: RosterRow[]
   reload: () => Promise<unknown>
 }) {
-  const { can } = useAuth()
+  const { can, user: me } = useAuth()
   const online = useOnline()
   const classesQ = useClasses({ scope: 'mine' })
   const shiftsQ = useShifts()
@@ -130,9 +131,11 @@ function SessionEditor({
   const cls = classesQ.data?.find((c) => c.id === session.classId)
   const shiftName = shiftsQ.data?.find((s) => s.code === session.shiftCode)?.name ?? session.shiftCode
   const isFinal = session.status === 'FINAL'
+  const isHomeroom = !!me?.roles.includes('HOMEROOM')
   const canWrite = can('student_attendance:write')
   const canCorrect = can('student_attendance:correct')
   const editable = canWrite && !isFinal
+  const editorAllowed = isHomeroom ? HOMEROOM_NON_PRESENT_STATUSES.filter((s) => allowed.includes(s)) : allowed
 
   const [edits, setEdits] = useState<Edits>({})
   const [serverErrors, setServerErrors] = useState<Record<ID, Record<string, string>>>({})
@@ -484,6 +487,13 @@ function SessionEditor({
           <AlertDescription>Anda hanya dapat melihat absensi ini.</AlertDescription>
         </Alert>
       )}
+      {!isFinal && isHomeroom && editable && (
+        <Alert variant="info">
+          <CloudOff className="size-4" />
+          <AlertTitle>Hadir berasal dari absensi digital sekolah</AlertTitle>
+          <AlertDescription>Wali Kelas hanya mengisi status tidak hadir. Data Hadir akan masuk melalui sinkronisasi server sekolah.</AlertDescription>
+        </Alert>
+      )}
 
       {formError && (
         <Alert variant="destructive">
@@ -513,7 +523,7 @@ function SessionEditor({
                 options={filterOptions}
                 ariaLabel="Saring siswa"
               />
-              {editable && (
+              {editable && !isHomeroom && (
                 <Button variant="outline" onClick={onMarkAll} disabled={bulk.isPending}>
                   <CheckCheck /> Tandai semua hadir
                 </Button>
@@ -563,7 +573,7 @@ function SessionEditor({
                   showErrors={!!errs}
                   readOnly={!editable}
                   requiresReason={requiresReason}
-                  allowed={allowed}
+                  allowed={editorAllowed}
                   onChange={onChange}
                   onCorrect={isFinal && canCorrect ? setCorrecting : undefined}
                 />

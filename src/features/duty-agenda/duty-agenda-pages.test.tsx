@@ -18,7 +18,7 @@ describe('Agenda Guru Piket pages', () => {
   it('shows the today card for the duty teacher and creates the agenda', async () => {
     await loginAs('piket')
     const user = userEvent.setup()
-    const { router } = renderWithProviders(<DutyAgendaListPage />, { route: '/agenda-piket', path: '/agenda-piket' })
+    const { router } = renderWithProviders(<DutyAgendaListPage />, { route: '/agenda-piket', path: '/agenda-piket/*' })
 
     expect(await screen.findByRole('heading', { name: 'Agenda piket hari ini' }, WAIT)).toBeInTheDocument()
     const openButtons = await screen.findAllByRole('button', { name: /Buka agenda piket/ }, WAIT)

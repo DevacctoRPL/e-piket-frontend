@@ -188,6 +188,7 @@ export function AuditLogPage() {
             data={logs.data.data}
             getRowId={(r) => r.id}
             onRowClick={setSelected}
+            mobileCardInteractive
             serverPagination={{
               meta: logs.data.meta,
               onPageChange: (p) => filters.set({ page: String(p) }),

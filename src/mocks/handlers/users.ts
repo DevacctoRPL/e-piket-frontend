@@ -28,6 +28,7 @@ import {
   type UserAccountDetail,
 } from '@/types/entities'
 import { db, isDeleted, newId, persist, REFRESH_KEY, type MockUser } from '../db'
+import { homeroomClassForTeacher, planHomeroomChange } from '../homeroom'
 import {
   apiPath,
   audit,
@@ -105,6 +106,7 @@ function failedLogins7d(userId: ID) {
 
 export function toAccount(u: MockUser): UserAccount {
   const teacher = u.teacherId ? db().teachers.find((t) => t.id === u.teacherId) : undefined
+  const homeroom = u.roles.includes('HOMEROOM') ? homeroomClassForTeacher(u.teacherId) : null
   return {
     id: u.id,
     username: u.username,
@@ -114,6 +116,8 @@ export function toAccount(u: MockUser): UserAccount {
     status: u.status,
     teacherId: u.teacherId,
     teacherName: teacher?.name ?? null,
+    homeroomClassId: homeroom?.id ?? null,
+    homeroomClassName: homeroom?.name ?? null,
     lastLoginAt: u.lastLoginAt ?? null,
     mustChangePassword: !!u.mustChangePassword,
     failedLogins7d: failedLogins7d(u.id),
@@ -298,6 +302,8 @@ export const usersHandlers: HttpHandler[] = [
         mustChangePassword: true,
         version: 1,
       }
+      const plannedClasses = planHomeroomChange(u, null, body.homeroomClassId, 'homeroomClassId' in body)
+      d.classes.forEach((cls, index) => Object.assign(cls, plannedClasses[index]))
       d.users.push(u)
       syncTeacherLink(u.id, null, teacherId)
       persist()
@@ -685,6 +691,12 @@ export const usersHandlers: HttpHandler[] = [
     requireRoleChanges(actor, target.roles, roles)
     const rolesChanged = JSON.stringify(roles) !== JSON.stringify(target.roles)
     if (rolesChanged) guardSelfAndLast(actor, target, { roles })
+    const homeroomProvided = 'homeroomClassId' in body
+    if (homeroomProvided && !actor.roles.includes('SUPER_ADMIN')) {
+      throw errors.forbidden('Penetapan Wali Kelas hanya dapat dilakukan Super Admin.')
+    }
+    const projected = { ...target, roles, teacherId }
+    const plannedClasses = planHomeroomChange(projected, target, body.homeroomClassId, homeroomProvided)
 
     const before = auditSnapshot(target)
     const prevTeacher = target.teacherId
@@ -692,6 +704,7 @@ export const usersHandlers: HttpHandler[] = [
     target.email = email
     target.roles = roles
     target.teacherId = teacherId
+    d.classes.forEach((cls, index) => Object.assign(cls, plannedClasses[index]))
     const after = auditSnapshot(target)
     const changed = Object.keys(after).filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]))
     if (changed.length === 0) return ok(toAccount(target))

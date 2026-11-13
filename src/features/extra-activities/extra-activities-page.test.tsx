@@ -13,7 +13,7 @@ const T = { timeout: 5000 }
 describe('ExtraActivitiesPage', () => {
   it('lists activities with class chips', async () => {
     await loginAs('kepsek')
-    renderWithProviders(<ExtraActivitiesPage />, { route: '/kegiatan-tambahan', path: '/kegiatan-tambahan' })
+    renderWithProviders(<ExtraActivitiesPage />, { route: '/kegiatan-tambahan', path: '/kegiatan-tambahan/*' })
     expect((await screen.findAllByText('Kursus Persiapan Sertifikasi Jaringan', {}, T)).length).toBeGreaterThan(0)
     expect(screen.getAllByText('XI TKJ 1').length).toBeGreaterThan(0)
     // pimpinan hanya melihat
@@ -26,7 +26,7 @@ describe('ExtraActivitiesPage', () => {
     const before = db().extraActivities.length
     const { router } = renderWithProviders(<ExtraActivitiesPage />, {
       route: '/kegiatan-tambahan',
-      path: '/kegiatan-tambahan',
+      path: '/kegiatan-tambahan/*',
     })
     await screen.findAllByText('Kursus Persiapan Sertifikasi Jaringan', {}, T)
     await user.click(screen.getAllByRole('button', { name: /tambah kegiatan/i })[0]!)

@@ -142,6 +142,21 @@ export function requireClassAccess(user: AuthedUser, classId: ID) {
   }
 }
 
+/** Scope khusus pengisian absensi siswa: Wali Kelas hanya boleh kelas binaan tunggal. */
+export function homeroomClassIds(user: AuthedUser): ID[] {
+  return toCurrentUser(user).homeroomClassIds
+}
+
+export function requireStudentAttendanceClassAccess(user: AuthedUser, classId: ID) {
+  if (user.roles.includes('HOMEROOM')) {
+    if (!homeroomClassIds(user).includes(classId)) {
+      throw errors.forbidden('Wali Kelas hanya dapat mengisi kelas binaannya sendiri.')
+    }
+    return
+  }
+  requireClassAccess(user, classId)
+}
+
 /* ------------------------------------------------------------------ request helpers */
 
 export async function readJson<T>(request: Request): Promise<T> {

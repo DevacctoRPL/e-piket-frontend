@@ -147,7 +147,7 @@ export function seed(): MockDb {
     ['XI MPLB 1', 11, 'Manajemen Perkantoran dan Layanan Bisnis', 'AFTERNOON'],
   ]
   // wali kelas: tch_3 → kelas 1 (akun walikelas), sisanya bergilir
-  const homeroomOrder = ['tch_3', 'tch_5', 'tch_7', 'tch_9', 'tch_11', 'tch_13', 'tch_15', 'tch_16']
+  const homeroomOrder = ['tch_3', 'tch_5', 'tch_7', 'tch_9', 'tch_11', 'tch_13', 'tch_15']
   const classes: Omit<ClassRoom, 'studentCount'>[] = classDefs.map(([name, grade, program, shiftCode], i) => ({
     id: `cls_${i + 1}`,
     name,

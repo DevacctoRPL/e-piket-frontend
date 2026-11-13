@@ -225,9 +225,12 @@ describe('PATCH /users/:id', () => {
     const guru = await getAccount('usr_guru')
     const res = await api.patch<DataResponse<UserAccount>>('/users/usr_guru', {
       roles: ['TEACHER', 'HOMEROOM'],
+      homeroomClassId: 'cls_8',
       version: guru.version,
     })
     expect(res.data.roles).toEqual(['TEACHER', 'HOMEROOM'])
+    expect(res.data.homeroomClassId).toBe('cls_8')
+    expect(res.data.homeroomClassName).toBeTruthy()
     expect(res.data.version).toBe(guru.version + 1)
     const entry = latestAudit('usr_guru')
     expect(entry?.action).toBe('ROLE_CHANGE')

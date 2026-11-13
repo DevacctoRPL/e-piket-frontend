@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -43,6 +43,9 @@ export function ConfirmDialog({
   onConfirm: (reason: string) => void | Promise<void>
   children?: ReactNode
 }) {
+  const reasonId = useId()
+  const reasonFieldId = `${reasonId}-reason`
+  const reasonErrorId = `${reasonId}-error`
   const [reason, setReason] = useState('')
   const [touched, setTouched] = useState(false)
   const reasonMissing = requireReason && reason.trim().length < 3
@@ -67,19 +70,20 @@ export function ConfirmDialog({
         {children}
         {requireReason && (
           <div className="grid gap-1.5">
-            <Label htmlFor="confirm-reason">
+            <Label htmlFor={reasonFieldId}>
               {reasonLabel} <span className="text-destructive">*</span>
             </Label>
             <Textarea
-              id="confirm-reason"
+              id={reasonFieldId}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               onBlur={() => setTouched(true)}
               aria-invalid={touched && reasonMissing}
+              aria-describedby={touched && reasonMissing ? reasonErrorId : undefined}
               placeholder="Jelaskan alasan perubahan…"
             />
             {touched && reasonMissing && (
-              <p className="text-xs text-destructive">Alasan wajib diisi (minimal 3 karakter).</p>
+              <p id={reasonErrorId} className="text-xs text-destructive">Alasan wajib diisi (minimal 3 karakter).</p>
             )}
           </div>
         )}

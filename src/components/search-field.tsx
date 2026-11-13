@@ -28,11 +28,11 @@ export function SearchField({
         type="search"
         data-slot="input"
         value={value}
+        {...props}
         onChange={(e) => {
           onChange?.(e)
           onValueChange?.(e.target.value)
         }}
-        {...props}
         className={cn(
           'flex h-8 w-full min-w-0 rounded-md border border-input bg-card py-1 pr-7 pl-8 text-[13px] shadow-2xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden',
           inputClassName,

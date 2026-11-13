@@ -36,7 +36,7 @@ export function ExportMenu({
   const [busy, setBusy] = useState(false)
   if (!can('report:export')) {
     return onPrint || printHref ? (
-      <Button variant="outline" onClick={() => (printHref ? window.open(printHref, '_blank') : onPrint?.())}>
+      <Button variant="outline" onClick={() => (printHref ? window.open(printHref, '_blank', 'noopener,noreferrer') : onPrint?.())}>
         <Printer /> Cetak
       </Button>
     ) : null
@@ -68,7 +68,7 @@ export function ExportMenu({
         </DropdownMenuItem>
         {(printHref || onPrint) && (
           <DropdownMenuItem
-            onSelect={() => (printHref ? window.open(printHref, '_blank') : onPrint?.())}
+            onSelect={() => (printHref ? window.open(printHref, '_blank', 'noopener,noreferrer') : onPrint?.())}
           >
             <Printer /> Cetak / PDF
           </DropdownMenuItem>

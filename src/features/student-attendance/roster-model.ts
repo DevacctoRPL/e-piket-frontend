@@ -17,8 +17,9 @@ import type { BulkSaveRequest, RowDraft } from './types'
 
 export type Edits = Record<ID, RowDraft>
 
-/** Status cepat yang tampil sebagai tombol (H S I A T); sisanya di menu "lainnya". */
+/** Status cepat untuk alur internal; Wali Kelas menerima daftar tanpa PRESENT di editor. */
 export const QUICK_STATUSES: AttendanceStatus[] = ['PRESENT', 'SICK', 'PERMISSION', 'ABSENT', 'LATE']
+export const HOMEROOM_NON_PRESENT_STATUSES: AttendanceStatus[] = ['SICK', 'PERMISSION', 'ABSENT', 'EXCUSED', 'LEFT_EARLY']
 export const MORE_STATUSES: AttendanceStatus[] = ['EXCUSED', 'LEFT_EARLY']
 
 export function reasonRequiredFrom(settings: SchoolSettings | undefined): AttendanceStatus[] {

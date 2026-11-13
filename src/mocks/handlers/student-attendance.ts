@@ -35,8 +35,9 @@ import {
   pick,
   readJson,
   requireAuth,
-  requireClassAccess,
   requirePermission,
+  requireStudentAttendanceClassAccess,
+  homeroomClassIds,
   searchParams,
   withIdempotency,
   type AuthedUser,
@@ -150,8 +151,8 @@ export const studentAttendanceHandlers: HttpHandler[] = [
     const shiftCode = sp.get('shiftCode')
     const dateFrom = sp.get('dateFrom')
     const dateTo = sp.get('dateTo')
-    if (classId) requireClassAccess(user, classId)
-    const scope = accessibleClassIds(user)
+    if (classId) requireStudentAttendanceClassAccess(user, classId)
+    const scope = user.roles.includes('HOMEROOM') ? homeroomClassIds(user) : accessibleClassIds(user)
     const items = db()
       .studentSessions.filter(
         (s) =>
@@ -197,7 +198,7 @@ export const studentAttendanceHandlers: HttpHandler[] = [
 
       const cls = getClass(classId)
       if (!cls) throw errors.validation({ classId: 'Kelas tidak ditemukan.' })
-      requireClassAccess(user, classId)
+      requireStudentAttendanceClassAccess(user, classId)
       if (!db().shifts.some((s) => s.code === shiftCode)) {
         throw errors.validation({ shiftCode: 'Shift tidak dikenal.' })
       }
@@ -241,7 +242,7 @@ export const studentAttendanceHandlers: HttpHandler[] = [
     const user = requireAuth(request)
     requirePermission(user, 'student_attendance:read')
     const session = findSession(params.id)
-    requireClassAccess(user, session.classId)
+    requireStudentAttendanceClassAccess(user, session.classId)
     return ok(sessionDto(session))
   }),
 
@@ -251,7 +252,7 @@ export const studentAttendanceHandlers: HttpHandler[] = [
     const user = requireAuth(request)
     requirePermission(user, 'student_attendance:read')
     const session = findSession(params.id)
-    requireClassAccess(user, session.classId)
+    requireStudentAttendanceClassAccess(user, session.classId)
     return ok(rosterRows(session, user))
   }),
 
@@ -262,7 +263,7 @@ export const studentAttendanceHandlers: HttpHandler[] = [
     return withIdempotency(request, async () => {
       requirePermission(user, 'student_attendance:write')
       const session = findSession(params.id)
-      requireClassAccess(user, session.classId)
+      requireStudentAttendanceClassAccess(user, session.classId)
       const body = await readJson<Partial<BulkSaveRequest>>(request)
 
       if (!Array.isArray(body.records)) {
@@ -307,6 +308,9 @@ export const studentAttendanceHandlers: HttpHandler[] = [
         if (studentId) seen.add(studentId)
         for (const [field, msg] of Object.entries(validateRow(r, requiresReason, allowed))) {
           details[`records.${i}.${field}`] = msg
+        }
+        if (user.roles.includes('HOMEROOM') && r.status === 'PRESENT') {
+          details[`records.${i}.status`] = 'Status Hadir berasal dari sinkronisasi absensi digital sekolah.'
         }
       })
 
@@ -411,7 +415,7 @@ export const studentAttendanceHandlers: HttpHandler[] = [
     const rec = db().studentRecords.find((r) => r.id === params.id)
     if (!rec) return errors.notFound('Record absensi tidak ditemukan.')
     const session = findSession(rec.sessionId)
-    requireClassAccess(user, session.classId)
+    requireStudentAttendanceClassAccess(user, session.classId)
     const body = await readJson<Partial<PatchRecordRequest>>(request)
 
     const isFinal = session.status === 'FINAL'
@@ -427,6 +431,9 @@ export const studentAttendanceHandlers: HttpHandler[] = [
       arrivalTime: body.arrivalTime !== undefined ? cleanText(body.arrivalTime) : rec.arrivalTime,
     }
     const details = validateRow(merged, reasonRequiredStatuses(), activeStatuses())
+    if (user.roles.includes('HOMEROOM') && merged.status === 'PRESENT') {
+      details.status = 'Status Hadir berasal dari sinkronisasi absensi digital sekolah.'
+    }
     const correctionReason = cleanText(body.correctionReason)
     if (isFinal && (!correctionReason || correctionReason.length < 3)) {
       details.correctionReason = 'Alasan koreksi wajib diisi.'
@@ -485,7 +492,7 @@ export const studentAttendanceHandlers: HttpHandler[] = [
     if (!student || (db().deleted.students?.includes(student.id) ?? false)) {
       return errors.notFound('Siswa tidak ditemukan.')
     }
-    requireClassAccess(user, student.classId)
+    requireStudentAttendanceClassAccess(user, student.classId)
 
     const sessions = new Map(
       db()

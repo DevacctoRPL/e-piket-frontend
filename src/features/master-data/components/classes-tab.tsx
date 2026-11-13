@@ -7,6 +7,7 @@ import { DataTable, type ColumnDef } from '@/components/data-table'
 import { FilterBar, FilterSelect, SearchInput, useFilters } from '@/components/filter-bar'
 import { FormField, NativeSelect } from '@/components/form-field'
 import { EmptyState, QueryBoundary } from '@/components/page'
+import { useAuth } from '@/features/auth/auth-context'
 import { StatusBadge } from '@/components/status-badge'
 import { Input } from '@/components/ui/input'
 import type { ClassRoom } from '@/types/entities'
@@ -28,6 +29,8 @@ import {
 import { FormDialog } from './form-dialog'
 
 export function ClassesTab() {
+  const { is } = useAuth()
+  const isSuperAdmin = is('SUPER_ADMIN')
   const classes = useClasses()
   const lookups = useLookupMaps()
   const shifts = useShifts()
@@ -143,6 +146,7 @@ export function ClassesTab() {
           cls={crud.dialog.mode === 'edit' ? crud.dialog.item : null}
           allClasses={classes.data ?? []}
           onClose={crud.close}
+          canManageHomeroom={isSuperAdmin}
         />
       )}
       <DeleteDialog
@@ -172,10 +176,12 @@ function ClassDialog({
   cls,
   allClasses,
   onClose,
+  canManageHomeroom,
 }: {
   cls: ClassRoom | null
   allClasses: ClassRoom[]
   onClose: () => void
+  canManageHomeroom: boolean
 }) {
   const { create, update } = useMasterMutations('classes')
   const shifts = useShifts()
@@ -264,22 +270,28 @@ function ClassDialog({
           </NativeSelect>
         </FormField>
       </div>
-      <FormField label="Wali kelas" error={errors.homeroomTeacherId?.message} hint="Satu guru hanya dapat menjadi wali satu kelas.">
-        <NativeSelect {...register('homeroomTeacherId')}>
-          <option value="">Belum ditentukan</option>
-          {(teachers.data ?? [])
-            .filter((t) => t.status === 'ACTIVE')
-            .map((t) => {
-              const taken = takenHomeroom.get(t.id)
-              return (
-                <option key={t.id} value={t.id} disabled={!!taken}>
-                  {t.name}
-                  {taken ? ` — wali ${taken}` : ''}
-                </option>
-              )
-            })}
-        </NativeSelect>
-      </FormField>
+      {canManageHomeroom ? (
+        <FormField label="Wali kelas" error={errors.homeroomTeacherId?.message} hint="Satu guru hanya dapat menjadi wali satu kelas aktif. Penetapan ini dikelola Super Admin.">
+          <NativeSelect {...register('homeroomTeacherId')}>
+            <option value="">Belum ditentukan</option>
+            {(teachers.data ?? [])
+              .filter((t) => t.status === 'ACTIVE')
+              .map((t) => {
+                const taken = takenHomeroom.get(t.id)
+                return (
+                  <option key={t.id} value={t.id} disabled={!!taken}>
+                    {t.name}
+                    {taken ? ` — wali ${taken}` : ''}
+                  </option>
+                )
+              })}
+          </NativeSelect>
+        </FormField>
+      ) : (
+        <p className="rounded-md border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          Wali kelas dikelola oleh Super Admin.
+        </p>
+      )}
     </FormDialog>
   )
 }

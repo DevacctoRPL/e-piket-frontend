@@ -818,6 +818,8 @@ export interface UserAccount {
   status: ActiveStatus
   teacherId: ID | null
   teacherName: string | null
+  homeroomClassId?: ID | null
+  homeroomClassName?: string | null
   lastLoginAt: ISODateTime | null
   mustChangePassword: boolean
   failedLogins7d: number
@@ -836,6 +838,7 @@ export interface UserAccountInput {
   email?: string | null
   roles: Role[]
   teacherId?: ID | null
+  homeroomClassId?: ID | null
 }
 
 /** Input satu baris pada pembuatan akun massal (POST /users/bulk). */

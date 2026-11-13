@@ -20,7 +20,9 @@ import type {
   TimetableSlot,
 } from '@/types/entities'
 import { db, isDeleted, newId, persist, softDelete } from '../db'
+import { requireValidHomerooms } from '../homeroom'
 import { activeAcademicYear, phoneForUser, rosterForClass } from '../domain'
+import { hasRole } from '@/lib/permissions'
 import {
   apiPath,
   audit,
@@ -250,8 +252,8 @@ function validateClass(input: Record<string, unknown>, selfId?: ID): Omit<ClassR
   if (!shiftCode) fe.add('shiftCode', 'required')
   else if (!alive('shifts', d.shifts).some((s) => s.code === shiftCode)) fe.add('shiftCode', 'Shift tidak ditemukan.')
   const homeroomTeacherId = trimmed(input.homeroomTeacherId) || null
-  if (homeroomTeacherId && !alive('teachers', d.teachers).some((t) => t.id === homeroomTeacherId)) {
-    fe.add('homeroomTeacherId', 'Guru tidak ditemukan.')
+  if (homeroomTeacherId && !alive('teachers', d.teachers).some((t) => t.id === homeroomTeacherId && t.status === 'ACTIVE')) {
+    fe.add('homeroomTeacherId', 'Guru aktif tidak ditemukan.')
   }
   const academicYearId = trimmed(input.academicYearId) || activeAcademicYear()?.id || ''
   if (!alive('academicYears', d.academicYears).some((y) => y.id === academicYearId)) {
@@ -269,7 +271,8 @@ function validateClass(input: Record<string, unknown>, selfId?: ID): Omit<ClassR
   }
   if (homeroomTeacherId) {
     const other = alive('classes', d.classes).find(
-      (c) => c.id !== selfId && c.academicYearId === academicYearId && c.homeroomTeacherId === homeroomTeacherId,
+      (c) => c.id !== selfId && c.status === 'ACTIVE' && status === 'ACTIVE' &&
+        c.academicYearId === academicYearId && c.homeroomTeacherId === homeroomTeacherId,
     )
     if (other) fe.add('homeroomTeacherId', `Guru ini sudah menjadi wali kelas ${other.name}.`)
   }
@@ -296,8 +299,13 @@ const classHandlers: HttpHandler[] = [
     await latency()
     const user = writer(request)
     return withIdempotency(request, async () => {
-      const v = validateClass(await body(request))
+      const input = await body(request)
+      const v = validateClass(input)
+      if (v.homeroomTeacherId && !hasRole(user, 'SUPER_ADMIN')) {
+        throw errors.forbidden('Penetapan Wali Kelas hanya dapat dilakukan Super Admin.')
+      }
       const cls = { id: newId('cls'), ...v }
+      requireValidHomerooms([...db().classes, cls])
       db().classes.push(cls)
       persist()
       audit({ user, action: 'CREATE', entity: 'ClassRoom', entityId: cls.id, summary: `Membuat kelas ${cls.name}`, after: pick(cls, CLASS_AUDIT) })
@@ -310,7 +318,12 @@ const classHandlers: HttpHandler[] = [
     const user = writer(request)
     const cls = db().classes.find((c) => c.id === idParam(params) && !isDeleted('classes', c.id))
     if (!cls) return errors.notFound('Kelas tidak ditemukan.')
-    const v = validateClass(merged(cls, await body(request)), cls.id)
+    const input = await body(request)
+    const next = merged(cls, input)
+    if ('homeroomTeacherId' in input && input.homeroomTeacherId !== cls.homeroomTeacherId && !hasRole(user, 'SUPER_ADMIN')) {
+      throw errors.forbidden('Penetapan Wali Kelas hanya dapat dilakukan Super Admin.')
+    }
+    const v = validateClass(next, cls.id)
     if (v.shiftCode !== cls.shiftCode) {
       const slots = alive('timetable', db().timetable).filter((s) => s.classId === cls.id).length
       if (slots > 0) {
@@ -320,6 +333,8 @@ const classHandlers: HttpHandler[] = [
       }
     }
     const before = pick(cls, CLASS_AUDIT)
+    const projectedClasses = db().classes.map((c) => (c.id === cls.id ? { ...c, ...v } : c))
+    requireValidHomerooms(projectedClasses)
     Object.assign(cls, v)
     persist()
     audit({ user, action: 'UPDATE', entity: 'ClassRoom', entityId: cls.id, summary: `Mengubah kelas ${cls.name}`, before, after: pick(cls, CLASS_AUDIT) })

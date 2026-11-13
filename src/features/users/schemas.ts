@@ -25,6 +25,7 @@ export const userFormSchema = z
       .refine((v) => v === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v), 'Format email tidak valid.'),
     roles: z.array(z.enum(ROLES)).min(1, 'Pilih minimal satu peran.'),
     teacherId: z.string(),
+    homeroomClassId: z.string(),
   })
   .superRefine((v, ctx) => {
     if (needsTeacherLink(v.roles) && !v.teacherId)
@@ -32,6 +33,18 @@ export const userFormSchema = z
         code: 'custom',
         path: ['teacherId'],
         message: 'Peran Guru, Guru Piket, dan Wali Kelas wajib ditautkan ke data guru.',
+      })
+    if (v.roles.includes('HOMEROOM') && !v.homeroomClassId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['homeroomClassId'],
+        message: 'Pilih satu kelas binaan untuk akun Wali Kelas.',
+      })
+    if (!v.roles.includes('HOMEROOM') && v.homeroomClassId)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['homeroomClassId'],
+        message: 'Penugasan kelas hanya untuk peran Wali Kelas.',
       })
   })
 export type UserFormValues = z.input<typeof userFormSchema>

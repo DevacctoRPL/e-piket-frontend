@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { FormField, NativeSelect } from '@/components/form-field'
 import { Input } from '@/components/ui/input'
 import { useCurrentUser } from '@/features/auth/auth-context'
-import { useTeachers } from '@/features/master-data/lookups'
+import { useActiveAcademicYear, useClasses, useTeachers } from '@/features/master-data/lookups'
 import {
   mapMutationError,
   useSubmitKey,
@@ -18,7 +18,7 @@ import type { useUserMutations } from '../queries'
 import { needsTeacherLink, userFormSchema, type UserFormOutput, type UserFormValues } from '../schemas'
 import { RoleChecklist, type RoleLock } from './role-checklist'
 
-const FIELDS = ['username', 'name', 'email', 'roles', 'teacherId'] as const
+const FIELDS = ['username', 'name', 'email', 'roles', 'teacherId', 'homeroomClassId'] as const
 
 type Mutations = ReturnType<typeof useUserMutations>
 
@@ -40,6 +40,8 @@ export function UserFormDialog({
 }) {
   const me = useCurrentUser()
   const teachers = useTeachers()
+  const classes = useClasses()
+  const { year } = useActiveAcademicYear()
   const submitKey = useSubmitKey()
   const [formError, setFormError] = useState<FormError>(null)
   const isSelf = !!account && account.id === me.id
@@ -52,6 +54,7 @@ export function UserFormDialog({
       email: account?.email ?? '',
       roles: account?.roles ?? [],
       teacherId: account?.teacherId ?? '',
+      homeroomClassId: account?.homeroomClassId ?? '',
     },
   })
   const { register, handleSubmit, setError, control, formState, watch, getValues, setValue } = form
@@ -94,6 +97,7 @@ export function UserFormDialog({
       email: v.email || null,
       roles: v.roles,
       teacherId: v.teacherId || null,
+      homeroomClassId: v.homeroomClassId || null,
     }
     try {
       if (account) {
@@ -112,6 +116,11 @@ export function UserFormDialog({
   })
 
   const linkRequired = needsTeacherLink(roles)
+  const homeroomRequired = roles.includes('HOMEROOM')
+  const takenClassIds = useMemo(
+    () => new Set((classes.data ?? []).filter((c) => c.homeroomTeacherId && c.homeroomTeacherId !== account?.teacherId).map((c) => c.id)),
+    [classes.data, account?.teacherId],
+  )
 
   return (
     <FormDialog
@@ -186,11 +195,38 @@ export function UserFormDialog({
           </NativeSelect>
         </FormField>
       </div>
+      {homeroomRequired && (
+        <FormField
+          label="Kelas binaan"
+          required
+          error={errors.homeroomClassId?.message}
+          hint={year ? `Satu akun hanya boleh memimpin satu kelas aktif pada ${year.name}.` : 'Satu akun hanya boleh memimpin satu kelas aktif.'}
+        >
+          <NativeSelect {...register('homeroomClassId')} disabled={classes.isPending}>
+            <option value="">{classes.isPending ? 'Memuat kelas…' : 'Pilih satu kelas'}</option>
+            {(classes.data ?? [])
+              .filter((c) => c.status === 'ACTIVE' && (!year || c.academicYearId === year.id))
+              .map((c) => (
+                <option key={c.id} value={c.id} disabled={takenClassIds.has(c.id)}>
+                  {c.name}{takenClassIds.has(c.id) ? ' — sudah memiliki wali' : ''}
+                </option>
+              ))}
+          </NativeSelect>
+        </FormField>
+      )}
       <Controller
         control={control}
         name="roles"
         render={({ field }) => (
-          <RoleChecklist value={field.value} onChange={field.onChange} locked={locks} error={errors.roles?.message} />
+          <RoleChecklist
+            value={field.value}
+            onChange={(next) => {
+              field.onChange(next)
+              if (!next.includes('HOMEROOM')) setValue('homeroomClassId', '', { shouldDirty: true })
+            }}
+            locked={locks}
+            error={errors.roles?.message}
+          />
         )}
       />
     </FormDialog>
