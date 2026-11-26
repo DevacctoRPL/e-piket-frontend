@@ -6,19 +6,17 @@ import { deltaTone, formatDelta, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { DashboardTrends } from '@/types/entities'
 
-// Building block bersama kini tinggal di src/components — diekspor ulang agar impor lama tetap jalan.
 export { FramedCard } from '@/components/framed-card'
 export { KpiCard as KpiSparkCard, type KpiCardProps as KpiSparkCardProps } from '@/components/kpi-card'
 
-type TrendMetric = 'present' | 'nonPresent' | 'logs'
+type TrendMetric = 'absent' | 'agenda' | 'emptySlots'
 
 const METRICS: Record<TrendMetric, { label: string; unit: string; upIsGood: boolean }> = {
-  present: { label: 'Hadir', unit: 'siswa hadir', upIsGood: true },
-  nonPresent: { label: 'S/I/A', unit: 'siswa S/I/A', upIsGood: false },
-  logs: { label: 'Jurnal', unit: 'jurnal terisi', upIsGood: true },
+  absent: { label: 'Siswa Tidak Hadir', unit: 'siswa tidak hadir', upIsGood: false },
+  agenda: { label: 'Agenda TTD', unit: 'agenda sudah TTD', upIsGood: true },
+  emptySlots: { label: 'Jam Kosong', unit: 'slot jam kosong', upIsGood: false },
 }
 
-/** Langkah sumbu Y yang "bulat" (1/2/2,5/5 × 10ⁿ) agar 4 interval berlabel rapi. */
 function niceMax(raw: number) {
   const target = Math.max(4, raw) / 4
   const pow = 10 ** Math.floor(Math.log10(target))
@@ -26,11 +24,6 @@ function niceMax(raw: number) {
   return step * 4
 }
 
-/**
- * Grafik batang 7 hari (setara "Ticket Volume Trend" referensi Nuvio):
- * satu batang abu per hari, batang tanggal terpilih gelap dengan garis referensi putus-putus
- * dan tooltip kecil; sumbu Y di kanan; tinggi batang proporsional terhadap sumbu.
- */
 export function AttendanceTrendChart({
   trends,
   footer,
@@ -38,10 +31,9 @@ export function AttendanceTrendChart({
 }: {
   trends: DashboardTrends
   footer?: ReactNode
-  /** Tanggal yang disorot pertama kali (default: hari terakhir pada deret). */
   selectedDate?: string
 }) {
-  const [metric, setMetric] = useState<TrendMetric>('present')
+  const [metric, setMetric] = useState<TrendMetric>('absent')
   const days = trends.days
   const initialIdx = Math.max(
     0,
@@ -52,15 +44,15 @@ export function AttendanceTrendChart({
 
   const meta = METRICS[metric]
   const values = days.map((d) =>
-    metric === 'nonPresent' ? d.nonPresent : metric === 'logs' ? d.logsFilled : d.present,
+    metric === 'agenda' ? d.agendaSigned : metric === 'emptySlots' ? d.emptySlots : d.absentStudents,
   )
   const total = values.reduce((a, b) => a + b, 0)
   const deltaPct =
-    metric === 'nonPresent'
-      ? trends.nonPresentDeltaPct
-      : metric === 'logs'
-        ? trends.logComplianceDeltaPct
-        : trends.presentDeltaPct
+    metric === 'agenda'
+      ? trends.agendaSignedDeltaPct
+      : metric === 'emptySlots'
+        ? trends.emptySlotsDeltaPct
+        : trends.absentDeltaPct
   const tone = deltaTone(deltaPct, meta.upIsGood)
 
   const yMax = niceMax(Math.max(...values, 1))
@@ -68,7 +60,7 @@ export function AttendanceTrendChart({
 
   return (
     <FramedCard
-      title="Tren Kehadiran"
+      title="Tren Operasional 7 Hari"
       titleId="trend-chart-title"
       icon={<BarChart3 />}
       headerRight={
@@ -106,10 +98,7 @@ export function AttendanceTrendChart({
           {days.map((d, i) => `${d.dayShort} ${d.date}: ${values[i]} ${meta.unit}`).join('; ')}
         </figcaption>
         <div className="grid grid-cols-[1fr_auto] gap-3" aria-hidden>
-          {/* Area plot */}
-          {/* overflow-x-clip: garis referensi berhenti tepat di tepi kanan plot, tooltip tetap bebas ke atas */}
           <div className="relative h-56 overflow-x-clip" onPointerLeave={() => setHoverIdx(null)}>
-            {/* garis grid */}
             <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
               {yTicks.map((t, i) => (
                 <div
@@ -139,12 +128,10 @@ export function AttendanceTrendChart({
                     >
                       {isActive && (
                         <>
-                          {/* garis referensi dari tepi kanan batang ke sumbu Y */}
                           <span
                             aria-hidden
                             className="chart-ref-line pointer-events-none absolute top-0 left-full w-[200vw] -translate-y-1/2"
                           />
-                          {/* tooltip gelap di kiri-atas batang, tengah vertikal di puncak batang */}
                           <span
                             className={cn(
                               'pointer-events-none absolute top-0 -translate-y-1/2 rounded-md border border-white/10 bg-chart-tooltip px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-primary-foreground shadow-sm shadow-black/15 tabular-nums',
@@ -162,7 +149,6 @@ export function AttendanceTrendChart({
             </div>
           </div>
 
-          {/* Sumbu Y kanan */}
           <div className="flex h-56 flex-col justify-between text-right text-xs text-muted-foreground tabular-nums">
             {yTicks.map((t) => (
               <span key={t} className="-my-1.5 leading-3">
@@ -172,7 +158,6 @@ export function AttendanceTrendChart({
           </div>
         </div>
 
-        {/* Label hari */}
         <div className="mt-2 grid grid-cols-[1fr_auto] gap-3" aria-hidden>
           <div className="grid grid-cols-7 gap-2.5 px-1 text-center text-xs sm:gap-5 sm:px-2">
             {days.map((d, i) => (

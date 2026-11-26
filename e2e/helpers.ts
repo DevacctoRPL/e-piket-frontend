@@ -3,14 +3,7 @@
 // tsconfig.node.json only ships the ES2023 lib.
 import { expect, type Page } from '@playwright/test'
 
-export type DemoUser =
-  | 'superadmin'
-  | 'admin'
-  | 'kepsek'
-  | 'piket'
-  | 'guru'
-  | 'walikelas'
-  | 'koordinator'
+export type DemoUser = 'piket' | 'piket.budi' | 'operator.piket'
 
 /** Login lewat form; data mock direset dulu agar tiap test mulai dari seed yang sama. */
 export async function login(page: Page, username: DemoUser, next = '/') {

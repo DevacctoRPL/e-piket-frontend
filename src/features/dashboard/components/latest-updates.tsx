@@ -1,11 +1,10 @@
 import {
+  BookOpenCheck,
   CalendarClock,
-  ClipboardList,
-  DoorOpen,
   History,
   NotebookPen,
-  ShieldCheck,
   UserCheck,
+  UserX,
   type LucideIcon,
 } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
@@ -24,22 +23,16 @@ const TABS: Array<{ value: BucketTab; label: string }> = [
   { value: 'week', label: 'Minggu ini' },
 ]
 
-/** Kotak ikon selalu netral; hanya ikonnya yang diberi warna makna (gaya referensi Nuvio). */
 const KIND: Record<DashboardActivityItem['kind'], { icon: LucideIcon; iconClass: string }> = {
-  ATTENDANCE: { icon: ClipboardList, iconClass: 'text-tone-success' },
+  ABSENTEE: { icon: UserX, iconClass: 'text-tone-warning' },
   TEACHER: { icon: UserCheck, iconClass: 'text-tone-danger' },
   SUBSTITUTION: { icon: CalendarClock, iconClass: 'text-tone-info' },
-  DISMISSAL: { icon: DoorOpen, iconClass: 'text-tone-warning' },
-  LOG: { icon: NotebookPen, iconClass: 'text-tone-purple' },
-  DUTY: { icon: ShieldCheck, iconClass: 'text-muted-foreground' },
+  AGENDA: { icon: NotebookPen, iconClass: 'text-tone-purple' },
+  EXTRA: { icon: BookOpenCheck, iconClass: 'text-tone-success' },
 }
 
 const LIMIT = 10
 
-/**
- * Panel "Pembaruan Terkini" (setara "Latest Updates" referensi Nuvio): kontrol segmen periode,
- * pencarian, jumlah aktivitas, lalu linimasa vertikal dengan garis penghubung.
- */
 export function LatestUpdates({
   activities = [],
   className,
@@ -112,7 +105,6 @@ export function LatestUpdates({
             const last = i === arr.length - 1
             return (
               <li key={item.id} className="relative flex gap-3 pb-3 last:pb-0">
-                {/* garis penghubung linimasa */}
                 {!last && (
                   <span aria-hidden className="absolute top-8 bottom-0 left-[13.5px] w-px bg-border" />
                 )}

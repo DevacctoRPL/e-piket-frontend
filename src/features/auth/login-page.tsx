@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/misc'
 import { env } from '@/config/env'
 import { ApiError } from '@/lib/api-client'
 import { applyServerErrors, getErrorMessage } from '@/lib/error-mapping'
-import { cn } from '@/lib/utils'
+import { cn, safeNextPath } from '@/lib/utils'
 import gedungBg from '../../../Gedung.png'
 import { useAuth } from './auth-context'
 
@@ -23,23 +23,11 @@ const schema = z.object({
 })
 type FormValues = z.infer<typeof schema>
 
-const TOP_DEMO_ACCOUNTS = [
-  ['superadmin', 'Super Admin'],
-  ['admin', 'Admin/TU'],
-  ['kepsek', 'Pimpinan'],
-] as const
-
-const BOTTOM_DEMO_ACCOUNTS = [
-  ['piket', 'Guru Piket'],
-  ['guru', 'Guru'],
-  ['walikelas', 'Wali Kelas'],
-  ['koordinator', 'Koordinator'],
-] as const
-
-/** Hanya izinkan redirect ke path internal (cegah open redirect). */
-function safeNext(next: string | null) {
-  return next && next.startsWith('/') && !next.startsWith('//') ? next : '/'
-}
+const DEMO_ACCOUNT = {
+  username: 'piket',
+  label: 'Guru Piket',
+  description: 'Akses operasional piket harian',
+} as const
 
 export function LoginPage() {
   const { login, sessionExpired } = useAuth()
@@ -74,7 +62,7 @@ export function LoginPage() {
     setFormError(null)
     try {
       await login(values)
-      navigate(safeNext(sp.get('next')), { replace: true })
+      navigate(safeNextPath(sp.get('next')), { replace: true })
     } catch (e) {
       if (!applyServerErrors(e, setError, ['username', 'password'])) {
         setFormError(
@@ -222,8 +210,8 @@ export function LoginPage() {
 
               {forgotOpen && (
                 <p className="rounded-lg border border-border/80 bg-muted/45 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                  Hubungi <strong className="font-medium text-foreground">Super Admin</strong> sekolah untuk mereset
-                  kata sandi akun Anda.
+                  Hubungi petugas <strong className="font-medium text-foreground">Guru Piket</strong> pengelola akun
+                  untuk mereset kata sandi akun Anda.
                 </p>
               )}
 
@@ -239,7 +227,7 @@ export function LoginPage() {
             </form>
           </div>
 
-          {/* Bagian bawah bingkai: pemilih akun demo terstruktur */}
+          {/* Bagian bawah bingkai: tombol isi akun demo Guru Piket */}
           {env.enableMockApi && (
             <div className="px-3.5 pt-2.5 pb-2">
               <div className="flex items-center justify-between px-0.5 text-[11px] text-muted-foreground">
@@ -251,39 +239,20 @@ export function LoginPage() {
                   </code>
                 </span>
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-1.5">
-                {TOP_DEMO_ACCOUNTS.map(([u, label]) => {
-                  const selected = activeUser === u
-                  return (
-                    <Button
-                      key={u}
-                      type="button"
-                      size="sm"
-                      variant={selected ? 'default' : 'outline'}
-                      className={cn('h-7 w-full px-2 text-xs', !selected && 'bg-card/90 hover:bg-card')}
-                      onClick={() => fillDemo(u)}
-                    >
-                      {label}
-                    </Button>
-                  )
-                })}
-              </div>
-              <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                {BOTTOM_DEMO_ACCOUNTS.map(([u, label]) => {
-                  const selected = activeUser === u
-                  return (
-                    <Button
-                      key={u}
-                      type="button"
-                      size="sm"
-                      variant={selected ? 'default' : 'outline'}
-                      className={cn('h-7 w-full px-2 text-xs', !selected && 'bg-card/90 hover:bg-card')}
-                      onClick={() => fillDemo(u)}
-                    >
-                      {label}
-                    </Button>
-                  )
-                })}
+              <div className="mt-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={activeUser === DEMO_ACCOUNT.username ? 'default' : 'outline'}
+                  className={cn(
+                    'h-8 w-full justify-between px-3 text-xs',
+                    activeUser !== DEMO_ACCOUNT.username && 'bg-card/90 hover:bg-card',
+                  )}
+                  onClick={() => fillDemo(DEMO_ACCOUNT.username)}
+                >
+                  <span className="font-medium">{DEMO_ACCOUNT.label}</span>
+                  <span className="text-[11px] opacity-80">{DEMO_ACCOUNT.description}</span>
+                </Button>
               </div>
             </div>
           )}

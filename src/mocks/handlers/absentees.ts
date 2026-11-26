@@ -1,122 +1,65 @@
 /**
- * Mock API "Siswa Tidak Hadir" (PRD §6.3 FR-STU-05, FR-STU-06; AC-04, AC-05; §12.2).
- *
- * - GET   /student-attendance/absentees           → daftar otomatis record berstatus bukan Hadir
- * - GET   /student-attendance/absentees/summary   → jumlah per status + jumlah sudah/belum dikonfirmasi
- * - PATCH /student-attendance/records/:id/contact → simpan konfirmasi wali (TIDAK mengirim pesan)
+ * Mock API Siswa Tidak Hadir (Absensi Siswa) — integrasi BE Presensi Siswa.
+ * Mendukung 5 status ketidakhadiran: Sakit (S), Izin (I), Alpa (A), Dispensasi (D), PKL (P)
+ * serta pembaruan status kembali ke Hadir (H) via Edit atau Hapus.
  */
 import { http, type HttpHandler } from 'msw'
 import { todayISO } from '@/lib/date'
-import { NON_PRESENT_STATUSES } from '@/lib/enums'
-import type { AbsenteeRow, AttendanceStatus, GuardianContact, RecordStatus } from '@/types/entities'
-import { db, isDeleted, persist } from '../db'
-import { className, getStudent, phoneForUser } from '../domain'
 import {
-  accessibleClassIds,
+  ABSENTEE_STATUSES,
+  type AbsenteeRow,
+  type AbsenteeStatus,
+  type AttendanceStatus,
+  type StudentAttendanceRecord,
+} from '@/types/entities'
+import { db, isDeleted, newId, persist } from '../db'
+import { className, getClass, getStudent } from '../domain'
+import {
   apiPath,
   audit,
+  created,
   errors,
   latency,
   matchesSearch,
+  noContent,
   nowTs,
   ok,
   paginate,
   readJson,
   requireAuth,
-  requireClassAccess,
   requirePermission,
   searchParams,
   withIdempotency,
-  type AuthedUser,
 } from '../utils'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-/** Rentang maksimum satu permintaan (hari) agar daftar tetap ringan. */
-const MAX_RANGE_DAYS = 366
-/** Nomor telepon: angka, spasi, tanda hubung, +; 8–16 digit. */
-const PHONE_RE = /^\+?[\d\s-]+$/
+const EDITABLE_STATUSES: AttendanceStatus[] = ['PRESENT', ...ABSENTEE_STATUSES]
 
-/** Sesi yang dihitung ke daftar: sudah dikirim/final; draft hanya bila diminta. */
-const VISIBLE_SESSION_STATUSES: RecordStatus[] = ['SUBMITTED', 'FINAL']
+const isAbsenteeStatus = (v: unknown): v is AbsenteeStatus =>
+  typeof v === 'string' && (ABSENTEE_STATUSES as readonly string[]).includes(v)
 
-interface AbsenteeFilters {
-  dateFrom: string
-  dateTo: string
+const cleanText = (v: unknown) => {
+  if (typeof v !== 'string') return null
+  const t = v.trim()
+  return t.length ? t : null
+}
+
+function collectAbsentees(params: {
+  date: string
   classId: string | null
-  shiftCode: string | null
-  statuses: AttendanceStatus[]
+  status: AbsenteeStatus | null
   search: string | null
-  contacted: 'true' | 'false' | null
-  includeDraft: boolean
-}
-
-function daysBetween(from: string, to: string) {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
-}
-
-/** Baca & validasi filter; melempar 422/403 (dipakai list dan summary). */
-function parseFilters(request: Request, user: AuthedUser): AbsenteeFilters {
-  const sp = searchParams(request)
-  const today = todayISO()
-  const dateFrom = sp.get('dateFrom') || sp.get('date') || today
-  const dateTo = sp.get('dateTo') || sp.get('date') || dateFrom
-  const details: Record<string, string> = {}
-  if (!DATE_RE.test(dateFrom) || Number.isNaN(Date.parse(dateFrom))) details.dateFrom = 'invalid'
-  if (!DATE_RE.test(dateTo) || Number.isNaN(Date.parse(dateTo))) details.dateTo = 'invalid'
-  if (!details.dateFrom && !details.dateTo) {
-    if (dateTo < dateFrom) details.dateTo = 'Tanggal akhir tidak boleh sebelum tanggal awal.'
-    else if (daysBetween(dateFrom, dateTo) > MAX_RANGE_DAYS)
-      details.dateTo = `Rentang tanggal maksimal ${MAX_RANGE_DAYS} hari.`
-  }
-  const rawStatuses = sp.getAll('status').flatMap((s) => s.split(',')).map((s) => s.trim()).filter(Boolean)
-  const unknown = rawStatuses.filter((s) => !(NON_PRESENT_STATUSES as string[]).includes(s))
-  if (unknown.length > 0) details.status = 'Status harus salah satu status tidak hadir.'
-  const contacted = sp.get('contacted')
-  if (contacted !== null && contacted !== '' && contacted !== 'true' && contacted !== 'false') {
-    details.contacted = 'invalid'
-  }
-  if (Object.keys(details).length > 0) throw errors.validation(details, 'Filter tidak valid.')
-
-  const classId = sp.get('classId') || null
-  if (classId) requireClassAccess(user, classId)
-
-  return {
-    dateFrom,
-    dateTo,
-    classId,
-    shiftCode: sp.get('shiftCode') || null,
-    statuses: rawStatuses as AttendanceStatus[],
-    search: sp.get('search') || null,
-    contacted: contacted === 'true' || contacted === 'false' ? contacted : null,
-    includeDraft: sp.get('includeDraft') === 'true',
-  }
-}
-
-function maskContact(contact: GuardianContact | null, user: AuthedUser): GuardianContact | null {
-  if (!contact) return null
-  return { ...contact, contactedPhone: phoneForUser(contact.contactedPhone, user) }
-}
-
-/** Semua baris tidak hadir sesuai filter (tanpa filter status/kontak bila `ignore` diminta). */
-function collectAbsentees(
-  user: AuthedUser,
-  f: AbsenteeFilters,
-  ignore: { status?: boolean; contacted?: boolean } = {},
-): AbsenteeRow[] {
+}): AbsenteeRow[] {
   const d = db()
-  const scope = accessibleClassIds(user)
-  const sessionStatuses = f.includeDraft ? [...VISIBLE_SESSION_STATUSES, 'DRAFT'] : VISIBLE_SESSION_STATUSES
   const sessions = new Map(
     d.studentSessions
       .filter(
         (s) =>
-          s.date >= f.dateFrom &&
-          s.date <= f.dateTo &&
-          sessionStatuses.includes(s.status) &&
+          s.date === params.date &&
           !isDeleted('studentSessions', s.id) &&
-          (!f.classId || s.classId === f.classId) &&
-          (!f.shiftCode || s.shiftCode === f.shiftCode) &&
-          (!scope || scope.includes(s.classId)),
+          s.status !== 'CANCELLED' &&
+          s.status !== 'REJECTED' &&
+          (!params.classId || s.classId === params.classId),
       )
       .map((s) => [s.id, s]),
   )
@@ -127,168 +70,264 @@ function collectAbsentees(
     const session = sessions.get(r.sessionId)
     if (!session) continue
     if (isDeleted('studentRecords', r.id)) continue
-    if (!NON_PRESENT_STATUSES.includes(r.status)) continue
-    if (!ignore.status && f.statuses.length > 0 && !f.statuses.includes(r.status)) continue
-    if (!ignore.contacted && f.contacted !== null && (r.contact !== null) !== (f.contacted === 'true')) continue
-    if (!matchesSearch(f.search, r.studentName, r.studentNis)) continue
-    const student = getStudent(r.studentId)
+    if (!isAbsenteeStatus(r.status)) continue
+    if (params.status && r.status !== params.status) continue
+    const clsName = className(session.classId)
+    if (!matchesSearch(params.search, r.studentName, r.studentNis, clsName, r.reason, r.note)) continue
     rows.push({
       recordId: r.id,
       sessionId: session.id,
       date: session.date,
       shiftCode: session.shiftCode,
       classId: session.classId,
-      className: className(session.classId),
+      className: clsName,
       studentId: r.studentId,
       studentName: r.studentName,
       studentNis: r.studentNis,
       status: r.status,
       reason: r.reason,
       note: r.note,
-      guardianName: student?.guardianName ?? null,
-      guardianPhone: phoneForUser(student?.guardianPhone ?? null, user),
-      contact: maskContact(r.contact, user),
-      sessionStatus: session.status,
+      updatedAt: r.updatedAt,
+      updatedByName: r.updatedByName,
     })
   }
-  // Urutan buku: tanggal terbaru dulu, lalu kelas, lalu nama siswa.
+
   return rows.sort(
     (a, b) =>
-      b.date.localeCompare(a.date) ||
       a.className.localeCompare(b.className, 'id', { numeric: true }) ||
       a.studentName.localeCompare(b.studentName, 'id'),
   )
 }
 
-function requireReadAccess(user: AuthedUser) {
-  // Guru pengisi absensi boleh melihat daftar kelas yang diajarnya (scoped); kontak wali tetap dimask.
-  requirePermission(user, 'absentees:read', 'student_attendance:read')
+function parseListQuery(request: Request) {
+  const sp = searchParams(request)
+  const date = sp.get('date') || todayISO()
+  const details: Record<string, string> = {}
+  if (!DATE_RE.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+    details.date = 'Format tanggal tidak valid.'
+  }
+  const rawStatus = sp.get('status')
+  let status: AbsenteeStatus | null = null
+  if (rawStatus) {
+    if (!isAbsenteeStatus(rawStatus)) details.status = 'Status ketidakhadiran tidak valid.'
+    else status = rawStatus
+  }
+  if (Object.keys(details).length) throw errors.validation(details, 'Filter tidak valid.')
+  return {
+    date,
+    classId: sp.get('classId') || null,
+    status,
+    search: sp.get('search') || null,
+  }
 }
-
-interface ContactBody {
-  contactedPhone?: string | null
-  receiverName?: string | null
-  contactNote?: string | null
-}
-
-const clean = (v: unknown) => (typeof v === 'string' ? v.trim() : v === null || v === undefined ? null : undefined)
 
 export const absenteesHandlers: HttpHandler[] = [
   http.get(apiPath('/student-attendance/absentees/summary'), async ({ request }) => {
     await latency()
     const user = requireAuth(request)
-    requireReadAccess(user)
-    const f = parseFilters(request, user)
-    // Chip status mengabaikan filter status (agar tiap chip tetap menampilkan angkanya);
-    // hitungan konfirmasi mengabaikan filter konfirmasi. Total = baris sesuai semua filter.
-    const all = collectAbsentees(user, f, { status: true, contacted: true })
-    const matchStatus = (r: AbsenteeRow) => f.statuses.length === 0 || f.statuses.includes(r.status)
-    const matchContacted = (r: AbsenteeRow) =>
-      f.contacted === null || (r.contact !== null) === (f.contacted === 'true')
-    const byStatus = Object.fromEntries(NON_PRESENT_STATUSES.map((s) => [s, 0])) as Record<AttendanceStatus, number>
-    for (const r of all) if (matchContacted(r)) byStatus[r.status] += 1
-    const statusRows = all.filter(matchStatus)
-    const contacted = statusRows.filter((r) => r.contact !== null).length
+    requirePermission(user, 'absentees:read')
+    const q = parseListQuery(request)
+    const all = collectAbsentees({ ...q, status: null })
+    const byStatus = Object.fromEntries(ABSENTEE_STATUSES.map((s) => [s, 0])) as Record<AbsenteeStatus, number>
+    for (const row of all) byStatus[row.status] += 1
     return ok({
-      dateFrom: f.dateFrom,
-      dateTo: f.dateTo,
+      date: q.date,
       byStatus,
-      total: statusRows.filter(matchContacted).length,
-      contacted,
-      notContacted: statusRows.length - contacted,
+      total: all.length,
     })
   }),
 
   http.get(apiPath('/student-attendance/absentees'), async ({ request }) => {
     await latency()
     const user = requireAuth(request)
-    requireReadAccess(user)
-    const f = parseFilters(request, user)
-    return paginate(collectAbsentees(user, f), request, 25)
+    requirePermission(user, 'absentees:read')
+    const q = parseListQuery(request)
+    return paginate(collectAbsentees(q), request, 10)
   }),
 
-  http.patch(apiPath('/student-attendance/records/:id/contact'), async ({ request, params }) =>
+  /** Catat ketidakhadiran siswa (POST /student-attendance/absentees). */
+  http.post(apiPath('/student-attendance/absentees'), async ({ request }) =>
     withIdempotency(request, async () => {
       await latency()
       const user = requireAuth(request)
       requirePermission(user, 'absentees:write')
-      const d = db()
-      const record = d.studentRecords.find((r) => r.id === params.id && !isDeleted('studentRecords', r.id))
-      if (!record) throw errors.notFound('Record absensi tidak ditemukan.')
-      const session = d.studentSessions.find((s) => s.id === record.sessionId)
-      if (!session) throw errors.notFound('Sesi absensi tidak ditemukan.')
-      requireClassAccess(user, session.classId)
-      if (!NON_PRESENT_STATUSES.includes(record.status)) {
-        throw errors.conflict('Siswa ini tercatat hadir sehingga tidak perlu konfirmasi wali. Muat ulang daftar.')
-      }
-
-      const body = await readJson<ContactBody>(request)
-      const phoneProvided = Object.prototype.hasOwnProperty.call(body, 'contactedPhone')
-      const phone = clean(body.contactedPhone)
-      const receiverName = clean(body.receiverName)
-      const contactNote = clean(body.contactNote)
-
+      const body = await readJson<Record<string, unknown>>(request)
       const details: Record<string, string> = {}
-      if (phone === undefined) details.contactedPhone = 'invalid'
-      if (receiverName === undefined) details.receiverName = 'invalid'
-      if (contactNote === undefined) details.contactNote = 'invalid'
-      if (phone) {
-        const digits = phone.replace(/\D/g, '')
-        if (!PHONE_RE.test(phone) || digits.length < 8 || digits.length > 16) {
-          details.contactedPhone = 'Nomor telepon tidak valid (8–16 digit).'
-        }
-        if (!receiverName) details.receiverName = 'Isi pihak yang menerima informasi.'
-      }
-      if (!phone && !receiverName && !contactNote) {
-        details.receiverName = 'Isi pihak yang menerima informasi atau keterangan.'
-      }
-      if (receiverName && receiverName.length > 100) details.receiverName = 'too_long'
-      if (contactNote && contactNote.length > 500) details.contactNote = 'too_long'
-      if (Object.keys(details).length > 0) throw errors.validation(details)
 
-      const before = record.contact
-      // Tanpa field contactedPhone (mis. user tak berhak melihat nomor) → nomor lama dipertahankan.
-      const nextPhone = phoneProvided ? (phone as string | null) || null : (before?.contactedPhone ?? null)
-      const contact: GuardianContact = {
-        contactedPhone: nextPhone,
-        receiverName: (receiverName as string | null) || null,
-        contactNote: (contactNote as string | null) || null,
-        contactedAt: nowTs(),
-        contactedBy: user.id,
-        contactedByName: user.name,
+      const date = typeof body.date === 'string' && DATE_RE.test(body.date) ? body.date : todayISO()
+      const classId = typeof body.classId === 'string' ? body.classId.trim() : ''
+      const studentId = typeof body.studentId === 'string' ? body.studentId.trim() : ''
+      const status = body.status
+      const reason = cleanText(body.reason)
+
+      const cls = classId ? getClass(classId) : undefined
+      if (!classId) details.classId = 'Pilih kelas.'
+      else if (!cls) details.classId = 'Kelas tidak ditemukan.'
+
+      const student = studentId ? getStudent(studentId) : undefined
+      if (!studentId) details.studentId = 'Pilih siswa.'
+      else if (!student || isDeleted('students', student.id)) details.studentId = 'Siswa tidak ditemukan.'
+      else if (cls && student.classId !== cls.id) details.studentId = 'Siswa bukan anggota kelas terpilih.'
+
+      if (!isAbsenteeStatus(status)) details.status = 'Pilih status ketidakhadiran (Sakit, Izin, Alpa, Dispensasi, atau PKL).'
+      if (reason && reason.length > 500) details.reason = 'Keterangan maksimal 500 karakter.'
+      if (Object.keys(details).length) return errors.validation(details)
+
+      const d = db()
+      const now = nowTs()
+      let session = d.studentSessions.find(
+        (s) => s.date === date && s.classId === cls!.id && !isDeleted('studentSessions', s.id),
+      )
+      if (!session) {
+        session = {
+          id: newId('ses'),
+          date,
+          shiftCode: cls!.shiftCode,
+          classId: cls!.id,
+          sessionNumber: 1,
+          sessionLabel: 'Harian',
+          status: 'FINAL',
+          createdBy: user.id,
+          createdByName: user.name,
+          createdAt: now,
+          submittedAt: now,
+          submittedBy: user.id,
+          submittedByName: user.name,
+          version: 1,
+        }
+        d.studentSessions.push(session)
       }
-      record.contact = contact
+
+      let record = d.studentRecords.find(
+        (r) => r.sessionId === session.id && r.studentId === student!.id && !isDeleted('studentRecords', r.id),
+      )
+      if (record) {
+        record.status = status as AbsenteeStatus
+        record.reason = reason
+        record.note = null
+        record.updatedAt = now
+        record.updatedBy = user.id
+        record.updatedByName = user.name
+        record.version += 1
+      } else {
+        record = {
+          id: newId('rec'),
+          sessionId: session.id,
+          studentId: student!.id,
+          studentName: student!.name,
+          studentNis: student!.nis,
+          status: status as AbsenteeStatus,
+          arrivalTime: null,
+          reason,
+          note: null,
+          updatedAt: now,
+          updatedBy: user.id,
+          updatedByName: user.name,
+          version: 1,
+        } satisfies StudentAttendanceRecord
+        d.studentRecords.push(record)
+      }
+
       persist()
       audit({
         user,
-        action: 'UPDATE',
+        action: 'CREATE',
         entity: 'StudentAttendanceRecord',
         entityId: record.id,
-        summary: `Mencatat konfirmasi wali siswa (${className(session.classId)}, ${session.date})`,
-        before: { contact: before },
-        after: { contact },
+        summary: `Mencatat ketidakhadiran ${record.studentName} (${cls!.name}) — ${status}`,
       })
 
-      const student = getStudent(record.studentId)
       const row: AbsenteeRow = {
         recordId: record.id,
         sessionId: session.id,
         date: session.date,
         shiftCode: session.shiftCode,
         classId: session.classId,
-        className: className(session.classId),
+        className: cls!.name,
         studentId: record.studentId,
         studentName: record.studentName,
         studentNis: record.studentNis,
-        status: record.status,
+        status: status as AbsenteeStatus,
         reason: record.reason,
         note: record.note,
-        guardianName: student?.guardianName ?? null,
-        guardianPhone: phoneForUser(student?.guardianPhone ?? null, user),
-        contact: maskContact(contact, user),
-        sessionStatus: session.status,
+        updatedAt: record.updatedAt,
+        updatedByName: record.updatedByName,
       }
-      return ok(row)
+      return created(row)
     }),
   ),
+
+  /** Ubah status (termasuk Hadir) & keterangan siswa (PATCH /student-attendance/absentees/:id). */
+  http.patch(apiPath('/student-attendance/absentees/:id'), async ({ request, params }) => {
+    await latency()
+    const user = requireAuth(request)
+    requirePermission(user, 'absentees:write')
+    const d = db()
+    const record = d.studentRecords.find((r) => r.id === params.id && !isDeleted('studentRecords', r.id))
+    if (!record) return errors.notFound('Data ketidakhadiran siswa tidak ditemukan.')
+    const session = d.studentSessions.find((s) => s.id === record.sessionId)
+    if (!session) return errors.notFound('Sesi absensi tidak ditemukan.')
+
+    const body = await readJson<Record<string, unknown>>(request)
+    const status = body.status as AttendanceStatus
+    const reason = 'reason' in body ? cleanText(body.reason) : record.reason
+    const details: Record<string, string> = {}
+    if (!EDITABLE_STATUSES.includes(status)) {
+      details.status = 'Status harus salah satu dari Hadir, Sakit, Izin, Alpa, Dispensasi, atau PKL.'
+    }
+    if (reason && reason.length > 500) details.reason = 'Keterangan maksimal 500 karakter.'
+    if (Object.keys(details).length) return errors.validation(details)
+
+    const now = nowTs()
+    record.status = status
+    record.reason = status === 'PRESENT' ? null : reason
+    record.note = null
+    record.updatedAt = now
+    record.updatedBy = user.id
+    record.updatedByName = user.name
+    record.version += 1
+    persist()
+    audit({
+      user,
+      action: 'UPDATE',
+      entity: 'StudentAttendanceRecord',
+      entityId: record.id,
+      summary: `Mengubah status ${record.studentName} (${className(session.classId)}) menjadi ${status}`,
+    })
+
+    return ok({
+      recordId: record.id,
+      status: record.status,
+      reason: record.reason,
+      removed: record.status === 'PRESENT',
+    })
+  }),
+
+  /** Hapus dari daftar tidak hadir = kembalikan status siswa menjadi Hadir (DELETE /student-attendance/absentees/:id). */
+  http.delete(apiPath('/student-attendance/absentees/:id'), async ({ request, params }) => {
+    await latency()
+    const user = requireAuth(request)
+    requirePermission(user, 'absentees:write')
+    const d = db()
+    const record = d.studentRecords.find((r) => r.id === params.id && !isDeleted('studentRecords', r.id))
+    if (!record) return errors.notFound('Data ketidakhadiran siswa tidak ditemukan.')
+    const session = d.studentSessions.find((s) => s.id === record.sessionId)
+    const now = nowTs()
+    record.status = 'PRESENT'
+    record.reason = null
+    record.note = null
+    record.updatedAt = now
+    record.updatedBy = user.id
+    record.updatedByName = user.name
+    record.version += 1
+    persist()
+    audit({
+      user,
+      action: 'DELETE',
+      entity: 'StudentAttendanceRecord',
+      entityId: record.id,
+      summary: `Mengembalikan status ${record.studentName} (${session ? className(session.classId) : '—'}) menjadi Hadir`,
+    })
+    return noContent()
+  }),
 ]

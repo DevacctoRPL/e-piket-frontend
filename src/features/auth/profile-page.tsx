@@ -14,9 +14,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription, AlertTitle, Skeleton } from '@/components/ui/misc'
 import { UnsavedChangesGuard } from '@/components/unsaved-changes'
-import { useClasses, useSubjects, useTeachers } from '@/features/master-data/lookups'
+import { useClasses, useSubjects, useTeachers } from '@/lib/lookups'
 import { applyServerErrors, getErrorMessage } from '@/lib/error-mapping'
-import { ROLE_META } from '@/lib/enums'
+import { roleLabel } from '@/lib/enums'
 import type { CurrentUser } from '@/types/entities'
 import { authApi, authKeys } from './api'
 import { useCurrentUser } from './auth-context'
@@ -42,7 +42,7 @@ export function ProfilePage() {
           <ul className="flex flex-wrap gap-1.5 pt-0.5" aria-label="Peran">
             {user.roles.map((r) => (
               <li key={r}>
-                <MetaTag>{ROLE_META[r].label}</MetaTag>
+                <MetaTag>{roleLabel(r)}</MetaTag>
               </li>
             ))}
           </ul>
@@ -147,7 +147,7 @@ function TeacherInfoCard({ user }: { user: CurrentUser }) {
       <FramedCard icon={<GraduationCap />} title="Data Guru" description="Akun ini tidak terhubung dengan data guru.">
         <div className="flex items-center gap-3 rounded-md border border-dashed border-border/90 p-4 text-[13px] text-muted-foreground">
           <UserRound className="size-4 shrink-0" />
-          Akun staf/pimpinan tanpa jadwal mengajar. Bila Anda juga mengajar, minta Super Admin sekolah menautkan akun ke data guru.
+          Akun operator Guru Piket tanpa tautan jadwal mengajar pribadi.
         </div>
       </FramedCard>
     )
@@ -163,7 +163,7 @@ function TeacherInfoCard({ user }: { user: CurrentUser }) {
   const loading = teachers.isPending || subjects.isPending || classes.isPending
 
   return (
-    <FramedCard icon={<GraduationCap />} title="Data Guru" description="Ditautkan oleh Super Admin dari data master guru.">
+    <FramedCard icon={<GraduationCap />} title="Data Guru" description="Tertaut ke data master guru untuk fitur presensi & jadwal pribadi.">
         {loading ? (
           <div className="space-y-2" aria-busy="true">
             <Skeleton className="h-5 w-2/3" />
@@ -248,14 +248,14 @@ function ChangePasswordCard({ mustChange }: { mustChange: boolean }) {
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:gap-6">
         <div className="grid content-start gap-3">
           <p className="text-[13px] text-pretty text-muted-foreground">
-            Perubahan kata sandi dapat Anda lakukan sendiri di sini. Nama pengguna, peran, dan reset kata sandi yang lupa
-            dikelola oleh Super Admin sekolah. Selalu keluar dari aplikasi setelah memakai perangkat bersama.
+            Perubahan kata sandi dapat Anda lakukan sendiri di sini. Selalu keluar dari aplikasi setelah memakai
+            perangkat bersama.
           </p>
           {mustChange && (
             <Alert variant="warning">
               <TriangleAlert />
               <AlertTitle>Ganti kata sandi sementara</AlertTitle>
-              <AlertDescription>Akun Anda masih memakai kata sandi sementara dari Super Admin.</AlertDescription>
+              <AlertDescription>Akun Anda masih memakai kata sandi sementara.</AlertDescription>
             </Alert>
           )}
         </div>

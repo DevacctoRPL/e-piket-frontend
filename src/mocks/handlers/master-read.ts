@@ -89,7 +89,7 @@ export const masterReadHandlers = [
   http.get(apiPath('/students'), async ({ request }) => {
     await latency()
     const user = requireAuth(request)
-    requirePermission(user, 'master:read', 'student_attendance:read', 'dismissal:read', 'extra_activity:read')
+    requirePermission(user, 'master:read', 'absentees:read', 'extra_activity:read')
     const sp = searchParams(request)
     const scope = accessibleClassIds(user)
     const classId = sp.get('classId')

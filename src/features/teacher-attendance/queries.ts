@@ -1,91 +1,92 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
-import type { ID, ISODate, ShiftCode } from '@/types/entities'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { dashboardKeys } from '@/features/dashboard/queries'
+import type { ID, ISODate } from '@/types/entities'
 import { teacherAttendanceApi } from './api'
 import type {
-  RecordTeacherAttendanceRequest,
-  TeacherAttendanceHistoryParams,
-  UpdateTeacherAttendanceRequest,
+  AssignEmptySlotInput,
+  CreateManualEmptySlotInput,
+  UpdateManualEmptySlotInput,
+  UpdateSubstitutionInput,
 } from './types'
 
 export const teacherAttendanceKeys = {
   all: ['teacher-attendance'] as const,
-  me: (date: ISODate) => [...teacherAttendanceKeys.all, 'me', date] as const,
-  scheduled: (date: ISODate, shiftCode: ShiftCode | '') =>
-    [...teacherAttendanceKeys.all, 'scheduled', date, shiftCode] as const,
-  history: (params: TeacherAttendanceHistoryParams) =>
-    [...teacherAttendanceKeys.all, 'history', params] as const,
+  scheduled: (date: ISODate) => [...teacherAttendanceKeys.all, 'scheduled', date] as const,
+  emptySlots: (date: ISODate, search = '') => [...teacherAttendanceKeys.all, 'empty-slots', date, search] as const,
 }
 
-/**
- * Absensi guru memengaruhi agenda piket, jam kosong, dashboard, dan laporan (PRD §11.4).
- * `withAudit` untuk mutasi yang menulis audit log (catat/koreksi oleh piket/admin).
- */
-export function invalidateTeacherAttendanceDependents(qc: QueryClient, withAudit = false) {
-  const roots = ['teacher-attendance', 'duty-agendas', 'substitutions', 'dashboard', 'reports']
-  if (withAudit) roots.push('audit-logs')
-  return Promise.all(roots.map((r) => qc.invalidateQueries({ queryKey: [r] })))
-}
-
-export function useMyTeacherAttendance(date: ISODate, enabled = true) {
+export function useScheduledTeachers(date: ISODate) {
   return useQuery({
-    queryKey: teacherAttendanceKeys.me(date),
-    queryFn: ({ signal }) => teacherAttendanceApi.me(date, { signal }),
-    enabled,
+    queryKey: teacherAttendanceKeys.scheduled(date),
+    queryFn: ({ signal }) => teacherAttendanceApi.scheduled({ date }, signal),
+    placeholderData: keepPreviousData,
   })
 }
 
-export function useScheduledTeachers(date: ISODate, shiftCode: ShiftCode | '', enabled = true) {
+export function useEmptySlots(date: ISODate, search = '') {
   return useQuery({
-    queryKey: teacherAttendanceKeys.scheduled(date, shiftCode),
-    queryFn: ({ signal }) =>
-      teacherAttendanceApi.scheduled({ date, shiftCode: shiftCode || undefined }, { signal }),
-    enabled,
+    queryKey: teacherAttendanceKeys.emptySlots(date, search),
+    queryFn: ({ signal }) => teacherAttendanceApi.emptySlots({ date, search }, signal),
+    placeholderData: keepPreviousData,
   })
 }
 
-export function useTeacherAttendanceHistory(params: TeacherAttendanceHistoryParams, enabled = true) {
-  return useQuery({
-    queryKey: teacherAttendanceKeys.history(params),
-    queryFn: ({ signal }) => teacherAttendanceApi.history(params, { signal }),
-    enabled,
-    placeholderData: (prev) => prev,
-  })
-}
-
-export function useCheckIn() {
+function useInvalidateEmptySlots() {
   const qc = useQueryClient()
+  return () => {
+    void qc.invalidateQueries({ queryKey: teacherAttendanceKeys.all })
+    void qc.invalidateQueries({ queryKey: dashboardKeys.all })
+  }
+}
+
+export function useCreateManualEmptySlot() {
+  const invalidate = useInvalidateEmptySlots()
   return useMutation({
-    mutationFn: (idempotencyKey: string) => teacherAttendanceApi.checkIn(idempotencyKey),
-    meta: { silentError: true },
-    onSettled: () => invalidateTeacherAttendanceDependents(qc),
+    mutationFn: ({ body, idempotencyKey }: { body: CreateManualEmptySlotInput; idempotencyKey?: string }) =>
+      teacherAttendanceApi.createManualSlot(body, idempotencyKey),
+    onSuccess: invalidate,
   })
 }
 
-export function useCheckOut() {
-  const qc = useQueryClient()
+export function useUpdateManualEmptySlot() {
+  const invalidate = useInvalidateEmptySlots()
   return useMutation({
-    mutationFn: (idempotencyKey: string) => teacherAttendanceApi.checkOut(idempotencyKey),
-    meta: { silentError: true },
-    onSettled: () => invalidateTeacherAttendanceDependents(qc),
+    mutationFn: ({ id, body }: { id: ID; body: UpdateManualEmptySlotInput }) =>
+      teacherAttendanceApi.updateManualSlot(id, body),
+    onSuccess: invalidate,
   })
 }
 
-export function useRecordTeacherAttendance() {
-  const qc = useQueryClient()
+export function useDeleteManualEmptySlot() {
+  const invalidate = useInvalidateEmptySlots()
   return useMutation({
-    mutationFn: ({ body, idempotencyKey }: { body: RecordTeacherAttendanceRequest; idempotencyKey: string }) =>
-      teacherAttendanceApi.record(body, idempotencyKey),
-    meta: { silentError: true },
-    onSuccess: () => invalidateTeacherAttendanceDependents(qc, true),
+    mutationFn: (id: ID) => teacherAttendanceApi.deleteManualSlot(id),
+    onSuccess: invalidate,
   })
 }
 
-export function useUpdateTeacherAttendance() {
-  const qc = useQueryClient()
+export function useAssignSubstitute() {
+  const invalidate = useInvalidateEmptySlots()
   return useMutation({
-    mutationFn: ({ id, body }: { id: ID; body: UpdateTeacherAttendanceRequest }) =>
-      teacherAttendanceApi.update(id, body),
-    meta: { silentError: true },
-    onSuccess: () => invalidateTeacherAttendanceDependents(qc, true),
+    mutationFn: ({ body, idempotencyKey }: { body: AssignEmptySlotInput; idempotencyKey?: string }) =>
+      teacherAttendanceApi.assignSubstitute(body, idempotencyKey),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateSubstitute() {
+  const invalidate = useInvalidateEmptySlots()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: ID; body: UpdateSubstitutionInput }) =>
+      teacherAttendanceApi.updateSubstitute(id, body),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteSubstitute() {
+  const invalidate = useInvalidateEmptySlots()
+  return useMutation({
+    mutationFn: (id: ID) => teacherAttendanceApi.deleteSubstitute(id),
+    onSuccess: invalidate,
   })
 }

@@ -2,170 +2,147 @@
 import { expect, test } from '@playwright/test'
 import { login } from './helpers'
 
-test.describe('alur operasional utama E-Piket', () => {
-  test('AC-02 & AC-04: absensi kelas → tandai semua hadir → ubah 2 siswa S/I → finalisasi → tampil di siswa tidak hadir', async ({
+test.describe('alur operasional 5 panel Guru Piket', () => {
+  test('Absensi Guru: Jam Kosong hanya tampilkan yang sudah ada pengganti + tambah (quick-pick & manual), edit, hapus', async ({
     page,
   }) => {
-    await login(page, 'piket', '/absensi-siswa')
-    await expect(page.getByRole('heading', { name: 'Absensi Siswa' })).toBeVisible()
+    await login(page, 'piket', '/absensi-guru')
+    await expect(page.getByRole('heading', { level: 1, name: 'Absensi Guru' })).toBeVisible()
+    await expect(page.getByText('Data otomatis dari presensi guru (Read-only)')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Sinkron Presensi/i })).toBeVisible()
 
-    // Buka kelas X TKJ 1 (belum ada sesi hari ini pada seed awal)
-    await page.getByRole('button', { name: /X TKJ 1/ }).click()
-    await expect(page).toHaveURL(/\/absensi-siswa\/sesi\//)
-    await expect(page.getByRole('heading', { name: 'X TKJ 1' })).toBeVisible()
+    // Kartu Jam Kosong: tidak menampilkan "Belum ditugaskan" dan tombol "+ Tambah" tersedia
+    await expect(page.getByRole('heading', { name: 'Jam Kosong' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Simpan$/i })).toBeHidden()
+    await expect(page.getByText(/Belum ditugaskan/i)).toHaveCount(0)
 
-    // Tandai semua hadir dalam satu aksi
-    await page.getByRole('button', { name: 'Tandai semua hadir' }).click()
+    // 1. Tambah lewat quick-pick jadwal guru tidak hadir
+    await page.getByRole('button', { name: /Tambah/i }).click()
+    const quickDialog = page.getByRole('dialog')
+    await expect(quickDialog).toBeVisible()
+    const sourceSelect = quickDialog.getByLabel(/^Sumber Jadwal/i)
+    const firstSlotVal = await sourceSelect.locator('option').nth(1).getAttribute('value')
+    await sourceSelect.selectOption(firstSlotVal!)
+    await quickDialog.getByLabel(/^Guru Piket/i).fill('Pak Quick E2E')
+    await quickDialog.getByRole('button', { name: /^Tambah$/i }).click()
+    await expect(quickDialog).toBeHidden()
+    await expect(page.getByText('Pak Quick E2E').first()).toBeVisible()
 
-    const rows = page.getByRole('list', { name: 'Daftar siswa' }).locator('> li')
-    const firstRow = rows.nth(0)
-    const secondRow = rows.nth(1)
-
-    const student1Name = (await firstRow.locator('p').first().textContent())?.trim() ?? ''
-    const student2Name = (await secondRow.locator('p').first().textContent())?.trim() ?? ''
-
-    // Siswa 1: Sakit + alasan wajib
-    await firstRow.getByRole('radio', { name: 'Sakit' }).click()
-    await firstRow.getByPlaceholder(/demam/i).fill('Demam tinggi sejak pagi')
-
-    // Siswa 2: Izin + alasan wajib
-    await secondRow.getByRole('radio', { name: 'Izin' }).click()
-    await secondRow.getByPlaceholder(/demam/i).fill('Acara keluarga di luar kota')
-
-    // Finalisasi sesi absensi
-    await page.getByRole('button', { name: 'Finalisasi' }).click()
-    const dialog = page.getByRole('alertdialog')
-    await expect(dialog).toBeVisible()
-    await dialog.getByRole('button', { name: 'Finalisasi' }).click()
-
-    await expect(page.getByText('Absensi final')).toBeVisible()
-
-    // Pastikan otomatis muncul di daftar Siswa Tidak Hadir tanpa entri ulang (AC-04)
-    await page.goto('/siswa-tidak-hadir?classId=cls_1')
-    await expect(page.getByRole('heading', { name: 'Siswa Tidak Hadir' })).toBeVisible()
-    await expect(page.getByText(student1Name).first()).toBeVisible()
-    await expect(page.getByText('Demam tinggi sejak pagi').first()).toBeVisible()
-    await expect(page.getByText(student2Name).first()).toBeVisible()
-    await expect(page.getByText('Acara keluarga di luar kota').first()).toBeVisible()
-  })
-
-  test('AC-03: klik ganda cepat pada Simpan Draft tidak menggandakan record absensi', async ({ page }) => {
-    await login(page, 'piket', '/absensi-siswa')
-    await page.getByRole('button', { name: /XII TKJ 1/ }).click()
-    await expect(page).toHaveURL(/\/absensi-siswa\/sesi\//)
-
-    await page.getByRole('button', { name: 'Tandai semua hadir' }).click()
-    const saveDraftBtn = page.getByRole('button', { name: 'Simpan Draft' })
-    await saveDraftBtn.dblclick()
-
-    await expect(page.getByText(/Tersimpan/)).toBeVisible()
-
-    // Periksa database mock di localStorage: tidak boleh ada duplikat record per siswa dalam sesi yang sama
-    const duplicateCount = await page.evaluate(() => {
-      const raw = localStorage.getItem('epiket-mock-db-v1')
-      if (!raw) return 0
-      const db = JSON.parse(raw) as {
-        studentRecords: Array<{ sessionId: string; studentId: string }>
-      }
-      const seen = new Set<string>()
-      let dup = 0
-      for (const r of db.studentRecords) {
-        const key = `${r.sessionId}:${r.studentId}`
-        if (seen.has(key)) dup += 1
-        seen.add(key)
-      }
-      return dup
-    })
-    expect(duplicateCount).toBe(0)
-  })
-
-  test('AC-09: penugasan guru pengganti memvalidasi konflik jadwal lalu menyimpan pengganti yang tersedia', async ({
-    page,
-  }) => {
-    await login(page, 'piket', '/jam-kosong')
-    await expect(page.getByRole('heading', { name: 'Jam Kosong & Guru Pengganti' })).toBeVisible()
-
-    await page.getByRole('button', { name: 'Tetapkan pengganti' }).first().click()
+    // 2. Tambah manual dengan Guru Piket wajib
+    await page.getByRole('button', { name: /Tambah/i }).click()
     const dialog = page.getByRole('dialog')
     await expect(dialog).toBeVisible()
-
-    // Pilih kandidat yang sedang mengajar di kelas lain untuk menguji peringatan konflik
-    const conflictingLabel = dialog
-      .getByRole('radiogroup', { name: 'Kandidat guru pengganti' })
-      .locator('label')
-      .filter({ hasText: /Mengajar di kelas lain|Sudah menggantikan/ })
-      .first()
-
-    if ((await conflictingLabel.count()) > 0) {
-      await conflictingLabel.click()
-      await expect(dialog.getByText('Kandidat memiliki konflik jadwal')).toBeVisible()
-      // Coba simpan tanpa alasan override -> ditolak validasi
-      await dialog.getByRole('button', { name: 'Tetapkan pengganti' }).click()
-      await expect(dialog.getByText(/Wajib diisi bila kandidat bentrok/i)).toBeVisible()
-    }
-
-    // Pilih kandidat yang tersedia
-    const availableLabel = dialog
-      .getByRole('radiogroup', { name: 'Kandidat guru pengganti' })
-      .locator('label')
-      .filter({ hasText: 'Tersedia' })
-      .first()
-    await availableLabel.click()
-
-    await dialog.getByLabel('Kegiatan di kelas').fill('Mengerjakan latihan soal bab 4 secara mandiri')
-    await dialog.getByRole('button', { name: 'Tetapkan pengganti' }).click()
-
+    await dialog.getByLabel(/^Kelas/i).selectOption('cls_1')
+    await dialog.getByLabel(/^Guru Tidak Hadir/i).fill('Pak Andi Mapel')
+    await dialog.getByLabel(/^Guru Piket/i).fill('Ibu Siska Piket')
+    await dialog.getByRole('button', { name: /^Tambah$/i }).click()
     await expect(dialog).toBeHidden()
-    await expect(page.getByText('Mengerjakan latihan soal bab 4 secara mandiri').first()).toBeVisible()
-  })
 
-  test('AC-11: buat, lengkapi, finalisasi, dan cetak agenda piket hari ini', async ({ page }) => {
-    await login(page, 'piket', '/agenda-piket')
-    await expect(page.getByRole('heading', { name: 'Agenda Piket' })).toBeVisible()
+    await expect(page.getByText('Ibu Siska Piket').first()).toBeVisible()
+    await expect(page.getByText('Pak Andi Mapel').first()).toBeVisible()
 
-    await page.getByRole('button', { name: /Buka agenda piket|Lanjutkan pengisian/ }).first().click()
-    await expect(page).toHaveURL(/\/agenda-piket\/dag_/)
+    // 3. Edit penugasan jam kosong lalu Hapus (baris langsung hilang)
+    const addedRow = page.locator('tr', { hasText: 'Pak Andi Mapel' }).first()
+    await addedRow.getByRole('button', { name: /Edit/i }).click()
+    const editDialog = page.getByRole('dialog')
+    await editDialog.getByLabel(/^Guru Piket/i).fill('Pak Roni Pengganti')
+    await editDialog.getByRole('button', { name: /^Simpan$/i }).click()
+    await expect(editDialog).toBeHidden()
+    await expect(page.getByText('Pak Roni Pengganti').first()).toBeVisible()
 
-    // Tandai tidak ada catatan hal penting bila belum ada catatan
-    const noNotesCheckbox = page.getByLabel('Tidak ada catatan hal penting')
-    if (await noNotesCheckbox.isVisible()) {
-      await noNotesCheckbox.check()
-    }
-    const noAbsentCheckbox = page.getByLabel('Tidak ada guru yang tidak hadir')
-    if (await noAbsentCheckbox.isVisible()) {
-      await noAbsentCheckbox.check()
-    }
-
-    await page
-      .getByLabel('Catatan penanggulangan')
-      .fill('Seluruh kelas terdampak telah diberikan guru pengganti dan tugas terstruktur.')
-
-    await page.getByRole('button', { name: 'Finalisasi' }).click()
+    const editedRow = page.locator('tr', { hasText: 'Pak Andi Mapel' }).first()
+    await editedRow.getByRole('button', { name: /Hapus/i }).click()
     const confirmDialog = page.getByRole('alertdialog')
-    await expect(confirmDialog).toBeVisible()
-    await confirmDialog.getByRole('button', { name: 'Finalisasi' }).click()
-
-    await expect(page.getByText('Agenda sudah final')).toBeVisible()
-
-    // Buka tampilan cetak
-    await page.getByRole('link', { name: 'Cetak' }).click()
-    await expect(page).toHaveURL(/\/agenda-piket\/.*\/cetak/)
-    await expect(page.getByText('Agenda Kegiatan Sekolah / Guru Piket')).toBeVisible()
+    await confirmDialog.getByRole('button', { name: /^Hapus$/i }).click()
+    await expect(page.getByText('Pak Andi Mapel')).toHaveCount(0)
+    await expect(page.getByText(/Belum ditugaskan/i)).toHaveCount(0)
   })
 
-  test('AC-13: guru membuka URL sesi absensi kelas yang bukan ampuannya ditolak (403)', async ({ page }) => {
-    await login(page, 'guru')
-    // Ambil ID sesi kelas siang (cls_5) dari seed mock yang bukan ampuan guru pagi (tch_1)
-    const foreignSessionId = await page.evaluate(() => {
-      const raw = localStorage.getItem('epiket-mock-db-v1')
-      if (!raw) return 'ses_foreign'
-      const db = JSON.parse(raw) as {
-        studentSessions: Array<{ id: string; classId: string }>
-      }
-      return db.studentSessions.find((s) => s.classId === 'cls_5')?.id ?? 'ses_foreign'
-    })
+  test('Agenda Guru: tanpa Status & Guru Piket, menampilkan kolom TTD read-only dengan pratinjau', async ({ page }) => {
+    await login(page, 'piket', '/agenda-guru')
+    await expect(page.getByRole('heading', { level: 1, name: 'Agenda Guru' })).toBeVisible()
 
-    await page.goto(`/absensi-siswa/sesi/${foreignSessionId}`)
-    await expect(page.getByText(/Anda tidak memiliki akses ke kelas ini/i)).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'TTD' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: /^Status$/i })).toHaveCount(0)
+    await expect(page.getByRole('columnheader', { name: /Guru Piket/i })).toHaveCount(0)
+    await expect(page.getByLabel('Input nama guru piket')).toHaveCount(0)
+
+    // Klik thumbnail TTD untuk membuka pratinjau read-only
+    await page.getByRole('button', { name: /^Lihat tanda tangan /i }).first().click()
+    const ttdDialog = page.getByRole('dialog')
+    await expect(ttdDialog).toBeVisible()
+    await expect(ttdDialog.getByRole('heading', { name: 'Tanda Tangan Guru' })).toBeVisible()
+    await ttdDialog.getByRole('button', { name: 'Tutup' }).first().click()
+    await expect(ttdDialog).toBeHidden()
+  })
+
+  test('Absensi Siswa (Siswa Tidak Hadir): catat status PKL, edit ke Dispensasi, lalu hapus (kembali ke Hadir)', async ({
+    page,
+  }) => {
+    await login(page, 'piket', '/absensi-siswa')
+    await expect(page.getByRole('heading', { level: 1, name: 'Siswa Tidak Hadir' })).toBeVisible()
+
+    // Catat ketidakhadiran baru berstatus PKL
+    await page.getByRole('button', { name: /Catat Ketidakhadiran/i }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await dialog.getByLabel(/^Kelas/i).selectOption('cls_5')
+    const studentSelect = dialog.getByLabel(/^Nama Siswa/i)
+    await expect(studentSelect.locator('option')).not.toHaveCount(1)
+    const firstStudentVal = await studentSelect.locator('option').nth(1).getAttribute('value')
+    await studentSelect.selectOption(firstStudentVal!)
+    await dialog.getByLabel(/^Status Kehadiran/i).selectOption('PKL')
+    await dialog.getByLabel(/^Keterangan/i).fill('PKL di PT Mitra Industri')
+    await dialog.getByRole('button', { name: /^Catat$/i }).click()
+    await expect(dialog).toBeHidden()
+
+    await expect(page.getByText('PKL di PT Mitra Industri').first()).toBeVisible()
+
+    // Edit ke Dispensasi
+    const row = page.locator('tr', { hasText: 'PKL di PT Mitra Industri' }).first()
+    await row.getByRole('button', { name: /Edit/i }).click()
+    const editDialog = page.getByRole('dialog')
+    await editDialog.getByLabel(/^Status Kehadiran/i).selectOption('EXCUSED')
+    await editDialog.getByLabel(/^Keterangan/i).fill('Dispensasi upacara kota')
+    await editDialog.getByRole('button', { name: /^Simpan$/i }).click()
+    await expect(editDialog).toBeHidden()
+    await expect(page.getByText('Dispensasi upacara kota').first()).toBeVisible()
+
+    // Hapus -> kembali ke Hadir
+    const updatedRow = page.locator('tr', { hasText: 'Dispensasi upacara kota' }).first()
+    await updatedRow.getByRole('button', { name: /Hapus/i }).click()
+    const alertDialog = page.getByRole('alertdialog')
+    await alertDialog.getByRole('button', { name: /Hapus & Tandai Hadir/i }).click()
+    await expect(page.getByText('Dispensasi upacara kota')).toHaveCount(0)
+  })
+
+  test('Jam Tambahan: kolom Nama Guru / Kegiatan, multi-kelas, Materi, dan TTD read-only tanpa Waktu/Jam, Status, Guru Piket', async ({
+    page,
+  }) => {
+    await login(page, 'piket', '/jam-tambahan')
+    await expect(page.getByRole('heading', { level: 1, name: 'Jam Tambahan' })).toBeVisible()
+
+    await expect(page.getByRole('columnheader', { name: /Nama Guru \/ Kegiatan/i })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Kelas' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Materi' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'TTD' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: /Waktu/i })).toHaveCount(0)
+    await expect(page.getByRole('columnheader', { name: /^Status$/i })).toHaveCount(0)
+    await expect(page.getByRole('columnheader', { name: /Guru Piket/i })).toHaveCount(0)
+    await expect(page.getByLabel('Input nama guru piket')).toHaveCount(0)
+
+    // Verifikasi baris multi-kelas (3 kelas) dan pratinjau TTD
+    const multiClassRow = page.locator('tr', { hasText: 'Bimbingan Persiapan LKS Jaringan' }).first()
+    await expect(multiClassRow).toBeVisible()
+    await expect(multiClassRow.getByText('X TKJ 1')).toBeVisible()
+    await expect(multiClassRow.getByText('XI TKJ 1')).toBeVisible()
+    await expect(multiClassRow.getByText('XII TKJ 1')).toBeVisible()
+
+    await page.getByRole('button', { name: /^Lihat tanda tangan /i }).first().click()
+    const ttdDialog = page.getByRole('dialog')
+    await expect(ttdDialog).toBeVisible()
+    await expect(ttdDialog.getByRole('heading', { name: 'Tanda Tangan Guru' })).toBeVisible()
+    await ttdDialog.getByRole('button', { name: 'Tutup' }).first().click()
+    await expect(ttdDialog).toBeHidden()
   })
 })

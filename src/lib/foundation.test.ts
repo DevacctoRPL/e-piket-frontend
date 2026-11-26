@@ -1,16 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
-import { loginAs } from '@/test/utils'
 import { api, ApiError } from '@/lib/api-client'
 import { addDays, combineDateTime, isoDayOfWeek, toISODateTime, todayISO } from '@/lib/date'
+import { formatRoleLabels, roleLabel } from '@/lib/enums'
 import { canGrantRole, isAdminLike, maskPhone, permissionsForRoles, ROLE_PERMISSIONS } from '@/lib/permissions'
 import { createQueryClient } from '@/lib/query-client'
+import { safeNextPath } from '@/lib/utils'
+import { loginAs } from '@/test/utils'
 import type { DataResponse, ListResponse } from '@/types/api'
-import type { ClassRoom, CurrentUser, Student } from '@/types/entities'
+import { PERMISSIONS, type ClassRoom, type CurrentUser, type Student } from '@/types/entities'
 
 describe('date utils (Asia/Jakarta)', () => {
   it('computes school-local today and offsets', () => {
-    // 2026-11-07T20:00Z = 2026-11-08 03:00 WIB
     expect(todayISO(new Date('2026-11-07T20:00:00Z'))).toBe('2026-11-08')
     expect(toISODateTime(new Date('2026-11-07T20:00:00Z'))).toBe('2026-11-08T03:00:00+07:00')
     expect(combineDateTime('2026-11-08', '07:15')).toBe('2026-11-08T07:15:00+07:00')
@@ -24,51 +25,47 @@ describe('permissions', () => {
   it('masks phone numbers', () => {
     expect(maskPhone('081234567890')).toBe('0812****90')
   })
-  it('teacher cannot write master data', () => {
-    expect(permissionsForRoles(['TEACHER'])).not.toContain('master:write')
-  })
-  it('super admin has every admin permission plus account/security permissions', () => {
-    const sa = ROLE_PERMISSIONS.SUPER_ADMIN
-    for (const p of ROLE_PERMISSIONS.ADMIN) expect(sa).toContain(p)
-    expect(sa).toEqual(expect.arrayContaining(['user:read', 'user:write', 'security:read', 'system:manage']))
-  })
-  it('admin cannot read user accounts or security data', () => {
-    for (const p of ['user:read', 'user:write', 'security:read', 'system:manage'] as const) {
-      expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p)
-    }
+  it('Guru Piket holds every permission in PERMISSIONS', () => {
+    const duty = ROLE_PERMISSIONS.DUTY_TEACHER
+    for (const p of PERMISSIONS) expect(duty).toContain(p)
+    expect(permissionsForRoles(['DUTY_TEACHER'])).toEqual(duty)
   })
   it('isAdminLike & canGrantRole', () => {
-    expect(isAdminLike({ roles: ['SUPER_ADMIN'] })).toBe(true)
-    expect(isAdminLike({ roles: ['ADMIN'] })).toBe(true)
-    expect(isAdminLike({ roles: ['PRINCIPAL', 'TEACHER'] })).toBe(false)
+    expect(isAdminLike({ roles: ['DUTY_TEACHER'] })).toBe(true)
     expect(isAdminLike(null)).toBe(false)
-    expect(canGrantRole(['ADMIN'], 'ADMIN')).toBe(false)
-    expect(canGrantRole(['ADMIN'], 'TEACHER')).toBe(true)
-    expect(canGrantRole(['SUPER_ADMIN'], 'SUPER_ADMIN')).toBe(true)
+    expect(canGrantRole(['DUTY_TEACHER'], 'DUTY_TEACHER')).toBe(true)
   })
 })
 
 describe('mock API foundation', () => {
   it('rejects bad login with safe message', async () => {
     await expect(
-      api.post('/auth/login', { username: 'admin', password: 'x' }, { skipAuthRefresh: true }),
+      api.post('/auth/login', { username: 'piket', password: 'x' }, { skipAuthRefresh: true }),
     ).rejects.toMatchObject({ status: 422, message: 'Nama pengguna atau kata sandi tidak sesuai.' })
   })
 
-  it('super admin demo account logs in with full scope', async () => {
-    await loginAs('superadmin')
+  it('guru piket demo account logs in with 5-panel operational permissions', async () => {
+    await loginAs('piket')
     const me = await api.get<DataResponse<CurrentUser>>('/auth/me')
-    expect(me.data.id).toBe('usr_superadmin')
-    expect(me.data.name).toBe('Dimas Prasetyo (Super Admin)')
-    expect(me.data.permissions).toContain('system:manage')
+    expect(me.data.id).toBe('usr_piket')
+    expect(me.data.roles).toEqual(['DUTY_TEACHER'])
+    expect(me.data.permissions).toContain('dashboard:read')
+    expect(me.data.permissions).toContain('teacher_attendance:read')
+    expect(me.data.permissions).toContain('substitution:write')
+    expect(me.data.permissions).toContain('teaching_log:read')
+    expect(me.data.permissions).toContain('absentees:write')
+    expect(me.data.permissions).toContain('extra_activity:read')
+    expect(me.data.permissions).not.toContain('teaching_log:verify')
+    expect(me.data.permissions).not.toContain('extra_activity:verify')
     expect(me.data.mustChangePassword).toBe(false)
   })
 
-  it('logs in and loads /auth/me', async () => {
-    await loginAs('piket')
+  it('operator piket without teacherId logs in cleanly', async () => {
+    await loginAs('operator')
     const me = await api.get<DataResponse<CurrentUser>>('/auth/me')
-    expect(me.data.roles).toContain('DUTY_TEACHER')
-    expect(me.data.permissions).toContain('duty_agenda:write')
+    expect(me.data.roles).toEqual(['DUTY_TEACHER'])
+    expect(me.data.teacherId).toBeNull()
+    expect(me.data.permissions).toContain('absentees:write')
   })
 
   it('returns 401 without token', async () => {
@@ -80,25 +77,14 @@ describe('mock API foundation', () => {
     expect((err as ApiError).status).toBe(401)
   })
 
-  it('scopes student access for teachers (AC-13)', async () => {
-    await loginAs('guru')
-    const me = await api.get<DataResponse<CurrentUser>>('/auth/me')
+  it('allows guru piket to read classes and students lookup', async () => {
+    await loginAs('piket')
     const classes = await api.get<DataResponse<ClassRoom[]>>('/classes')
-    const foreign = classes.data.find((c) => !me.data.teachingClassIds.includes(c.id))
-    expect(foreign).toBeDefined()
-    const err = await api
-      .get<ListResponse<Student>>('/students', { classId: foreign!.id })
-      .catch((e: unknown) => e)
-    expect((err as ApiError).status).toBe(403)
-  })
-
-  it('masks guardian phone for roles without contact permission', async () => {
-    await loginAs('guru')
-    const me = await api.get<DataResponse<CurrentUser>>('/auth/me')
+    expect(classes.data.length).toBeGreaterThan(0)
     const res = await api.get<ListResponse<Student>>('/students', {
-      classId: me.data.teachingClassIds[0],
+      classId: classes.data[0]!.id,
     })
-    expect(res.data[0]?.guardianPhone).toMatch(/\*\*\*\*/)
+    expect(res.data.length).toBeGreaterThan(0)
   })
 
   it('deduplicates QueryCache error toasts with a deterministic id', async () => {
@@ -113,5 +99,26 @@ describe('mock API foundation', () => {
       id: 'query-error:Terjadi kesalahan pada server. Coba beberapa saat lagi.',
     })
     spy.mockRestore()
+  })
+})
+
+describe('safeNextPath', () => {
+  it('menerima path internal yang valid dan menolak open redirect / loop login', () => {
+    expect(safeNextPath('/absensi-siswa?date=2026-11-13')).toBe('/absensi-siswa?date=2026-11-13')
+    expect(safeNextPath('/')).toBe('/')
+    expect(safeNextPath(null)).toBe('/')
+    expect(safeNextPath('https://evil.example')).toBe('/')
+    expect(safeNextPath('//evil.example')).toBe('/')
+    expect(safeNextPath('/\\evil.example')).toBe('/')
+    expect(safeNextPath('/login')).toBe('/')
+    expect(safeNextPath('/login?next=/')).toBe('/')
+  })
+})
+
+describe('roleLabel & formatRoleLabels', () => {
+  it('mengembalikan label Guru Piket dan fallback aman untuk peran warisan/asing', () => {
+    expect(roleLabel('DUTY_TEACHER')).toBe('Guru Piket')
+    expect(roleLabel('SUPER_ADMIN')).toBe('SUPER_ADMIN')
+    expect(formatRoleLabels(['DUTY_TEACHER', 'SUPER_ADMIN'], ' · ')).toBe('Guru Piket · SUPER_ADMIN')
   })
 })

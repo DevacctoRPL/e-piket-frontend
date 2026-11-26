@@ -13,8 +13,22 @@ import {
   requireAuth,
   toCurrentUser,
 } from '../utils'
-import { asRecord } from './master-write-rules'
-import { newPasswordError } from './users-rules'
+const MIN_PASSWORD_LENGTH = 8
+
+function asRecord(v: unknown): Record<string, unknown> {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+    throw errors.validation({ body: 'invalid' }, 'Format permintaan tidak valid.')
+  }
+  return v as Record<string, unknown>
+}
+
+function newPasswordError(current: string, next: unknown): string | null {
+  if (typeof next !== 'string' || !next) return 'required'
+  if (next.length < MIN_PASSWORD_LENGTH) return `Minimal ${MIN_PASSWORD_LENGTH} karakter.`
+  if (next.length > 128) return 'too_long'
+  if (next === current) return 'Kata sandi baru harus berbeda dari kata sandi saat ini.'
+  return null
+}
 
 const ACCESS_TTL_MS = 15 * 60_000
 
@@ -83,7 +97,10 @@ export const authHandlers = [
     await latency(120)
     const userId = localStorage.getItem(REFRESH_KEY)
     const user = userId ? db().users.find((u) => u.id === userId && u.status === 'ACTIVE') : null
-    if (!user) return errors.unauthenticated()
+    if (!user) {
+      if (userId) setRefreshCookie(null)
+      return errors.unauthenticated()
+    }
     return ok(issueToken(user.id))
   }),
 

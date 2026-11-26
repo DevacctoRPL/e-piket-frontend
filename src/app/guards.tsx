@@ -1,8 +1,9 @@
 import { ShieldX } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Link, Navigate, Outlet, useLocation } from 'react-router'
+import { Link, Navigate, Outlet, useLocation, useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/auth-context'
+import { safeNextPath } from '@/lib/utils'
 import type { Permission } from '@/types/entities'
 
 export function FullPageLoader({ label = 'Memuat…' }: { label?: string }) {
@@ -30,8 +31,9 @@ export function RequireAuth() {
 
 export function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
   const { status } = useAuth()
+  const [searchParams] = useSearchParams()
   if (status === 'booting') return <FullPageLoader label="Memeriksa sesi…" />
-  if (status === 'authenticated') return <Navigate to="/" replace />
+  if (status === 'authenticated') return <Navigate to={safeNextPath(searchParams.get('next'))} replace />
   return <>{children}</>
 }
 

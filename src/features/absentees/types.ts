@@ -1,36 +1,31 @@
-import type { AttendanceStatus, ID, ISODate, ShiftCode } from '@/types/entities'
+import type { AbsenteeRow, AbsenteeStatus, AttendanceStatus, ID, ISODate } from '@/types/entities'
 
-/** Parameter query GET /student-attendance/absentees(/summary). */
-export interface AbsenteeQuery {
-  dateFrom: ISODate
-  dateTo: ISODate
+export type { AbsenteeRow, AbsenteeStatus }
+
+export interface AbsenteeListParams {
+  date: ISODate
   classId?: ID
-  shiftCode?: ShiftCode
-  status?: AttendanceStatus[]
-  /** Kata kunci nama/NIS — hanya dikirim di query API, tidak disimpan di URL halaman (PRD §12.2). */
+  status?: AbsenteeStatus
   search?: string
-  contacted?: 'true' | 'false'
-  includeDraft?: boolean
   page?: number
   pageSize?: number
 }
 
-/** Response GET /student-attendance/absentees/summary. */
 export interface AbsenteeSummary {
-  dateFrom: ISODate
-  dateTo: ISODate
-  /** Jumlah per status (mengabaikan filter status, mengikuti filter lain). */
-  byStatus: Partial<Record<AttendanceStatus, number>>
-  /** Jumlah baris sesuai seluruh filter. */
+  date: ISODate
+  byStatus: Record<AbsenteeStatus, number>
   total: number
-  contacted: number
-  notContacted: number
 }
 
-/** Body PATCH /student-attendance/records/{id}/contact. */
-export interface GuardianContactPayload {
-  /** Dihilangkan bila pengguna tidak berhak melihat nomor wali (nomor lama dipertahankan). */
-  contactedPhone?: string | null
-  receiverName: string | null
-  contactNote: string | null
+export interface CreateAbsenteeInput {
+  date: ISODate
+  classId: ID
+  studentId: ID
+  status: AbsenteeStatus
+  reason?: string | null
+}
+
+export interface UpdateAbsenteeInput {
+  status: AttendanceStatus
+  reason?: string | null
 }

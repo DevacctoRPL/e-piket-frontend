@@ -14,19 +14,18 @@ import { authToken } from '@/lib/auth-token'
 import type { DataResponse } from '@/types/api'
 import type { LoginResponse } from '@/types/entities'
 
-export type DemoAccount =
-  | 'superadmin'
-  | 'admin'
-  | 'kepsek'
-  | 'guru'
-  | 'piket'
-  | 'walikelas'
-  | 'koordinator'
+export type DemoAccount = 'piket' | 'piket2' | 'operator'
 
-export async function loginAs(username: DemoAccount) {
+const DEMO_USERNAME: Record<DemoAccount, string> = {
+  piket: 'piket',
+  piket2: 'piket.budi',
+  operator: 'operator.piket',
+}
+
+export async function loginAs(account: DemoAccount) {
   const res = await api.post<DataResponse<LoginResponse>>(
     '/auth/login',
-    { username, password: 'password' },
+    { username: DEMO_USERNAME[account], password: 'password' },
     { skipAuthRefresh: true },
   )
   authToken.set(res.data.accessToken)

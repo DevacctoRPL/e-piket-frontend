@@ -90,7 +90,7 @@ describe('shared foundation components', () => {
     const reasons = document.querySelectorAll('textarea')
     expect(reasons).toHaveLength(2)
     expect(reasons[0]?.id).not.toBe(reasons[1]?.id)
-    const labels = document.querySelectorAll('label[for]')
+    const labels = document.querySelectorAll<HTMLLabelElement>('label[for]')
     expect([...labels].map((label) => label.htmlFor)).toEqual(expect.arrayContaining([reasons[0]!.id, reasons[1]!.id]))
   })
 

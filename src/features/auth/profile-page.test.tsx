@@ -36,13 +36,14 @@ describe('ProfilePage', () => {
   })
 
   it('shows account + teacher info and saves name/email edits', async () => {
-    await loginAs('walikelas')
+    await loginAs('piket2')
     const user = userEvent.setup()
     renderWithProviders(<Gate />, { route: '/profil', path: '/profil' })
 
-    expect(await screen.findByText('@walikelas', undefined, { timeout: 5000 })).toBeInTheDocument()
-    expect(screen.getByText('Wali Kelas')).toBeInTheDocument()
-    expect(screen.getByText(/Perubahan kata sandi/)).toBeInTheDocument()
+    expect(await screen.findByText('@piket.budi', undefined, { timeout: 5000 })).toBeInTheDocument()
+    expect(screen.getByText('Guru Piket')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Keamanan' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/Kata sandi saat ini/)).toBeInTheDocument()
     // NIP dari data master guru
     await waitFor(() => expect(screen.getByText('NIP').nextElementSibling?.textContent).toMatch(/\d{6,}/), {
       timeout: 5000,

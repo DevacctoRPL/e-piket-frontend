@@ -1,20 +1,10 @@
 import {
   BookOpenCheck,
-  CalendarClock,
-  ClipboardList,
-  Database,
-  DoorOpen,
-  FileBarChart,
-  GraduationCap,
-  History,
   LayoutDashboard,
   NotebookPen,
-  Settings,
-  ShieldCheck,
   UserCheck,
   UserRound,
   UserX,
-  UsersRound,
   type LucideIcon,
 } from 'lucide-react'
 import type { Permission } from '@/types/entities'
@@ -27,8 +17,6 @@ export interface NavItem {
   permission: Permission | Permission[]
   /** Tampil di bottom nav ponsel (maks 4 item pertama yang lolos permission). */
   mobilePrimary?: boolean
-  /** Nama kelompok induk opsional untuk tampilan pohon sub-menu (garis pohon) bergaya Nuvio. */
-  parentGroup?: string
   /** Kategori untuk breadcrumb di topbar. */
   breadcrumbCategory?: string
 }
@@ -38,10 +26,10 @@ export interface NavGroup {
   items: NavItem[]
 }
 
-/** Navigasi berbasis peran (PRD §8). Menu disembunyikan bila tidak berizin — backend tetap menegakkan akses. */
+/** Navigasi datar 5 panel operasional harian Guru Piket. */
 export const NAV_GROUPS: NavGroup[] = [
   {
-    label: 'Navigasi Utama',
+    label: 'Menu Utama',
     items: [
       {
         label: 'Dashboard',
@@ -52,123 +40,35 @@ export const NAV_GROUPS: NavGroup[] = [
         breadcrumbCategory: 'Ringkasan',
       },
       {
-        label: 'Absensi Siswa',
-        to: '/absensi-siswa',
-        icon: ClipboardList,
-        permission: 'student_attendance:read',
-        mobilePrimary: true,
-        parentGroup: 'Kehadiran Harian',
-        breadcrumbCategory: 'Kehadiran Harian',
-      },
-      {
-        label: 'Siswa Tidak Hadir',
-        to: '/siswa-tidak-hadir',
-        icon: UserX,
-        permission: 'absentees:read',
-        parentGroup: 'Kehadiran Harian',
-        breadcrumbCategory: 'Kehadiran Harian',
-      },
-      {
-        label: 'Kepulangan Siswa',
-        to: '/kepulangan',
-        icon: DoorOpen,
-        permission: 'dismissal:read',
-        parentGroup: 'Kehadiran Harian',
-        breadcrumbCategory: 'Kehadiran Harian',
-      },
-      {
         label: 'Absensi Guru',
         to: '/absensi-guru',
         icon: UserCheck,
-        permission: ['teacher_attendance:self', 'teacher_attendance:read'],
+        permission: 'teacher_attendance:read',
         mobilePrimary: true,
-        parentGroup: 'Kehadiran Harian',
-        breadcrumbCategory: 'Kehadiran Harian',
+        breadcrumbCategory: 'Operasional Piket',
       },
       {
-        label: 'Agenda Piket',
-        to: '/agenda-piket',
-        icon: ShieldCheck,
-        permission: 'duty_agenda:read',
-        parentGroup: 'KBM & Operasional',
-        breadcrumbCategory: 'KBM & Operasional',
-      },
-      {
-        label: 'Jurnal Mengajar',
-        to: '/jurnal-mengajar',
+        label: 'Agenda Guru',
+        to: '/agenda-guru',
         icon: NotebookPen,
         permission: 'teaching_log:read',
         mobilePrimary: true,
-        parentGroup: 'KBM & Operasional',
-        breadcrumbCategory: 'KBM & Operasional',
+        breadcrumbCategory: 'Operasional Piket',
       },
       {
-        label: 'Jam Kosong',
-        to: '/jam-kosong',
-        icon: CalendarClock,
-        permission: 'substitution:read',
-        parentGroup: 'KBM & Operasional',
-        breadcrumbCategory: 'KBM & Operasional',
+        label: 'Absensi Siswa',
+        to: '/absensi-siswa',
+        icon: UserX,
+        permission: 'absentees:read',
+        mobilePrimary: true,
+        breadcrumbCategory: 'Operasional Piket',
       },
       {
-        label: 'Kegiatan Tambahan',
-        to: '/kegiatan-tambahan',
+        label: 'Jam Tambahan',
+        to: '/jam-tambahan',
         icon: BookOpenCheck,
         permission: 'extra_activity:read',
-        parentGroup: 'KBM & Operasional',
-        breadcrumbCategory: 'KBM & Operasional',
-      },
-    ],
-  },
-  {
-    label: 'Analitik & Jadwal',
-    items: [
-      {
-        label: 'Laporan',
-        to: '/laporan',
-        icon: FileBarChart,
-        permission: 'report:read',
-        breadcrumbCategory: 'Analitik & Jadwal',
-      },
-      {
-        label: 'Jadwal',
-        to: '/jadwal',
-        icon: GraduationCap,
-        permission: 'schedule:read',
-        breadcrumbCategory: 'Analitik & Jadwal',
-      },
-    ],
-  },
-  {
-    label: 'Administrasi',
-    items: [
-      {
-        label: 'Kelola Pengguna',
-        to: '/pengguna',
-        icon: UsersRound,
-        permission: 'user:read',
-        breadcrumbCategory: 'Administrasi',
-      },
-      {
-        label: 'Data Master',
-        to: '/master',
-        icon: Database,
-        permission: 'master:write',
-        breadcrumbCategory: 'Administrasi',
-      },
-      {
-        label: 'Audit Log',
-        to: '/audit',
-        icon: History,
-        permission: 'audit:read',
-        breadcrumbCategory: 'Administrasi',
-      },
-      {
-        label: 'Pengaturan',
-        to: '/pengaturan',
-        icon: Settings,
-        permission: 'settings:write',
-        breadcrumbCategory: 'Administrasi',
+        breadcrumbCategory: 'Operasional Piket',
       },
     ],
   },

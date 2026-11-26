@@ -1,10 +1,8 @@
 /**
- * Aturan bisnis bersama untuk mock API (meniru apa yang akan dilakukan backend Go).
- * Semua handler fitur memakai helper ini agar angka antar modul konsisten (PRD §9.2, FR-SUB-04).
+ * Aturan bisnis bersama untuk mock API 5 panel Guru Piket.
  */
 import { isoDayOfWeek } from '@/lib/date'
 import { TEACHER_ABSENT_STATUSES } from '@/lib/enums'
-import { maskPhone } from '@/lib/permissions'
 import type {
   AttendanceSummaryCounts,
   ID,
@@ -45,7 +43,6 @@ export function periodTimes(shiftCode: ShiftCode, start: number, end: number) {
 
 /* ------------------------------------------------------------------ roster */
 
-/** Siswa aktif di kelas pada tanggal tertentu (FR-MST-03: nonaktif tidak muncul setelah tanggal efektif). */
 export function rosterForClass(classId: ID, date: ISODate): Student[] {
   return db()
     .students.filter(
@@ -82,10 +79,6 @@ export function sessionSummary(sessionId: ID): AttendanceSummaryCounts {
   return counts
 }
 
-export function withSummary<T extends { id: ID }>(session: T) {
-  return { ...session, summary: sessionSummary(session.id) }
-}
-
 /* ------------------------------------------------------------------ timetable */
 
 export function slotsOn(
@@ -107,17 +100,14 @@ export function slotsOn(
     .sort((a, b) => a.shiftCode.localeCompare(b.shiftCode) || a.periodStart - b.periodStart)
 }
 
-/** Jumlah jam terjadwal guru pada tanggal (opsional per shift). */
 export function scheduledPeriods(teacherId: ID, date: ISODate, shiftCode?: ShiftCode | null) {
   return slotsOn(date, { teacherId, shiftCode }).reduce((n, s) => n + s.periodCount, 0)
 }
 
-/** Guru yang terjadwal mengajar pada tanggal/shift (FR-TCH-04). */
 export function scheduledTeacherIds(date: ISODate, shiftCode?: ShiftCode | null): ID[] {
   return [...new Set(slotsOn(date, { shiftCode }).map((s) => s.teacherId))]
 }
 
-/** Guru piket pada tanggal/shift: penugasan tanggal khusus menimpa penugasan rutin harian. */
 export function dutyTeacherIds(date: ISODate, shiftCode: ShiftCode): ID[] {
   const d = db()
   const specific = d.dutyAssignments.find(
@@ -136,12 +126,6 @@ export function dutyTeacherIds(date: ISODate, shiftCode: ShiftCode): ID[] {
   )
 }
 
-export function isDutyTeacher(teacherId: ID | null, date: ISODate, shiftCode?: ShiftCode) {
-  if (!teacherId) return false
-  const shifts = shiftCode ? [shiftCode] : db().shifts.map((s) => s.code)
-  return shifts.some((sc) => dutyTeacherIds(date, sc).includes(teacherId))
-}
-
 /* ------------------------------------------------------------------ teacher absence & substitutions */
 
 export function teacherAttendanceOn(teacherId: ID, date: ISODate) {
@@ -153,26 +137,34 @@ export function isTeacherAbsent(teacherId: ID, date: ISODate) {
   return !!a && TEACHER_ABSENT_STATUSES.includes(a.status)
 }
 
-/** Hitungan jam terdampak dari jadwal aktif (PRD §9.2). */
 export function computeAffectedPeriods(teacherId: ID, date: ISODate) {
   return scheduledPeriods(teacherId, date)
 }
 
 export function activeSubstitutionFor(date: ISODate, timetableSlotId: ID) {
   return db().substitutions.find(
-    (r) => r.date === date && r.timetableSlotId === timetableSlotId && r.status === 'ACTIVE',
+    (r) =>
+      r.date === date &&
+      r.timetableSlotId === timetableSlotId &&
+      r.status === 'ACTIVE' &&
+      !isDeleted('substitutions', r.id),
+  )
+}
+
+export function activeSubstitutionForManual(manualSlotId: ID) {
+  return db().substitutions.find(
+    (r) => r.manualSlotId === manualSlotId && r.status === 'ACTIVE' && !isDeleted('substitutions', r.id),
   )
 }
 
 /**
- * Slot jam kosong = slot jadwal yang gurunya berstatus tidak hadir (FR-SUB-01).
- * Tertangani bila ada record pengganti ACTIVE (PRD §9.2).
+ * Gabungan slot jam kosong otomatis (dari guru berhalangan) dan slot jam kosong manual (Tambah Manual).
  */
 export function substitutionSlotsOn(
   date: ISODate,
   filter: { shiftCode?: ShiftCode | null; classId?: ID | null } = {},
 ): SubstitutionSlot[] {
-  return slotsOn(date, filter)
+  const autoSlots: SubstitutionSlot[] = slotsOn(date, filter)
     .filter((s) => isTeacherAbsent(s.teacherId, date))
     .map((s) => {
       const att = teacherAttendanceOn(s.teacherId, date)
@@ -182,6 +174,8 @@ export function substitutionSlotsOn(
         date,
         shiftCode: s.shiftCode,
         timetableSlotId: s.id,
+        manualSlotId: null,
+        isManual: false,
         classId: s.classId,
         className: className(s.classId),
         subjectId: s.subjectId,
@@ -196,6 +190,40 @@ export function substitutionSlotsOn(
         substitution: sub,
       }
     })
+
+  const manualSlots: SubstitutionSlot[] = (db().manualEmptySlots ?? [])
+    .filter(
+      (m) =>
+        m.date === date &&
+        !isDeleted('manualEmptySlots', m.id) &&
+        (!filter.shiftCode || m.shiftCode === filter.shiftCode) &&
+        (!filter.classId || m.classId === filter.classId),
+    )
+    .map((m) => {
+      const sub = activeSubstitutionForManual(m.id) ?? null
+      return {
+        id: `manual:${m.id}`,
+        date: m.date,
+        shiftCode: m.shiftCode,
+        timetableSlotId: null,
+        manualSlotId: m.id,
+        isManual: true,
+        classId: m.classId,
+        className: className(m.classId),
+        subjectId: m.subjectId,
+        subjectName: m.subjectName,
+        absentTeacherId: m.absentTeacherId,
+        absentTeacherName: m.absentTeacherName,
+        absentTeacherStatus: 'ABSENT' as const,
+        periodStart: m.periodStart,
+        periodEnd: m.periodEnd,
+        periodCount: m.periodCount,
+        status: sub ? ('HANDLED' as const) : ('UNHANDLED' as const),
+        substitution: sub,
+      }
+    })
+
+  return [...autoSlots, ...manualSlots]
 }
 
 export function summarizeSlots(slots: SubstitutionSlot[]): SubstitutionSummary {
@@ -212,43 +240,6 @@ export function summarizeSlots(slots: SubstitutionSlot[]): SubstitutionSummary {
   }
 }
 
-/** Jam yang sudah digantikan untuk guru tertentu pada tanggal. */
-export function handledPeriodsFor(teacherId: ID, date: ISODate) {
-  return db()
-    .substitutions.filter(
-      (r) => r.date === date && r.absentTeacherId === teacherId && r.status === 'ACTIVE',
-    )
-    .reduce((n, r) => n + r.periodCount, 0)
-}
-
-/** Apakah guru sibuk pada tanggal/shift/periode (jadwal sendiri atau tugas pengganti lain). */
-export function teacherBusy(
-  teacherId: ID,
-  date: ISODate,
-  shiftCode: ShiftCode,
-  periodStart: number,
-  periodEnd: number,
-  excludeTimetableSlotId?: ID,
-) {
-  const overlap = (a1: number, a2: number) => a1 <= periodEnd && a2 >= periodStart
-  const own = slotsOn(date, { teacherId, shiftCode }).find(
-    (s) => overlap(s.periodStart, s.periodEnd) && s.id !== excludeTimetableSlotId,
-  )
-  const sub = db().substitutions.find(
-    (r) =>
-      r.date === date &&
-      r.status === 'ACTIVE' &&
-      r.substituteTeacherId === teacherId &&
-      r.shiftCode === shiftCode &&
-      r.timetableSlotId !== excludeTimetableSlotId &&
-      overlap(r.periodStart, r.periodEnd),
-  )
-  return { ownSlot: own ?? null, substitution: sub ?? null }
-}
-
-/* ------------------------------------------------------------------ privacy */
-
-/** Nomor wali hanya utuh untuk role berwenang (PRD §12.2, AC-05). */
-export function phoneForUser(phone: string | null, user: AuthedUser) {
-  return user.permissions.includes('student_contact:read') ? phone : maskPhone(phone)
+export function phoneForUser(phone: string | null, _user: AuthedUser) {
+  return phone
 }

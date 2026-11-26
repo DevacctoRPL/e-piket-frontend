@@ -1,277 +1,331 @@
-import { CalendarCheck2, ClipboardList, PhoneOff, UserX } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
-import { DataTable } from '@/components/data-table'
-import { ExportMenu } from '@/components/export-menu'
-import { FilterBar, FilterDate, FilterField, FilterSelect, SearchInput } from '@/components/filter-bar'
+import { Pencil, Plus, RefreshCw, Trash2, UserX } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { DataTable, type ColumnDef } from '@/components/data-table'
+import { DatePickerPill } from '@/components/date-picker-pill'
+import { useFilters } from '@/components/filter-bar'
 import { EmptyState, ErrorState, Page, PageHeader, TableSkeleton } from '@/components/page'
+import { SearchField } from '@/components/search-field'
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { useAuth } from '@/features/auth/auth-context'
-import { useClasses, useShifts } from '@/features/master-data/lookups'
-import { formatDate, formatDateLong } from '@/lib/date'
+import { todayISO } from '@/lib/date'
+import { ABSENTEE_STATUS_LIST, ATTENDANCE_META } from '@/lib/enums'
+import { getErrorMessage } from '@/lib/error-mapping'
+import { useClasses } from '@/lib/lookups'
 import { cn } from '@/lib/utils'
-import type { AbsenteeRow } from '@/types/entities'
-import { AbsenteeMobileCard, absenteeColumns } from '../components/absentee-columns'
-import { ContactDialog } from '../components/contact-dialog'
+import type { AbsenteeRow, AbsenteeStatus } from '@/types/entities'
+import { AbsenteeFormDialog } from '../components/absentee-form-dialog'
 import { StatusChips } from '../components/status-chips'
-import { useAbsentees, useAbsenteeSummary } from '../queries'
-import { periodLabel, printSearch, useAbsenteeFilters, useShiftName } from '../use-absentee-filters'
+import { useAbsentees, useAbsenteeSummary, useDeleteAbsentee } from '../queries'
 
-const PAGE_SIZE = 25
-const SUMMARY_LINK =
-  'inline-flex items-center gap-1.5 rounded-sm px-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none'
+const PAGE_SIZE = 10
+const SELECT_CLS =
+  'native-select h-9 cursor-pointer appearance-none rounded-md border border-border/90 bg-card pr-8 pl-3 text-[13px] font-medium text-foreground shadow-2xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
 
-/** Daftar siswa tidak hadir otomatis (FR-STU-05) + pencatatan konfirmasi wali (FR-STU-06). */
+/**
+ * Panel Absensi Siswa — Judul halaman: "Siswa Tidak Hadir" (Excalidraw Layar 3 + Papan Tulis 2).
+ * Status ketidakhadiran: Sakit (S), Izin (I), Alpa (A), Dispensasi (D), PKL (P).
+ * Aksi: + Catat Ketidakhadiran, Edit (termasuk ubah ke Hadir), Hapus (kembalikan ke Hadir).
+ */
 export function AbsenteesPage() {
-  const { can } = useAuth()
-  const canWrite = can('absentees:write')
-  const [sp] = useSearchParams()
-  const filters = useAbsenteeFilters()
-  const { values, baseQuery, statuses, page, toggleStatus } = filters
-  // Kata kunci nama tidak disimpan di URL (PRD §12.2).
+  const today = todayISO()
+  const { values, set } = useFilters({
+    date: today,
+    classId: '',
+    status: '',
+    page: '1',
+  })
   const [search, setSearch] = useState('')
-  const [contactRow, setContactRow] = useState<AbsenteeRow | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editRow, setEditRow] = useState<AbsenteeRow | null>(null)
+  const [deleteRow, setDeleteRow] = useState<AbsenteeRow | null>(null)
 
-  const classes = useClasses({ scope: 'mine' })
-  const shifts = useShifts()
-  const shiftName = useShiftName(shifts.data)
+  const page = Number(values.page) || 1
+  const statusFilter = (values.status || '') as AbsenteeStatus | ''
+  const classes = useClasses()
+  const listQuery = useAbsentees({
+    date: values.date,
+    classId: values.classId || undefined,
+    status: statusFilter || undefined,
+    search: search.trim() || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  })
+  const summaryQuery = useAbsenteeSummary({
+    date: values.date,
+    classId: values.classId || undefined,
+    search: search.trim() || undefined,
+  })
+  const removeMut = useDeleteAbsentee()
 
-  const listQuery = useAbsentees({ ...baseQuery, search: search || undefined, page, pageSize: PAGE_SIZE })
-  const summaryQuery = useAbsenteeSummary({ ...baseQuery, search: search || undefined })
+  const rows = listQuery.data?.data ?? []
+  const meta = listQuery.data?.meta
+  const summary = summaryQuery.data
 
-  const multiDay = baseQuery.dateFrom !== baseQuery.dateTo
-  const columns = useMemo(
-    () => absenteeColumns({ canWrite, onContact: setContactRow, multiDay, shiftName }),
-    [canWrite, multiDay, shiftName],
-  )
+  const openCreate = () => {
+    setEditRow(null)
+    setDialogOpen(true)
+  }
 
-  const onSearch = useCallback(
-    (v: string) => {
-      setSearch(v)
-      if (page !== 1) filters.set({ page: '1' })
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const openEdit = (row: AbsenteeRow) => {
+    setEditRow(row)
+    setDialogOpen(true)
+  }
+
+  const handleSync = async () => {
+    const [r1, r2] = await Promise.all([listQuery.refetch(), summaryQuery.refetch()])
+    if (r1.isSuccess && r2.isSuccess) toast.success('Data siswa tidak hadir disinkronkan.')
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteRow) return
+    try {
+      await removeMut.mutateAsync(deleteRow.recordId)
+      toast.success(`${deleteRow.studentName} dikembalikan menjadi Hadir.`)
+      setDeleteRow(null)
+    } catch (err) {
+      toast.error(getErrorMessage(err))
+    }
+  }
+
+  const columns = useMemo<ColumnDef<AbsenteeRow, unknown>[]>(
+    () => [
+      {
+        id: 'no',
+        header: 'No',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground tabular-nums">
+            {(page - 1) * PAGE_SIZE + row.index + 1}
+          </span>
+        ),
+      },
+      {
+        id: 'studentName',
+        header: 'Nama Siswa',
+        accessorKey: 'studentName',
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium text-foreground">{row.original.studentName}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">{row.original.studentNis}</p>
+          </div>
+        ),
+      },
+      {
+        id: 'className',
+        header: 'Kelas',
+        accessorKey: 'className',
+        cell: ({ row }) => <span className="font-medium whitespace-nowrap">{row.original.className}</span>,
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        accessorKey: 'status',
+        cell: ({ row }) => <StatusBadge meta={ATTENDANCE_META} value={row.original.status} />,
+      },
+      {
+        id: 'reason',
+        header: 'Keterangan',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="line-clamp-2 max-w-72 text-muted-foreground">
+            {row.original.reason || row.original.note || '—'}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: 'Aksi',
+        enableSorting: false,
+        meta: { headerClassName: 'text-right', className: 'text-right whitespace-nowrap' },
+        cell: ({ row }) => (
+          <div className="inline-flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openEdit(row.original)}
+              aria-label={`Edit ${row.original.studentName}`}
+            >
+              <Pencil className="size-3.5" aria-hidden /> Edit
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setDeleteRow(row.original)}
+              aria-label={`Hapus ${row.original.studentName}`}
+            >
+              <Trash2 className="size-3.5" aria-hidden /> Hapus
+            </Button>
+          </div>
+        ),
+      },
+    ],
     [page],
   )
 
-  // Sama dengan filter layar (kecuali kata kunci nama — tidak dikirim demi privasi, PRD §12.2).
-  const exportFilters = {
-    dateFrom: baseQuery.dateFrom,
-    dateTo: baseQuery.dateTo,
-    classId: baseQuery.classId,
-    shiftCode: baseQuery.shiftCode,
-    status: baseQuery.status,
-    contacted: baseQuery.contacted,
-    includeDraft: baseQuery.includeDraft,
-  }
-  const printHref = `/siswa-tidak-hadir/cetak${printSearch(sp)}`
-  const summary = summaryQuery.data
-  const rows = listQuery.data?.data ?? []
-  const meta = listQuery.data?.meta
-
-  const periodText = multiDay
-    ? `${formatDate(baseQuery.dateFrom)} – ${formatDate(baseQuery.dateTo)}`
-    : formatDateLong(baseQuery.dateFrom)
-
   return (
-    <Page>
+    <Page className="gap-5">
       <PageHeader
         title="Siswa Tidak Hadir"
-        description="Daftar otomatis dari absensi kelas yang sudah dikirim. Catat konfirmasi wali tanpa menyalin ulang."
+        description="Daftar siswa tidak hadir dari Presensi Siswa. Catat ketidakhadiran, ubah status (S/I/A/D/P/H), atau kembalikan ke Hadir."
         actions={
-          <ExportMenu
-            report="absentees"
-            filters={exportFilters}
-            period={periodLabel(baseQuery)}
-            printHref={printHref}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <DatePickerPill
+              id="absentees-date"
+              date={values.date}
+              maxDate={today}
+              onChange={(next) => set({ date: next, page: '1' })}
+            />
+            <Button
+              variant="outline"
+              onClick={() => void handleSync()}
+              disabled={listQuery.isFetching}
+            >
+              <RefreshCw className={cn('size-4', listQuery.isFetching && 'animate-spin')} aria-hidden />
+              Sinkron Presensi
+            </Button>
+          </div>
         }
       />
 
-      <FilterBar onReset={filters.isDirty || search ? () => { filters.reset(); setSearch('') } : undefined}>
-        <FilterDate
-          label="Dari tanggal"
-          value={baseQuery.dateFrom}
-          max={filters.today}
-          onChange={(v) => filters.set({ dateFrom: v, ...(v && v > baseQuery.dateTo ? { dateTo: v } : {}) })}
-        />
-        <FilterDate
-          label="Sampai tanggal"
-          value={baseQuery.dateTo}
-          min={baseQuery.dateFrom}
-          onChange={(v) => filters.set({ dateTo: v })}
-        />
-        <FilterSelect
-          label="Kelas"
-          value={values.classId}
-          onChange={(v) => filters.set({ classId: v })}
-          allLabel={classes.isPending ? 'Memuat kelas…' : 'Semua kelas'}
-          options={(classes.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-        />
-        <FilterSelect
-          label="Shift"
-          value={values.shiftCode}
-          onChange={(v) => filters.set({ shiftCode: v })}
-          allLabel="Semua shift"
-          options={(shifts.data ?? []).filter((s) => s.isActive).map((s) => ({ value: s.code, label: s.name }))}
-        />
-        <FilterSelect
-          label="Konfirmasi wali"
-          value={values.contacted}
-          onChange={(v) => filters.set({ contacted: v })}
-          allLabel="Semua"
-          options={[
-            { value: 'false', label: 'Belum dikonfirmasi' },
-            { value: 'true', label: 'Sudah dikonfirmasi' },
-          ]}
-        />
-        <SearchInput label="Cari siswa" placeholder="Nama atau NIS…" value={search} onChange={onSearch} />
-        <FilterField label="Sesi draft" htmlFor="absentees-include-draft">
-          <div className="flex h-full items-center gap-2 px-2.5">
-            <Checkbox
-              id="absentees-include-draft"
-              checked={values.draft === '1'}
-              onCheckedChange={(c) => filters.set({ draft: c === true ? '1' : '' })}
-              aria-label="Sertakan absensi draft"
-            />
-            <label
-              htmlFor="absentees-include-draft"
-              className="cursor-pointer text-[13px] font-medium whitespace-nowrap"
-            >
-              Sertakan
-            </label>
-          </div>
-        </FilterField>
-      </FilterBar>
+      <StatusChips
+        selected={statusFilter}
+        counts={summary?.byStatus}
+        total={summary?.total}
+        onSelect={(next) => set({ status: next, page: '1' })}
+      />
 
-      <section aria-label="Ringkasan" className="grid gap-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <p className="text-[13px] text-muted-foreground">
-            <span className="font-medium text-foreground">{periodText}</span>
-            {summary && (
-              <>
-                {' · '}
-                <span className="tabular-nums">{summary.total}</span> siswa
-              </>
-            )}
-          </p>
-          {summary && summary.total + summary.contacted > 0 && (
-            <div className="flex flex-wrap gap-3 text-[13px]">
-              <button
-                type="button"
-                className={cn(SUMMARY_LINK, values.contacted === 'false' && 'font-semibold text-foreground underline')}
-                onClick={() => filters.set({ contacted: values.contacted === 'false' ? '' : 'false' })}
-                aria-pressed={values.contacted === 'false'}
-              >
-                <PhoneOff className="size-3.5 text-tone-warning" aria-hidden />
-                <span className="tabular-nums">{summary.notContacted}</span> belum dikonfirmasi
-              </button>
-              <button
-                type="button"
-                className={cn(SUMMARY_LINK, values.contacted === 'true' && 'font-semibold text-foreground underline')}
-                onClick={() => filters.set({ contacted: values.contacted === 'true' ? '' : 'true' })}
-                aria-pressed={values.contacted === 'true'}
-              >
-                <CalendarCheck2 className="size-3.5 text-tone-success" aria-hidden />
-                <span className="tabular-nums">{summary.contacted}</span> sudah dikonfirmasi
-              </button>
-            </div>
-          )}
-        </div>
-        <StatusChips
-          selected={statuses}
-          counts={summary?.byStatus}
-          loading={summaryQuery.isFetching}
-          onToggle={toggleStatus}
-          onClear={() => filters.set({ status: '' })}
+      {/* Toolbar Excalidraw Layar 3 */}
+      <div className="flex flex-col gap-2.5 rounded-xl border border-border/85 bg-card p-3 shadow-2xs sm:flex-row sm:items-center">
+        <SearchField
+          value={search}
+          onValueChange={(v) => {
+            setSearch(v)
+            if (page !== 1) set({ page: '1' })
+          }}
+          placeholder="Cari nama siswa atau kelas..."
+          aria-label="Cari nama siswa atau kelas"
+          className="flex-1"
         />
-      </section>
+        <select
+          aria-label="Filter kelas"
+          value={values.classId}
+          onChange={(e) => set({ classId: e.target.value, page: '1' })}
+          className={SELECT_CLS}
+        >
+          <option value="">Kelas: Semua</option>
+          {(classes.data ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter status ketidakhadiran"
+          value={statusFilter}
+          onChange={(e) => set({ status: e.target.value, page: '1' })}
+          className={SELECT_CLS}
+        >
+          <option value="">Status: Semua</option>
+          {ABSENTEE_STATUS_LIST.map((code) => (
+            <option key={code} value={code}>
+              {ATTENDANCE_META[code].label} ({ATTENDANCE_META[code].short})
+            </option>
+          ))}
+        </select>
+        <Button onClick={openCreate} className="shrink-0">
+          <Plus aria-hidden /> Catat Ketidakhadiran
+        </Button>
+      </div>
 
       {listQuery.isPending ? (
-        <TableSkeleton rows={6} cols={7} />
+        <TableSkeleton rows={7} cols={6} />
       ) : listQuery.isError ? (
         <ErrorState error={listQuery.error} onRetry={() => void listQuery.refetch()} />
       ) : (
-        <div className={cn('transition-opacity duration-150', listQuery.isPlaceholderData && 'opacity-60')} aria-busy={listQuery.isFetching}>
+        <div className={cn('transition-opacity', listQuery.isPlaceholderData && 'opacity-60')}>
           <DataTable
-            title="Daftar siswa"
+            title="Daftar Siswa Tidak Hadir"
             icon={<UserX />}
             caption="Daftar siswa tidak hadir"
             columns={columns}
             data={rows}
             getRowId={(r) => r.recordId}
-            serverPagination={meta ? { meta, onPageChange: (p) => filters.set({ page: String(p) }) } : undefined}
-            renderMobileCard={(r) => (
-              <AbsenteeMobileCard row={r} canWrite={canWrite} onContact={setContactRow} shiftName={shiftName} />
+            serverPagination={
+              meta ? { meta, onPageChange: (p) => set({ page: String(p) }) } : undefined
+            }
+            renderMobileCard={(row) => (
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{row.studentName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {row.className} · NIS {row.studentNis}
+                    </p>
+                  </div>
+                  <StatusBadge meta={ATTENDANCE_META} value={row.status} />
+                </div>
+                <p className="text-xs text-muted-foreground">{row.reason || row.note || 'Tanpa keterangan'}</p>
+                <div className="flex justify-end gap-1 border-t border-border/60 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() => setDeleteRow(row)}
+                  >
+                    Hapus
+                  </Button>
+                </div>
+              </div>
             )}
             emptyState={
-              <AbsenteesEmpty
-                filtered={filters.isDirty || !!search}
-                includeDraft={values.draft === '1'}
-                onIncludeDraft={() => filters.set({ draft: '1' })}
-                onReset={() => {
-                  filters.reset()
-                  setSearch('')
-                }}
+              <EmptyState
+                className="border-0 bg-transparent"
+                icon={<UserX className="size-5" />}
+                title="Tidak ada siswa tidak hadir"
+                description="Belum ada siswa berstatus Sakit, Izin, Alpa, Dispensasi, atau PKL pada filter ini."
+                action={
+                  <Button size="sm" onClick={openCreate}>
+                    <Plus /> Catat Ketidakhadiran
+                  </Button>
+                }
               />
             }
           />
         </div>
       )}
 
-      <ContactDialog
-        row={contactRow}
-        open={contactRow !== null}
-        onOpenChange={(o) => {
-          if (!o) setContactRow(null)
+      <AbsenteeFormDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setEditRow(null)
         }}
+        date={values.date}
+        row={editRow}
+      />
+
+      <ConfirmDialog
+        open={deleteRow !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteRow(null)
+        }}
+        title="Kembalikan status ke Hadir?"
+        description={
+          deleteRow
+            ? `${deleteRow.studentName} (${deleteRow.className}) akan dihapus dari daftar Siswa Tidak Hadir dan statusnya dikembalikan menjadi Hadir.`
+            : ''
+        }
+        confirmLabel="Hapus & Tandai Hadir"
+        destructive
+        pending={removeMut.isPending}
+        onConfirm={confirmDelete}
       />
     </Page>
-  )
-}
-
-function AbsenteesEmpty({
-  filtered,
-  includeDraft,
-  onIncludeDraft,
-  onReset,
-}: {
-  filtered: boolean
-  includeDraft: boolean
-  onIncludeDraft: () => void
-  onReset: () => void
-}) {
-  return (
-    <EmptyState
-      icon={<UserX className="size-5" />}
-      className="border-0 bg-transparent"
-      title="Tidak ada siswa tidak hadir"
-      description={
-        <>
-          Belum ada siswa berstatus sakit, izin, alpa, terlambat, atau dispensasi pada filter ini.
-          {!includeDraft && ' Daftar hanya memuat absensi kelas yang sudah dikirim — kelas yang absensinya masih draft atau belum diisi tidak tampil.'}
-        </>
-      }
-      action={
-        <div className="flex flex-wrap justify-center gap-2">
-          {!includeDraft && (
-            <Button variant="outline" size="sm" onClick={onIncludeDraft}>
-              Sertakan absensi draft
-            </Button>
-          )}
-          {filtered && (
-            <Button variant="outline" size="sm" onClick={onReset}>
-              Reset filter
-            </Button>
-          )}
-          <Button asChild size="sm" variant="ghost">
-            <Link to="/absensi-siswa">
-              <ClipboardList /> Buka absensi siswa
-            </Link>
-          </Button>
-        </div>
-      }
-    />
   )
 }

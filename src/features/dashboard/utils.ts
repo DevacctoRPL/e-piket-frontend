@@ -1,5 +1,5 @@
-import type { AttendanceSummaryCounts, PendingTask } from '@/types/entities'
 import { nowWallTime, wallTimeToMinutes } from '@/lib/date'
+import type { PendingTask } from '@/types/entities'
 
 /** Salam sesuai jam dinding sekolah. */
 export function greeting(now: Date = new Date()): string {
@@ -10,7 +10,6 @@ export function greeting(now: Date = new Date()): string {
   return 'Selamat malam'
 }
 
-/** Persentase bulat; null bila penyebut 0 (ditampilkan "—", bukan 0%). */
 export function percent(part: number, whole: number): number | null {
   if (whole <= 0) return null
   return Math.round((part / whole) * 100)
@@ -20,23 +19,8 @@ export function formatPercent(p: number | null): string {
   return p === null ? '—' : `${p}%`
 }
 
-/** Siswa hadir = Hadir + Terlambat (tetap hadir di kelas). */
-export function presentCount(c: AttendanceSummaryCounts) {
-  return c.PRESENT + c.LATE
-}
-
-/** Siswa yang sudah diberi status (dasar persentase kehadiran). */
-export function markedCount(c: AttendanceSummaryCounts) {
-  return Math.max(0, c.total - c.unmarked)
-}
-
-/** Urutan prioritas tugas: hal yang berdampak ke kelas berjalan ditampilkan lebih dulu. */
 export const TASK_PRIORITY: Record<PendingTask['kind'], number> = {
   SUBSTITUTION_UNHANDLED: 0,
-  DUTY_AGENDA_DRAFT: 1,
-  ATTENDANCE_NOT_SUBMITTED: 2,
-  CHECK_OUT_MISSING: 3,
-  TEACHING_LOG_MISSING: 4,
 }
 
 export function sortTasks(tasks: PendingTask[]): PendingTask[] {

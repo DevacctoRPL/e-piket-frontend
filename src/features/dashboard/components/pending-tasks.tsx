@@ -6,15 +6,7 @@ import {
   ChevronUp,
   CircleCheckBig,
   CircleDashed,
-  ClipboardList,
-  Clock3,
-  FilePen,
-  Filter,
   ListChecks,
-  LogOut,
-  MoreHorizontal,
-  NotebookPen,
-  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -26,16 +18,6 @@ import { RowActionsMenu } from '@/components/row-actions-menu'
 import { SearchField } from '@/components/search-field'
 import { ToneBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import type { Tone } from '@/lib/enums'
 import { cn } from '@/lib/utils'
 import type { PendingTask } from '@/types/entities'
@@ -50,7 +32,6 @@ interface KindMeta {
   priority: Priority
   assignee: string
   status: { label: string; tone: Tone; icon: LucideIcon }
-  /** Target penyelesaian (sintetis untuk demo — PRD §15.2). */
   target: string
   module: string
 }
@@ -58,53 +39,13 @@ interface KindMeta {
 const KIND_META: Record<PendingTask['kind'], KindMeta> = {
   SUBSTITUTION_UNHANDLED: {
     codePrefix: 'JMK',
-    label: 'Jam kosong',
+    label: 'Jam Kosong',
     icon: CalendarClock,
     priority: 'HIGH',
-    assignee: 'Petugas Piket',
-    status: { label: 'Belum tertangani', tone: 'danger', icon: CircleDashed },
-    target: 'Segera · < 15 mnt',
-    module: '/jam-kosong',
-  },
-  DUTY_AGENDA_DRAFT: {
-    codePrefix: 'PKT',
-    label: 'Agenda piket',
-    icon: ShieldCheck,
-    priority: 'HIGH',
     assignee: 'Guru Piket',
-    status: { label: 'Menunggu finalisasi', tone: 'warning', icon: FilePen },
-    target: 'Akhir shift',
-    module: '/agenda-piket',
-  },
-  ATTENDANCE_NOT_SUBMITTED: {
-    codePrefix: 'ABS',
-    label: 'Absensi siswa',
-    icon: ClipboardList,
-    priority: 'MEDIUM',
-    assignee: 'Piket Pengampu',
-    status: { label: 'Belum dikirim', tone: 'warning', icon: Clock3 },
-    target: 'Jam ke-2',
-    module: '/absensi-siswa',
-  },
-  CHECK_OUT_MISSING: {
-    codePrefix: 'CHK',
-    label: 'Check-out',
-    icon: LogOut,
-    priority: 'MEDIUM',
-    assignee: 'Kehadiran Guru',
-    status: { label: 'Belum check-out', tone: 'info', icon: Clock3 },
-    target: 'Hari H · 16.00',
+    status: { label: 'Belum ada pengganti', tone: 'danger', icon: CircleDashed },
+    target: 'Segera',
     module: '/absensi-guru',
-  },
-  TEACHING_LOG_MISSING: {
-    codePrefix: 'JRN',
-    label: 'Jurnal',
-    icon: NotebookPen,
-    priority: 'LOW',
-    assignee: 'Guru Mapel',
-    status: { label: 'Belum diisi', tone: 'neutral', icon: CircleDashed },
-    target: 'Hari H · 15.30',
-    module: '/jurnal-mengajar',
   },
 }
 
@@ -114,7 +55,6 @@ const PRIORITY: Record<Priority, { label: string; rank: number; bars: number; co
   LOW: { label: 'Rendah', rank: 1, bars: 1, color: 'bg-muted-foreground' },
 }
 
-/** Ikon sinyal 3 batang untuk prioritas (gaya tabel referensi). */
 function PriorityBars({ level }: { level: Priority }) {
   const p = PRIORITY[level]
   return (
@@ -130,7 +70,6 @@ function PriorityBars({ level }: { level: Priority }) {
   )
 }
 
-/** Kode baris stabil dari id tugas (tidak berubah saat diurutkan/difilter). */
 function taskCode(t: PendingTask) {
   let h = 0
   for (const ch of t.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0
@@ -140,7 +79,6 @@ function taskCode(t: PendingTask) {
 type SortField = 'code' | 'title' | 'priority' | 'status' | 'assignee'
 type SortDir = 'asc' | 'desc'
 
-/** Header kolom yang dapat diurutkan (komponen stabil agar fokus tidak hilang saat diklik). */
 function SortHead({
   dir,
   onToggle,
@@ -178,14 +116,9 @@ function SortHead({
 
 const COLLAPSED_LIMIT = 8
 
-/**
- * Tabel "Tugas yang perlu diselesaikan" (setara "SLA Monitoring" referensi Nuvio).
- * PRD §15.2: mencegah petugas lupa mengirim/finalisasi absensi, jam kosong, agenda, atau jurnal.
- */
-export function PendingTasks({ tasks }: { tasks: PendingTask[]; dateLabel?: string }) {
+export function PendingTasks({ tasks }: { tasks: PendingTask[] }) {
   const [expanded, setExpanded] = useState(false)
   const [search, setSearch] = useState('')
-  const [kindFilter, setKindFilter] = useState<PendingTask['kind'] | 'ALL'>('ALL')
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir } | null>(null)
 
   const toggleSort = (field: SortField) =>
@@ -221,20 +154,17 @@ export function PendingTasks({ tasks }: { tasks: PendingTask[]; dateLabel?: stri
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return sorted.filter((t) => {
-      if (kindFilter !== 'ALL' && t.kind !== kindFilter) return false
-      if (!q) return true
-      return (
+    if (!q) return sorted
+    return sorted.filter(
+      (t) =>
         t.title.toLowerCase().includes(q) ||
         t.description.toLowerCase().includes(q) ||
-        KIND_META[t.kind].label.toLowerCase().includes(q)
-      )
-    })
-  }, [sorted, search, kindFilter])
+        KIND_META[t.kind].label.toLowerCase().includes(q),
+    )
+  }, [sorted, search])
 
   const shown = expanded ? filtered : filtered.slice(0, COLLAPSED_LIMIT)
   const hidden = filtered.length - shown.length
-  const kinds = (Object.keys(KIND_META) as PendingTask['kind'][]).filter((k) => tasks.some((t) => t.kind === k))
 
   const headProps = (field: SortField) => ({
     dir: sort?.field === field ? sort.dir : null,
@@ -256,64 +186,13 @@ export function PendingTasks({ tasks }: { tasks: PendingTask[]; dateLabel?: stri
       }
       headerRight={
         tasks.length > 0 && (
-          <>
-            <SearchField
-              value={search}
-              onValueChange={setSearch}
-              placeholder="Cari tugas"
-              aria-label="Cari tugas tertunda"
-              className="w-40 sm:w-52"
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className={cn(kindFilter !== 'ALL' && 'border-foreground/30')}>
-                  <Filter className="text-muted-foreground" />
-                  {kindFilter === 'ALL' ? 'Filter' : KIND_META[kindFilter].label}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Kategori tugas</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={kindFilter}
-                  onValueChange={(v) => setKindFilter(v as PendingTask['kind'] | 'ALL')}
-                >
-                  <DropdownMenuRadioItem value="ALL">
-                    Semua kategori <span className="ml-auto text-xs text-muted-foreground tabular-nums">{tasks.length}</span>
-                  </DropdownMenuRadioItem>
-                  {kinds.map((k) => (
-                    <DropdownMenuRadioItem key={k} value={k}>
-                      {KIND_META[k].label}
-                      <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                        {tasks.filter((t) => t.kind === k).length}
-                      </span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Opsi tabel tugas">
-                  <MoreHorizontal />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setSearch('')
-                    setKindFilter('ALL')
-                    setSort(null)
-                  }}
-                >
-                  Reset pencarian &amp; urutan
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setExpanded((v) => !v)}>
-                  {expanded ? 'Ringkas daftar' : 'Tampilkan semua tugas'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
+          <SearchField
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Cari tugas"
+            aria-label="Cari tugas tertunda"
+            className="w-40 sm:w-56"
+          />
         )
       }
       bodyClassName="p-0 overflow-hidden"
@@ -324,12 +203,12 @@ export function PendingTasks({ tasks }: { tasks: PendingTask[]; dateLabel?: stri
             className="border-0 bg-transparent py-6"
             icon={<CircleCheckBig className="text-tone-success" />}
             title="Semua beres"
-            description="Tidak ada tugas tertunda untuk tanggal & shift ini."
+            description="Tidak ada jam kosong yang belum memiliki guru pengganti pada tanggal ini."
           />
         </div>
       ) : filtered.length === 0 ? (
         <p className="px-4 py-8 text-center text-xs text-muted-foreground">
-          Tidak ada tugas yang cocok dengan pencarian atau filter ini.
+          Tidak ada tugas yang cocok dengan pencarian ini.
         </p>
       ) : (
         <>
